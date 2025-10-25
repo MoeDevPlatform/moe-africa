@@ -9,7 +9,8 @@ import {
   ShoppingBag, 
   Menu, 
   X,
-  LogOut 
+  LogOut,
+  Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
@@ -27,6 +28,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Service Providers", href: "/admin/providers", icon: Users },
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
+    { name: "Media", href: "/admin/media", icon: Package },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
   ];
 

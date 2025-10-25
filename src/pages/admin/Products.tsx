@@ -2,18 +2,42 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Package } from "lucide-react";
+import { Plus, Search, Package, Eye, Edit, Trash2 } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import ProductForm from "@/components/admin/ProductForm";
+import { toast } from "sonner";
 
 const Products = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   const products = [
     {
@@ -72,6 +96,38 @@ const Products = () => {
     },
   ];
 
+  const handleCreate = () => {
+    setSelectedProduct(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (product: any) => {
+    setSelectedProduct(product);
+    setIsFormOpen(true);
+  };
+
+  const handleView = (product: any) => {
+    setSelectedProduct(product);
+    setIsDetailOpen(true);
+  };
+
+  const handleDelete = (product: any) => {
+    setSelectedProduct(product);
+    setIsDeleteOpen(true);
+  };
+
+  const handleSubmit = (data: any) => {
+    toast.success(selectedProduct ? "Product updated successfully" : "Product created successfully");
+    setIsFormOpen(false);
+    setSelectedProduct(null);
+  };
+
+  const confirmDelete = () => {
+    toast.success("Product deleted successfully");
+    setIsDeleteOpen(false);
+    setSelectedProduct(null);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -84,8 +140,14 @@ const Products = () => {
             <p className="mt-1 text-muted-foreground">
               Manage marketplace product listings
             </p>
+            <p className="text-xs text-muted-foreground/60 mt-1 font-mono">
+              GET /products
+            </p>
           </div>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-md hover:shadow-lg transition-all duration-300">
+          <Button 
+            onClick={handleCreate}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Product
           </Button>
@@ -102,74 +164,188 @@ const Products = () => {
           />
         </div>
 
-        {/* Products Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <Card
-              key={product.id}
-              className="overflow-hidden border-border bg-card shadow-sm transition-all duration-300 hover:shadow-md"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
+        {/* Products Table */}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                      <Package className="h-6 w-6 text-muted-foreground" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <Package className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-foreground line-clamp-1">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {product.provider}
-                      </p>
+                      <p className="font-medium text-foreground">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">ID: {product.id}</p>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Product</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="border-primary text-primary">
-                      {product.category}
-                    </Badge>
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {product.stock}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-2xl font-display font-bold text-foreground">
-                      {product.price}
-                    </p>
-                    <Badge
-                      variant={product.status === "active" ? "default" : "secondary"}
-                      className={
-                        product.status === "active"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-accent text-accent-foreground"
-                      }
+                </TableCell>
+                <TableCell>{product.provider}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="border-primary text-primary">
+                    {product.category}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-display font-bold">{product.price}</TableCell>
+                <TableCell className="text-muted-foreground text-sm">{product.stock}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={product.status === "active" ? "default" : "secondary"}
+                    className={
+                      product.status === "active"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-accent text-accent-foreground"
+                    }
+                  >
+                    {product.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleView(product)}
                     >
-                      {product.status}
-                    </Badge>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleEdit(product)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => handleDelete(product)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
+
+      {/* Form Sheet */}
+      <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {selectedProduct ? "Edit Product" : "Create New Product"}
+            </SheetTitle>
+            <SheetDescription>
+              {selectedProduct
+                ? "Update product information and settings"
+                : "Add a new product to the marketplace"}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <ProductForm
+              product={selectedProduct}
+              onSubmit={handleSubmit}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Detail Sheet */}
+      <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Product Details</SheetTitle>
+            <SheetDescription>
+              View complete product information
+            </SheetDescription>
+          </SheetHeader>
+          {selectedProduct && (
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-display font-bold">{selectedProduct.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedProduct.provider}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Price</p>
+                  <p className="text-2xl font-display font-bold mt-1">{selectedProduct.price}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Category</p>
+                  <Badge variant="outline" className="mt-1">
+                    {selectedProduct.category}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Stock</p>
+                  <p className="text-sm font-medium mt-1">{selectedProduct.stock}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
+                  <Badge
+                    variant={selectedProduct.status === "active" ? "default" : "secondary"}
+                    className="mt-1"
+                  >
+                    {selectedProduct.status}
+                  </Badge>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground font-mono pt-4 border-t">
+                GET /products/{selectedProduct.id}
+              </p>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedProduct?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          <p className="text-xs text-muted-foreground font-mono mt-4">
+            DELETE /products/{selectedProduct?.id}
+          </p>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
