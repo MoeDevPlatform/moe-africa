@@ -139,6 +139,11 @@ const ProductDetail = () => {
         open={showCustomizationForm}
         onOpenChange={setShowCustomizationForm}
         providerId={product.provider.id}
+        productId={product.id}
+        productName={product.name}
+        providerName={product.provider.brandName}
+        basePrice={product.priceRange.min}
+        estimatedDeliveryDays={product.estimatedDeliveryDays}
         category="tailoring"
       />
     </div>

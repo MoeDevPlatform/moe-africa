@@ -6,14 +6,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Trash2, Edit, Package } from "lucide-react";
 
 const Cart = () => {
-  // Mock cart items
+  // Mock cart items - API: GET /cart
   const cartItems = [
     {
       id: 1,
       productName: "Custom Ankara Jacket",
       providerName: "Ade Tailors",
-      customization: "Slim fit, Size L, Blue & Gold pattern",
-      price: 28000,
+      customization: {
+        size: "L",
+        bodyType: "Athletic",
+        variants: "Blue & Gold pattern, Premium Cotton",
+        measurements: "Chest: 95cm, Waist: 85cm",
+      },
+      basePrice: 25000,
+      customizationFee: 2500,
+      variantFee: 3000,
+      price: 30500,
       deliveryDays: 7,
       imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200",
     },
@@ -21,7 +29,15 @@ const Cart = () => {
       id: 2,
       productName: "Leather Brogues",
       providerName: "Royal Shoes",
-      customization: "Size 42, Brown leather",
+      customization: {
+        size: "42",
+        bodyType: "Average",
+        variants: "Brown leather, Traditional Style",
+        measurements: null,
+      },
+      basePrice: 32000,
+      customizationFee: 0,
+      variantFee: 3000,
       price: 35000,
       deliveryDays: 10,
       imageUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=200",
@@ -64,9 +80,31 @@ const Cart = () => {
                       
                       <div className="flex-1">
                         <h3 className="text-xl font-display font-semibold mb-1">{item.productName}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">by {item.providerName}</p>
-                        <p className="text-sm text-muted-foreground mb-3">{item.customization}</p>
-                        <p className="text-xs text-muted-foreground">Estimated delivery: ~{item.deliveryDays} days</p>
+                        <p className="text-sm text-muted-foreground mb-3">by {item.providerName}</p>
+                        
+                        <div className="space-y-1 mb-3">
+                          <p className="text-sm">
+                            <span className="text-muted-foreground">Size:</span> <strong>{item.customization.size}</strong>
+                            {" • "}
+                            <span className="text-muted-foreground">Body Type:</span> <strong>{item.customization.bodyType}</strong>
+                          </p>
+                          <p className="text-sm text-muted-foreground">{item.customization.variants}</p>
+                          {item.customization.measurements && (
+                            <p className="text-xs text-muted-foreground">{item.customization.measurements}</p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="px-2 py-1 bg-muted rounded">Base: ₦{item.basePrice.toLocaleString()}</span>
+                          {item.variantFee > 0 && (
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">Variants: +₦{item.variantFee.toLocaleString()}</span>
+                          )}
+                          {item.customizationFee > 0 && (
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">Custom: +₦{item.customizationFee.toLocaleString()}</span>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mt-2">Estimated delivery: ~{item.deliveryDays} days</p>
                       </div>
 
                       <div className="text-right space-y-4">

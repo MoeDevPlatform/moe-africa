@@ -220,6 +220,11 @@ const ProviderDetail = () => {
         open={showCustomizationForm}
         onOpenChange={setShowCustomizationForm}
         providerId={provider.id}
+        productId={0}
+        productName="Custom Order"
+        providerName={provider.brandName}
+        basePrice={25000}
+        estimatedDeliveryDays={provider.estimatedDeliveryDays}
         category="tailoring"
       />
     </div>
