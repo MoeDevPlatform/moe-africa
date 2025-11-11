@@ -8,64 +8,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 
 const ProviderDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
 
-  // Fetch provider - GET /service-providers/{id}
-  const { data: provider, isLoading: loadingProvider } = useQuery({
-    queryKey: ['service-provider', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('service_providers')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (error) throw error;
-      return {
-        id: data.id,
-        brandName: data.brand_name,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        about: data.bio,
-        city: data.address_city,
-        state: data.address_state,
-        phone: data.phone,
-        email: data.email,
-        rating: data.rating || 0,
-        reviewCount: data.review_count || 0,
-        verified: data.verified || false,
-        estimatedDeliveryDays: 7,
-        heroImage: data.logo_url || "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
-      };
-    },
-    enabled: !!id,
-  });
+  // Mock data - GET /service-providers/{id}
+  const provider = {
+    id: 1,
+    brandName: "Ade Tailors",
+    firstName: "Ade",
+    lastName: "Olu",
+    about: "With over 15 years of experience in traditional and modern African tailoring, Ade Tailors specializes in creating custom-made Ankara suits, dresses, and traditional attire. We use only premium fabrics sourced locally and internationally, ensuring each piece is unique and of the highest quality.",
+    city: "Ikeja",
+    state: "Lagos",
+    phone: "+2348000000000",
+    email: "ade@tailors.ng",
+    rating: 4.8,
+    reviewCount: 124,
+    verified: true,
+    estimatedDeliveryDays: 7,
+    heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
+  };
 
-  // Fetch products - GET /products?serviceProviderId={id}
-  const { data: products = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ['provider-products', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('service_provider_id', id)
-        .eq('status', 'active');
-      if (error) throw error;
-      return data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        currency: p.currency,
-        previewImageUrl: p.preview_image_url || "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400",
-      }));
+  // Mock data - GET /products?serviceProviderId={id}
+  const products = [
+    {
+      id: 101,
+      name: "Custom Ankara Jacket",
+      description: "Handmade fitted jacket from premium Ankara fabric",
+      price: 25000,
+      currency: "NGN",
+      previewImageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400",
     },
-    enabled: !!id,
-  });
+    {
+      id: 102,
+      name: "Traditional Agbada",
+      description: "Full traditional three-piece set with embroidery",
+      price: 45000,
+      currency: "NGN",
+      previewImageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400",
+    },
+    {
+      id: 103,
+      name: "Women's Ankara Dress",
+      description: "Elegant floor-length dress with custom fitting",
+      price: 30000,
+      currency: "NGN",
+      previewImageUrl: "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=400",
+    },
+  ];
 
   // Mock reviews
   const reviews = [
@@ -96,12 +88,7 @@ const ProviderDetail = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
-      {loadingProvider || !provider ? (
-        <div className="text-center py-12">
-          <p>{loadingProvider ? 'Loading...' : 'Provider not found'}</p>
-        </div>
-      ) : (
-        <main className="container mx-auto px-4 py-8">
+      <main>
         {/* Hero Banner */}
         <section className="relative h-80 bg-gradient-hero">
           <img 
@@ -225,25 +212,21 @@ const ProviderDetail = () => {
             </div>
           </div>
         </section>
-        </>
-      )}
       </main>
 
       <MarketplaceFooter />
-
-      {provider && (
-        <CustomizationFormModal
-          open={showCustomizationForm}
-          onOpenChange={setShowCustomizationForm}
-          providerId={Number(provider.id) || 0}
-          productId={0}
-          productName="Custom Order"
-          providerName={provider.brandName}
-          basePrice={25000}
-          estimatedDeliveryDays={provider.estimatedDeliveryDays}
-          category="tailoring"
-        />
-      )}
+      
+      <CustomizationFormModal
+        open={showCustomizationForm}
+        onOpenChange={setShowCustomizationForm}
+        providerId={provider.id}
+        productId={0}
+        productName="Custom Order"
+        providerName={provider.brandName}
+        basePrice={25000}
+        estimatedDeliveryDays={provider.estimatedDeliveryDays}
+        category="tailoring"
+      />
     </div>
   );
 };

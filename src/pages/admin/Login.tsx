@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
-import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,36 +17,16 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // Check if user has admin role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .eq('role', 'admin')
-        .single();
-
-      if (roleError || !roleData) {
-        await supabase.auth.signOut();
-        toast.error("Access denied. Admin privileges required.");
-        setIsLoading(false);
-        return;
+    // Simulate login
+    setTimeout(() => {
+      if (email && password) {
+        toast.success("Welcome back to MOE!");
+        navigate("/admin");
+      } else {
+        toast.error("Please enter your credentials");
       }
-
-      toast.success("Welcome back to MOE!");
-      navigate("/admin");
-    } catch (error: any) {
-      toast.error(error.message || "Login failed");
-    } finally {
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   return (
