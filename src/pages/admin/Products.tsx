@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package, Eye, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
@@ -38,63 +40,48 @@ const Products = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const queryClient = useQueryClient();
 
-  const products = [
-    {
-      id: 1,
-      name: "Custom Ankara Dress",
-      provider: "Adanna Fabrics",
-      category: "Clothing",
-      price: "₦45,000",
-      stock: "Made to Order",
-      status: "active",
+  // Fetch products with provider and category info
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['admin-products', searchQuery],
+    queryFn: async () => {
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          service_provider:service_providers(id, brand_name),
+          category:product_categories(id, name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      name: "Handcrafted Leather Bag",
-      provider: "Kola Leatherworks",
-      category: "Accessories",
-      price: "₦32,000",
-      stock: "Made to Order",
-      status: "active",
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
     },
-    {
-      id: 3,
-      name: "Traditional Wall Art",
-      provider: "Amara Crafts",
-      category: "Home Decor",
-      price: "₦18,000",
-      stock: "Made to Order",
-      status: "pending",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      toast.success("Product deleted successfully");
+      setIsDeleteOpen(false);
+      setSelectedProduct(null);
     },
-    {
-      id: 4,
-      name: "Custom Mahogany Table",
-      provider: "Eze Furniture",
-      category: "Furniture",
-      price: "₦125,000",
-      stock: "Made to Order",
-      status: "active",
+    onError: (error) => {
+      toast.error("Failed to delete product");
+      console.error(error);
     },
-    {
-      id: 5,
-      name: "Beaded Jewelry Set",
-      provider: "Amara Crafts",
-      category: "Accessories",
-      price: "₦15,000",
-      stock: "Made to Order",
-      status: "active",
-    },
-    {
-      id: 6,
-      name: "Bespoke Leather Shoes",
-      provider: "Kola Leatherworks",
-      category: "Footwear",
-      price: "₦55,000",
-      stock: "Made to Order",
-      status: "active",
-    },
-  ];
+  });
 
   const handleCreate = () => {
     setSelectedProduct(null);
@@ -116,16 +103,33 @@ const Products = () => {
     setIsDeleteOpen(true);
   };
 
-  const handleSubmit = (data: any) => {
-    toast.success(selectedProduct ? "Product updated successfully" : "Product created successfully");
-    setIsFormOpen(false);
-    setSelectedProduct(null);
+  const handleSubmit = async (data: any) => {
+    try {
+      if (selectedProduct) {
+        const { error } = await supabase
+          .from('products')
+          .update(data)
+          .eq('id', selectedProduct.id);
+        if (error) throw error;
+        toast.success("Product updated successfully");
+      } else {
+        const { error } = await supabase.from('products').insert(data);
+        if (error) throw error;
+        toast.success("Product created successfully");
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      setIsFormOpen(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      toast.error("Operation failed");
+      console.error(error);
+    }
   };
 
   const confirmDelete = () => {
-    toast.success("Product deleted successfully");
-    setIsDeleteOpen(false);
-    setSelectedProduct(null);
+    if (selectedProduct) {
+      deleteMutation.mutate(selectedProduct.id);
+    }
   };
 
   return (
@@ -164,85 +168,105 @@ const Products = () => {
           />
         </div>
 
-        {/* Products Table */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Provider</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <Package className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">ID: {product.id}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{product.provider}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="border-primary text-primary">
-                    {product.category}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-display font-bold">{product.price}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">{product.stock}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={product.status === "active" ? "default" : "secondary"}
-                    className={
-                      product.status === "active"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-accent text-accent-foreground"
-                    }
-                  >
-                    {product.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleView(product)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(product)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(product)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        {/* Products Table - Responsive */}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="hidden md:table-cell">Provider</TableHead>
+                <TableHead className="hidden lg:table-cell">Category</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead className="hidden sm:table-cell">Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    Loading products...
+                  </TableCell>
+                </TableRow>
+              ) : products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    No products found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map((product: any) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{product.name}</p>
+                          <p className="text-xs text-muted-foreground md:hidden">
+                            {product.service_provider?.brand_name}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {product.service_provider?.brand_name || 'N/A'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <Badge variant="outline" className="border-primary text-primary">
+                        {product.category?.name || 'Uncategorized'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-display font-bold whitespace-nowrap">
+                      {product.currency === "NGN" ? "₦" : "$"}{product.price?.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge
+                        variant={product.status === "active" ? "default" : "secondary"}
+                        className={
+                          product.status === "active"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-accent text-accent-foreground"
+                        }
+                      >
+                        {product.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleView(product)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(product)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => handleDelete(product)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Form Sheet */}

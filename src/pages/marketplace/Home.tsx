@@ -6,64 +6,57 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const MarketplaceHome = () => {
   const [priceRange, setPriceRange] = useState([0, 500000]);
 
-  const categories = [
-    { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
-    { id: "shoemaking", name: "Shoemaking", icon: Footprints, count: 89 },
-    { id: "accessories", name: "Accessories", icon: Gem, count: 234 },
-    { id: "furniture", name: "Furniture", icon: Sofa, count: 67 },
-    { id: "art", name: "Art & Crafts", icon: Palette, count: 145 },
-    { id: "other", name: "Other", icon: Package, count: 78 },
-  ];
+  // Fetch service categories - GET /service-categories
+  const { data: serviceCategories = [] } = useQuery({
+    queryKey: ['service-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_categories')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  // Mock data - GET /service-providers
-  const providers = [
-    {
-      id: 1,
-      brandName: "Ade Tailors",
-      firstName: "Ade",
-      lastName: "Olu",
-      about: "Custom Ankara suits and dresses with premium fabrics.",
-      city: "Lagos",
-      state: "Lagos",
-      rating: 4.8,
-      reviewCount: 124,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400",
-      featuredProducts: 3,
+  // Fetch service providers - GET /service-providers
+  const { data: providers = [], isLoading } = useQuery({
+    queryKey: ['service-providers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_providers')
+        .select('*')
+        .eq('enabled', true)
+        .order('rating', { ascending: false });
+      if (error) throw error;
+      return data.map((provider: any) => ({
+        id: provider.id,
+        brandName: provider.brand_name,
+        about: provider.bio || '',
+        city: provider.address_city,
+        state: provider.address_state,
+        rating: provider.rating || 0,
+        reviewCount: provider.review_count || 0,
+        verified: provider.verified || false,
+        logoUrl: provider.logo_url || '',
+        featuredProducts: 0,
+      }));
     },
-    {
-      id: 2,
-      brandName: "Royal Shoes",
-      firstName: "Chidi",
-      lastName: "Okafor",
-      about: "Handcrafted leather shoes for the modern African.",
-      city: "Abuja",
-      state: "FCT",
-      rating: 4.9,
-      reviewCount: 98,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400",
-      featuredProducts: 5,
-    },
-    {
-      id: 3,
-      brandName: "Kente Kreations",
-      firstName: "Ama",
-      lastName: "Mensah",
-      about: "Traditional Ghanaian kente cloth and accessories.",
-      city: "Port Harcourt",
-      state: "Rivers",
-      rating: 4.7,
-      reviewCount: 76,
-      verified: false,
-      logoUrl: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=400",
-      featuredProducts: 8,
-    },
-  ];
+  });
+
+  const categoryIcons: any = {
+    Tailoring: Shirt,
+    Shoemaking: Footprints,
+    Accessories: Gem,
+    Furniture: Sofa,
+    Art: Palette,
+  };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -73,17 +66,17 @@ const MarketplaceHome = () => {
         {/* Categories Section - GET /service-categories */}
         <section className="mb-12">
           <h2 className="text-2xl font-display font-bold mb-6">Browse by Service</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category) => {
-              const Icon = category.icon;
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+            {serviceCategories.map((category: any) => {
+              const Icon = categoryIcons[category.name] || Package;
               return (
                 <button
                   key={category.id}
-                  className="p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
+                  className="p-4 sm:p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
                 >
-                  <Icon className="h-8 w-8 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
-                  <p className="font-medium text-sm mb-1">{category.name}</p>
-                  <p className="text-xs text-muted-foreground">{category.count} artisans</p>
+                  <Icon className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary group-hover:scale-110 transition-transform" />
+                  <p className="font-medium text-xs sm:text-sm mb-1 truncate">{category.name}</p>
+                  <p className="text-xs text-muted-foreground">View artisans</p>
                 </button>
               );
             })}

@@ -3,7 +3,9 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, MoreVertical, FolderTree } from "lucide-react";
+import { Plus, Search, FolderTree } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +16,35 @@ import {
 const Categories = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories = [
-    { id: 1, name: "Tailoring", products: 45, icon: "👔", color: "bg-primary/10" },
-    { id: 2, name: "Leather Goods", products: 32, icon: "👜", color: "bg-secondary/10" },
-    { id: 3, name: "Home Decor", products: 58, icon: "🏺", color: "bg-accent/10" },
-    { id: 4, name: "Furniture", products: 27, icon: "🪑", color: "bg-primary/10" },
-    { id: 5, name: "Accessories", products: 64, icon: "💍", color: "bg-secondary/10" },
-    { id: 6, name: "Footwear", products: 38, icon: "👞", color: "bg-accent/10" },
-  ];
+  // Fetch service categories
+  const { data: serviceCategories = [], isLoading: loadingService } = useQuery({
+    queryKey: ['service-categories', searchQuery],
+    queryFn: async () => {
+      let query = supabase.from('service_categories').select('*').order('name');
+      if (searchQuery) {
+        query = query.ilike('name', `%${searchQuery}%`);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch product categories
+  const { data: productCategories = [], isLoading: loadingProduct } = useQuery({
+    queryKey: ['product-categories', searchQuery],
+    queryFn: async () => {
+      let query = supabase.from('product_categories').select('*').order('name');
+      if (searchQuery) {
+        query = query.ilike('name', `%${searchQuery}%`);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const isLoading = loadingService || loadingProduct;
 
   return (
     <AdminLayout>
@@ -33,7 +56,7 @@ const Categories = () => {
               Categories
             </h1>
             <p className="mt-1 text-muted-foreground">
-              Organize products into categories
+              Service and product category management
             </p>
           </div>
           <Button className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-md hover:shadow-lg transition-all duration-300">
@@ -53,46 +76,74 @@ const Categories = () => {
           />
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {categories.map((category) => (
-            <Card
-              key={category.id}
-              className="overflow-hidden border-border bg-card shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer group"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${category.color} text-3xl transition-transform duration-300 group-hover:scale-110`}>
-                      {category.icon}
+        {/* Service Categories Section */}
+        <div>
+          <h2 className="text-xl font-display font-semibold mb-4">Service Categories</h2>
+          {isLoading ? (
+            <p className="text-center py-8">Loading categories...</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {serviceCategories.map((category: any) => (
+                <Card
+                  key={category.id}
+                  className="overflow-hidden border-border bg-card shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer group"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl transition-transform duration-300 group-hover:scale-110">
+                          <FolderTree className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-semibold text-foreground truncate">
+                            {category.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {category.description || 'No description'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {category.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {category.products} products
-                      </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Product Categories Section */}
+        <div>
+          <h2 className="text-xl font-display font-semibold mb-4">Product Categories</h2>
+          {isLoading ? (
+            <p className="text-center py-8">Loading categories...</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {productCategories.map((category: any) => (
+                <Card
+                  key={category.id}
+                  className="overflow-hidden border-border bg-card shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer group"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/10 text-2xl transition-transform duration-300 group-hover:scale-110">
+                          <FolderTree className="h-6 w-6 text-secondary" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-semibold text-foreground truncate">
+                            {category.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {category.description || 'No description'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Products</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Category</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

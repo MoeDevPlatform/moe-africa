@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,50 +47,46 @@ const Providers = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const queryClient = useQueryClient();
 
-  const providers = [
-    {
-      id: 1,
-      name: "Adanna Fabrics",
-      category: "Tailoring",
-      location: "Lagos, Nigeria",
-      rating: 4.8,
-      products: 34,
-      status: "active",
-      avatar: "AF",
+  // Fetch providers
+  const { data: providers = [], isLoading } = useQuery({
+    queryKey: ['admin-providers', searchQuery],
+    queryFn: async () => {
+      let query = supabase
+        .from('service_providers')
+        .select(`
+          *,
+          service_category:service_categories(id, name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (searchQuery) {
+        query = query.or(`brand_name.ilike.%${searchQuery}%,address_city.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      name: "Kola Leatherworks",
-      category: "Leather Goods",
-      location: "Ibadan, Nigeria",
-      rating: 4.9,
-      products: 28,
-      status: "active",
-      avatar: "KL",
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('service_providers').delete().eq('id', id);
+      if (error) throw error;
     },
-    {
-      id: 3,
-      name: "Amara Crafts",
-      category: "Home Decor",
-      location: "Abuja, Nigeria",
-      rating: 4.7,
-      products: 41,
-      status: "pending",
-      avatar: "AC",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-providers'] });
+      toast.success("Provider deleted successfully");
+      setIsDeleteOpen(false);
+      setSelectedProvider(null);
     },
-    {
-      id: 4,
-      name: "Eze Furniture",
-      category: "Furniture",
-      location: "Port Harcourt, Nigeria",
-      rating: 4.6,
-      products: 19,
-      status: "active",
-      avatar: "EF",
+    onError: () => {
+      toast.error("Failed to delete provider");
     },
-  ];
+  });
 
   const handleCreate = () => {
     setSelectedProvider(null);
@@ -110,18 +108,33 @@ const Providers = () => {
     setIsDeleteOpen(true);
   };
 
-  const handleSubmit = (data: any) => {
-    // API call would go here
-    toast.success(selectedProvider ? "Provider updated successfully" : "Provider created successfully");
-    setIsFormOpen(false);
-    setSelectedProvider(null);
+  const handleSubmit = async (data: any) => {
+    try {
+      if (selectedProvider) {
+        const { error } = await supabase
+          .from('service_providers')
+          .update(data)
+          .eq('id', selectedProvider.id);
+        if (error) throw error;
+        toast.success("Provider updated successfully");
+      } else {
+        const { error } = await supabase.from('service_providers').insert(data);
+        if (error) throw error;
+        toast.success("Provider created successfully");
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin-providers'] });
+      setIsFormOpen(false);
+      setSelectedProvider(null);
+    } catch (error) {
+      toast.error("Operation failed");
+      console.error(error);
+    }
   };
 
   const confirmDelete = () => {
-    // API call would go here
-    toast.success("Provider deleted successfully");
-    setIsDeleteOpen(false);
-    setSelectedProvider(null);
+    if (selectedProvider) {
+      deleteMutation.mutate(selectedProvider.id);
+    }
   };
 
   return (
@@ -162,90 +175,106 @@ const Providers = () => {
           </div>
         </div>
 
-        {/* Table View */}
-        <Card className="border-border bg-card">
+        {/* Table View - Responsive */}
+        <Card className="border-border bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Provider</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Products</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="hidden md:table-cell">Category</TableHead>
+                <TableHead className="hidden lg:table-cell">Location</TableHead>
+                <TableHead className="hidden sm:table-cell">Rating</TableHead>
+                <TableHead className="hidden xl:table-cell">Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {providers.map((provider) => (
-                <TableRow key={provider.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-warm text-sm font-bold text-primary-foreground">
-                        {provider.avatar}
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{provider.name}</p>
-                        <p className="text-xs text-muted-foreground">ID: {provider.id}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{provider.category}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      {provider.location}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-accent text-accent" />
-                      <span>{provider.rating}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{provider.products}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={provider.status === "active" ? "default" : "secondary"}
-                      className={
-                        provider.status === "active"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-accent text-accent-foreground"
-                      }
-                    >
-                      {provider.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleView(provider)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(provider)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => handleDelete(provider)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading providers...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : providers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    No providers found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                providers.map((provider: any) => (
+                  <TableRow key={provider.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-warm text-sm font-bold text-primary-foreground">
+                          {provider.brand_name?.substring(0, 2).toUpperCase() || "??"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{provider.brand_name}</p>
+                          <p className="text-xs text-muted-foreground md:hidden">
+                            {provider.address_city}, {provider.address_state}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {provider.service_category?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {provider.address_city}, {provider.address_state}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-accent text-accent" />
+                        <span>{provider.rating || 0}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <Badge
+                        variant={provider.enabled ? "default" : "secondary"}
+                        className={
+                          provider.enabled
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-accent text-accent-foreground"
+                        }
+                      >
+                        {provider.enabled ? 'active' : 'inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleView(provider)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(provider)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => handleDelete(provider)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Card>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
@@ -7,40 +7,70 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Star, Truck, Shield, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
 
-  // Mock data - GET /products/{id}
-  const product = {
-    id: 101,
-    name: "Custom Ankara Jacket",
-    description: "This handmade fitted jacket is crafted from premium Ankara fabric sourced directly from local markets. Each piece is unique and made to order based on your exact specifications. Perfect for both casual and formal occasions, combining traditional African patterns with modern tailoring techniques.",
-    priceRange: { min: 25000, max: 35000 },
-    currency: "NGN",
-    estimatedDeliveryDays: 7,
-    materials: "100% Cotton Ankara Fabric",
-    tags: ["Afrocentric", "Modern", "Custom Fit"],
-    images: [
-      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800",
-      "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=800",
-      "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=800",
-    ],
-    provider: {
-      id: 1,
-      brandName: "Ade Tailors",
-      city: "Lagos",
-      rating: 4.8,
+  // Fetch product - GET /products/{id}
+  const { data: product, isLoading } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          service_provider:service_providers(id, brand_name, address_city, rating)
+        `)
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      
+      const images = data.media_urls && data.media_urls.length > 0 
+        ? data.media_urls 
+        : [data.preview_image_url || "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800"];
+
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        priceRange: { 
+          min: data.price_min || data.price, 
+          max: data.price_max || data.price 
+        },
+        currency: data.currency,
+        estimatedDeliveryDays: data.estimated_delivery_days || 7,
+        materials: "Premium Materials",
+        tags: ["Custom Made", "High Quality"],
+        images,
+        provider: {
+          id: data.service_provider.id,
+          brandName: data.service_provider.brand_name,
+          city: data.service_provider.address_city,
+          rating: data.service_provider.rating || 0,
+        },
+      };
     },
-  };
+    enabled: !!id,
+  });
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p>Loading...</p>
+          </div>
+        ) : !product ? (
+          <div className="text-center py-12">
+            <p>Product not found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div>
             <Carousel className="w-full">
@@ -130,22 +160,25 @@ const ProductDetail = () => {
               Customize This Product
             </Button>
           </div>
-        </div>
+          </div>
+        )}
       </main>
 
       <MarketplaceFooter />
       
-      <CustomizationFormModal
+      {product && (
+        <CustomizationFormModal
         open={showCustomizationForm}
         onOpenChange={setShowCustomizationForm}
-        providerId={product.provider.id}
-        productId={product.id}
-        productName={product.name}
-        providerName={product.provider.brandName}
-        basePrice={product.priceRange.min}
-        estimatedDeliveryDays={product.estimatedDeliveryDays}
+        providerId={Number(id) || 0}
+        productId={Number(id) || 0}
+        productName={product?.name || ''}
+        providerName={product?.provider.brandName || ''}
+        basePrice={product?.priceRange.min || 0}
+        estimatedDeliveryDays={product?.estimatedDeliveryDays || 7}
         category="tailoring"
-      />
+        />
+      )}
     </div>
   );
 };
