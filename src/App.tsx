@@ -11,11 +11,13 @@ import Products from "./pages/admin/Products";
 import Categories from "./pages/admin/Categories";
 import Orders from "./pages/admin/Orders";
 import Media from "./pages/admin/Media";
+import CustomOrders from "./pages/admin/CustomOrders";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/marketplace/Landing";
 import MarketplaceHome from "./pages/marketplace/Home";
 import ProviderDetail from "./pages/marketplace/ProviderDetail";
 import ProductDetail from "./pages/marketplace/ProductDetail";
+import CategoryProviders from "./pages/marketplace/CategoryProviders";
 import Cart from "./pages/marketplace/Cart";
 import Checkout from "./pages/marketplace/Checkout";
 import Auth from "./pages/Auth";
@@ -34,6 +36,7 @@ const App = () => (
           
           {/* Marketplace Routes */}
           <Route path="/marketplace" element={<MarketplaceHome />} />
+          <Route path="/marketplace/category/:categoryId" element={<CategoryProviders />} />
           <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
           <Route path="/marketplace/product/:id" element={<ProductDetail />} />
           <Route path="/marketplace/cart" element={<Cart />} />
@@ -47,6 +50,7 @@ const App = () => (
           <Route path="/admin/categories" element={<Categories />} />
           <Route path="/admin/media" element={<Media />} />
           <Route path="/admin/orders" element={<Orders />} />
+          <Route path="/admin/custom-orders" element={<CustomOrders />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
