@@ -1,94 +1,120 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
+import RecommendedArtisans from "@/components/marketplace/sections/RecommendedArtisans";
+import RecentlyViewed from "@/components/marketplace/sections/RecentlyViewed";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
 
 const MarketplaceHome = () => {
+  const navigate = useNavigate();
   const [priceRange, setPriceRange] = useState([0, 500000]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const categories = [
-    { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
-    { id: "shoemaking", name: "Shoemaking", icon: Footprints, count: 89 },
-    { id: "accessories", name: "Accessories", icon: Gem, count: 234 },
-    { id: "furniture", name: "Furniture", icon: Sofa, count: 67 },
-    { id: "art", name: "Art & Crafts", icon: Palette, count: 145 },
-    { id: "other", name: "Other", icon: Package, count: 78 },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch service categories
+      const { data: categoryData } = await supabase
+        .from("service_categories")
+        .select("*")
+        .order("name");
 
-  // Mock data - GET /service-providers
-  const providers = [
-    {
-      id: 1,
-      brandName: "Ade Tailors",
-      firstName: "Ade",
-      lastName: "Olu",
-      about: "Custom Ankara suits and dresses with premium fabrics.",
-      city: "Lagos",
-      state: "Lagos",
-      rating: 4.8,
-      reviewCount: 124,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400",
-      featuredProducts: 3,
-    },
-    {
-      id: 2,
-      brandName: "Royal Shoes",
-      firstName: "Chidi",
-      lastName: "Okafor",
-      about: "Handcrafted leather shoes for the modern African.",
-      city: "Abuja",
-      state: "FCT",
-      rating: 4.9,
-      reviewCount: 98,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400",
-      featuredProducts: 5,
-    },
-    {
-      id: 3,
-      brandName: "Kente Kreations",
-      firstName: "Ama",
-      lastName: "Mensah",
-      about: "Traditional Ghanaian kente cloth and accessories.",
-      city: "Port Harcourt",
-      state: "Rivers",
-      rating: 4.7,
-      reviewCount: 76,
-      verified: false,
-      logoUrl: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=400",
-      featuredProducts: 8,
-    },
-  ];
+      if (categoryData) {
+        const iconMap: Record<string, any> = {
+          tailoring: Shirt,
+          shoemaking: Footprints,
+          accessories: Gem,
+          furniture: Sofa,
+          art: Palette,
+        };
+
+        setCategories(
+          categoryData.map(cat => ({
+            id: cat.id,
+            name: cat.name,
+            icon: iconMap[cat.name.toLowerCase()] || Package,
+            count: 0,
+          }))
+        );
+      }
+
+      // Fetch featured providers
+      const { data: providerData } = await supabase
+        .from("service_providers")
+        .select("*")
+        .eq("enabled", true)
+        .order("rating", { ascending: false })
+        .limit(6);
+
+      if (providerData) {
+        setProviders(
+          providerData.map(p => ({
+            id: Number(p.id),
+            brandName: p.brand_name,
+            about: p.bio || "",
+            city: p.address_city || "",
+            state: p.address_state || "",
+            rating: p.rating || 0,
+            reviewCount: p.review_count || 0,
+            verified: p.verified || false,
+            logoUrl: p.logo_url || "",
+            featuredProducts: 0,
+          }))
+        );
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Categories Section - GET /service-categories */}
+        {/* Categories Section */}
         <section className="mb-12">
-          <h2 className="text-2xl font-display font-bold mb-6">Browse by Service</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category) => {
-              const Icon = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  className="p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
-                >
-                  <Icon className="h-8 w-8 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
-                  <p className="font-medium text-sm mb-1">{category.name}</p>
-                  <p className="text-xs text-muted-foreground">{category.count} artisans</p>
-                </button>
-              );
-            })}
-          </div>
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-6">Browse by Service</h2>
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {categories.map((category) => {
+                const Icon = category.icon;
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => navigate(`/marketplace/category/${category.id}`)}
+                    className="p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
+                  >
+                    <Icon className="h-8 w-8 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
+                    <p className="font-medium text-sm mb-1">{category.name}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
+
+        {/* Recommended Artisans */}
+        <RecommendedArtisans />
+
+        {/* Recently Viewed */}
+        <RecentlyViewed />
 
         {/* Filters */}
         <section className="mb-8">
