@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle2, Package } from "lucide-react";
 
-export interface Provider {
+interface Provider {
   id: number;
   brandName: string;
   about: string;
@@ -14,7 +14,7 @@ export interface Provider {
   reviewCount: number;
   verified: boolean;
   logoUrl: string;
-  featuredProducts?: number;
+  featuredProducts: number;
 }
 
 interface ProviderCardProps {
