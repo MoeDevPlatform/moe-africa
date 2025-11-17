@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
+import CustomOrderModal from "@/components/marketplace/CustomOrderModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock } from "lucide-r
 const ProviderDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
+  const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
 
   // Mock data - GET /service-providers/{id}
   const provider = {
@@ -29,7 +31,17 @@ const ProviderDetail = () => {
     verified: true,
     estimatedDeliveryDays: 7,
     heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
+    customOrdersEnabled: true, // Admin-controlled toggle
   };
+
+  useEffect(() => {
+    // Track viewed provider
+    const viewed = JSON.parse(localStorage.getItem("recentlyViewed") || "[]");
+    if (!viewed.includes(provider.id)) {
+      viewed.unshift(provider.id);
+      localStorage.setItem("recentlyViewed", JSON.stringify(viewed.slice(0, 10)));
+    }
+  }, [provider.id]);
 
   // Mock data - GET /products?serviceProviderId={id}
   const products = [
@@ -205,9 +217,14 @@ const ProviderDetail = () => {
                     <span>{provider.city}, {provider.state}</span>
                   </div>
                 </div>
-                <Button className="w-full mt-6" onClick={() => setShowCustomizationForm(true)}>
-                  Start Custom Order
-                </Button>
+                {provider.customOrdersEnabled && (
+                  <Button 
+                    className="w-full mt-6 bg-secondary hover:bg-secondary-dark" 
+                    onClick={() => setShowCustomOrderModal(true)}
+                  >
+                    Start Custom Order
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -216,6 +233,13 @@ const ProviderDetail = () => {
 
       <MarketplaceFooter />
       
+      <CustomOrderModal
+        open={showCustomOrderModal}
+        onOpenChange={setShowCustomOrderModal}
+        providerId={provider.id}
+        providerName={provider.brandName}
+      />
+
       <CustomizationFormModal
         open={showCustomizationForm}
         onOpenChange={setShowCustomizationForm}

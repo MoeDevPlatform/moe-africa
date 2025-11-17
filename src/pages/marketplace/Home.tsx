@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
+import ProductCard from "@/components/marketplace/ProductCard";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
+import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
 
 const MarketplaceHome = () => {
+  const navigate = useNavigate();
   const [priceRange, setPriceRange] = useState([0, 500000]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
 
   const categories = [
     { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
@@ -65,6 +70,28 @@ const MarketplaceHome = () => {
     },
   ];
 
+  // Mock products for new sections - GET /products
+  const dealProducts = [
+    { id: 201, name: "Summer Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28 },
+    { id: 202, name: "Leather Sandals", price: 12000, originalPrice: 15000, imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400", providerId: 2, discount: 20 },
+    { id: 203, name: "Hand-woven Basket", price: 8000, originalPrice: 12000, imageUrl: "https://images.unsplash.com/photo-1590736969955-71cc94901144?w=400", providerId: 3, discount: 33 },
+  ];
+
+  const styleProducts = [
+    { id: 204, name: "Modern Kaftan", price: 28000, imageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", providerId: 1, tag: "Modern" },
+    { id: 205, name: "Traditional Beaded Necklace", price: 15000, imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400", providerId: 3, tag: "Afrocentric" },
+  ];
+
+  useEffect(() => {
+    // Load recently viewed from localStorage
+    const viewed = localStorage.getItem("recentlyViewed");
+    if (viewed) setRecentlyViewed(JSON.parse(viewed));
+  }, []);
+
+  const filteredProviders = selectedCategory 
+    ? providers.filter(p => p.id.toString() === selectedCategory)
+    : providers;
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
@@ -72,18 +99,22 @@ const MarketplaceHome = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Categories Section - GET /service-categories */}
         <section className="mb-12">
-          <h2 className="text-2xl font-display font-bold mb-6">Browse by Service</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-6">Browse by Service</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
             {categories.map((category) => {
               const Icon = category.icon;
+              const isSelected = selectedCategory === category.id;
               return (
                 <button
                   key={category.id}
-                  className="p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
+                  onClick={() => setSelectedCategory(isSelected ? null : category.id)}
+                  className={`p-4 md:p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group ${
+                    isSelected ? "border-primary shadow-md bg-primary/5" : ""
+                  }`}
                 >
-                  <Icon className="h-8 w-8 mx-auto mb-3 text-primary group-hover:scale-110 transition-transform" />
-                  <p className="font-medium text-sm mb-1">{category.name}</p>
-                  <p className="text-xs text-muted-foreground">{category.count} artisans</p>
+                  <Icon className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-2 md:mb-3 text-primary group-hover:scale-110 transition-transform" />
+                  <p className="font-medium text-xs md:text-sm mb-1">{category.name}</p>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">{category.count} artisans</p>
                 </button>
               );
             })}
@@ -170,11 +201,13 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Recommended Providers - GET /service-providers */}
-        <section>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-display font-bold">Recommended Artisans</h2>
+        <section className="mb-16">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h2 className="text-2xl md:text-3xl font-display font-bold">
+              {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
+            </h2>
             <Select defaultValue="featured">
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -185,12 +218,87 @@ const MarketplaceHome = () => {
             </Select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {providers.map((provider) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {filteredProviders.map((provider) => (
               <ProviderCard key={provider.id} provider={provider} />
             ))}
           </div>
         </section>
+
+        {/* Services For You */}
+        <section className="mb-16">
+          <div className="flex items-center gap-2 mb-6">
+            <Shirt className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl md:text-3xl font-display font-bold">Services For You</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {providers.slice(0, 3).map((provider) => (
+              <ProviderCard key={provider.id} provider={provider} />
+            ))}
+          </div>
+        </section>
+
+        {/* Deals For You */}
+        <section className="mb-16">
+          <div className="flex items-center gap-2 mb-6">
+            <Tag className="h-6 w-6 text-accent" />
+            <h2 className="text-2xl md:text-3xl font-display font-bold">Deals For You</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            {dealProducts.map((product) => (
+              <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
+                <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                  <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <Badge className="absolute top-3 right-3 bg-accent text-accent-foreground">
+                    {product.discount}% OFF
+                  </Badge>
+                </div>
+                <h3 className="font-semibold mb-1">{product.name}</h3>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-primary">₦{product.price.toLocaleString()}</span>
+                  <span className="text-sm text-muted-foreground line-through">₦{product.originalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Styles For You */}
+        <section className="mb-16">
+          <div className="flex items-center gap-2 mb-6">
+            <Palette className="h-6 w-6 text-secondary" />
+            <h2 className="text-2xl md:text-3xl font-display font-bold">Styles For You</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {styleProducts.map((product) => (
+              <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
+                <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                  <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <Badge className="absolute bottom-3 left-3" variant="secondary">
+                    {product.tag}
+                  </Badge>
+                </div>
+                <h3 className="font-semibold mb-1 text-sm md:text-base">{product.name}</h3>
+                <span className="font-bold text-primary">₦{product.price.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Recently Viewed */}
+        {recentlyViewed.length > 0 && (
+          <section className="mb-16">
+            <div className="flex items-center gap-2 mb-6">
+              <Clock className="h-6 w-6 text-muted-foreground" />
+              <h2 className="text-2xl md:text-3xl font-display font-bold">Recently Viewed</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {providers.filter(p => recentlyViewed.includes(p.id)).slice(0, 3).map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       <MarketplaceFooter />

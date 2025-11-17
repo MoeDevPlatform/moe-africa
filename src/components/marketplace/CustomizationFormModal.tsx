@@ -9,6 +9,7 @@ import SizeSelectionStep from "./customization/SizeSelectionStep";
 import BodyTypeSelectionStep from "./customization/BodyTypeSelectionStep";
 import MeasurementStep from "./customization/MeasurementStep";
 import PricingSidebar from "./customization/PricingSidebar";
+import ReviewStep from "./customization/ReviewStep";
 
 interface CustomizationFormModalProps {
   open: boolean;
@@ -51,7 +52,7 @@ const CustomizationFormModal = ({
   const [notes, setNotes] = useState("");
   const { toast } = useToast();
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (step / totalSteps) * 100;
 
   // Calculate dynamic pricing
@@ -90,7 +91,8 @@ const CustomizationFormModal = ({
     "Customize Product",
     "Select Size",
     "Body Type",
-    "Measurements & Details"
+    "Measurements & Details",
+    "Review & Add to Cart"
   ];
 
   return (
@@ -144,6 +146,18 @@ const CustomizationFormModal = ({
                   onMeasurementChange={handleMeasurementChange}
                   notes={notes}
                   onNotesChange={setNotes}
+                />
+              )}
+
+              {step === 5 && (
+                <ReviewStep
+                  selectedVariants={selectedVariants}
+                  selectedSize={selectedSize}
+                  selectedBodyType={selectedBodyType}
+                  measurements={measurements}
+                  notes={notes}
+                  variants={mockVariants}
+                  basePrice={basePrice}
                 />
               )}
             </div>
