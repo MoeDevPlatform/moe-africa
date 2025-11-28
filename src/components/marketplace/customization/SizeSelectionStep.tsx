@@ -15,15 +15,15 @@ interface SizeSelectionStepProps {
 
 const SizeSelectionStep = ({ selectedSize, onSizeSelect, onNeedHelp }: SizeSelectionStepProps) => {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h3 className="text-xl font-display font-semibold mb-2">Select Your Size</h3>
-        <p className="text-muted-foreground">Choose a standard size or get personalized measurements.</p>
+        <h3 className="text-lg font-display font-semibold mb-1">Select Your Size</h3>
+        <p className="text-sm text-muted-foreground">Choose a standard size or get personalized measurements.</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-base">Standard Sizes</Label>
+          <Label className="text-sm font-medium">Standard Sizes</Label>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2">
@@ -66,16 +66,17 @@ const SizeSelectionStep = ({ selectedSize, onSizeSelect, onNeedHelp }: SizeSelec
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
           {sizes.map((size) => (
             <Button
               key={size}
               variant={selectedSize === size ? "default" : "outline"}
               className={cn(
-                "h-14 text-lg font-semibold",
+                "h-11 text-base font-semibold",
                 selectedSize === size && "bg-primary"
               )}
               onClick={() => onSizeSelect(size)}
+              size="sm"
             >
               {size}
             </Button>
@@ -83,17 +84,17 @@ const SizeSelectionStep = ({ selectedSize, onSizeSelect, onNeedHelp }: SizeSelec
         </div>
       </div>
 
-      <div className="border rounded-xl p-6 bg-muted/30">
-        <div className="flex items-start gap-4">
-          <div className="p-3 rounded-lg bg-primary/10">
-            <Info className="h-6 w-6 text-primary" />
+      <div className="border rounded-lg p-4 bg-muted/30">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-md bg-primary/10 flex-shrink-0">
+            <Info className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1">
-            <h4 className="font-semibold mb-2">Need a more precise fit?</h4>
-            <p className="text-sm text-muted-foreground mb-4">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold mb-1.5 text-sm">Need a more precise fit?</h4>
+            <p className="text-xs text-muted-foreground mb-3">
               Let us help you measure for a custom-tailored experience.
             </p>
-            <Button variant="outline" onClick={onNeedHelp}>
+            <Button variant="outline" onClick={onNeedHelp} size="sm">
               Get Measurement Help
             </Button>
           </div>

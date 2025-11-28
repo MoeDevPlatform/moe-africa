@@ -23,23 +23,23 @@ const PricingSidebar = ({
   const total = basePrice + variantModifiers + customizationFee;
 
   return (
-    <Card className="sticky top-6 shadow-lg">
-      <CardContent className="p-6 space-y-6">
+    <Card className="sticky top-4 shadow-lg">
+      <CardContent className="p-4 space-y-4">
         <div>
-          <h3 className="font-display font-semibold text-lg mb-1">{productName}</h3>
-          <p className="text-sm text-muted-foreground">by {providerName}</p>
+          <h3 className="font-display font-semibold text-base mb-0.5">{productName}</h3>
+          <p className="text-xs text-muted-foreground">by {providerName}</p>
         </div>
 
         <Separator />
 
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Base Price</span>
             <span className="font-medium">₦{basePrice.toLocaleString()}</span>
           </div>
           
           {variantModifiers !== 0 && (
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Variant Selections</span>
               <span className={variantModifiers > 0 ? "text-primary font-medium" : "text-green-600 font-medium"}>
                 {variantModifiers > 0 ? '+' : ''}₦{variantModifiers.toLocaleString()}
@@ -48,7 +48,7 @@ const PricingSidebar = ({
           )}
 
           {customizationFee > 0 && (
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Custom Tailoring</span>
               <span className="text-primary font-medium">+₦{customizationFee.toLocaleString()}</span>
             </div>
@@ -58,30 +58,30 @@ const PricingSidebar = ({
         <Separator />
 
         <div className="flex justify-between items-center">
-          <span className="font-semibold text-lg">Total</span>
-          <span className="font-display font-bold text-2xl text-primary">
+          <span className="font-semibold text-base">Total</span>
+          <span className="font-display font-bold text-xl text-primary">
             ₦{total.toLocaleString()}
           </span>
         </div>
 
-        <div className="space-y-3 pt-4 border-t">
-          <div className="flex items-center gap-3 text-sm">
-            <Truck className="h-5 w-5 text-primary flex-shrink-0" />
+        <div className="space-y-2 pt-3 border-t">
+          <div className="flex items-center gap-2 text-xs">
+            <Truck className="h-4 w-4 text-primary flex-shrink-0" />
             <span className="text-muted-foreground">
-              Estimated delivery: <strong className="text-foreground">~{estimatedDeliveryDays} days</strong>
+              Est. delivery: <strong className="text-foreground">~{estimatedDeliveryDays} days</strong>
             </span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Shield className="h-5 w-5 text-primary flex-shrink-0" />
+          <div className="flex items-center gap-2 text-xs">
+            <Shield className="h-4 w-4 text-primary flex-shrink-0" />
             <span className="text-muted-foreground">Quality guaranteed</span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+          <div className="flex items-center gap-2 text-xs">
+            <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
             <span className="text-muted-foreground">Made to order</span>
           </div>
         </div>
 
-        <Badge variant="secondary" className="w-full justify-center py-2">
+        <Badge variant="secondary" className="w-full justify-center py-1.5 text-xs">
           💡 Price updates as you customize
         </Badge>
       </CardContent>

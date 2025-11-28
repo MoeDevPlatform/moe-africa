@@ -4,16 +4,20 @@ import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import ProductCard from "@/components/marketplace/ProductCard";
+import HeroBanner from "@/components/marketplace/HeroBanner";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock, SlidersHorizontal } from "lucide-react";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
   const [priceRange, setPriceRange] = useState([0, 500000]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const categories = [
     { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
@@ -96,11 +100,16 @@ const MarketplaceHome = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6 md:py-8">
+        {/* Hero Banner */}
+        <section className="mb-8 md:mb-12">
+          <HeroBanner />
+        </section>
+
         {/* Categories Section - GET /service-categories */}
-        <section className="mb-12">
-          <h2 className="text-2xl md:text-3xl font-display font-bold mb-6">Browse by Service</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+        <section className="mb-8 md:mb-12">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Service</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {
               const Icon = category.icon;
               const isSelected = selectedCategory === category.id;
@@ -108,106 +117,133 @@ const MarketplaceHome = () => {
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(isSelected ? null : category.id)}
-                  className={`p-4 md:p-6 rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group ${
+                  className={`p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group ${
                     isSelected ? "border-primary shadow-md bg-primary/5" : ""
                   }`}
                 >
-                  <Icon className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-2 md:mb-3 text-primary group-hover:scale-110 transition-transform" />
-                  <p className="font-medium text-xs md:text-sm mb-1">{category.name}</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">{category.count} artisans</p>
+                  <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" />
+                  <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
+                  <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">{category.count} artisans</p>
                 </button>
               );
             })}
           </div>
         </section>
 
-        {/* Filters */}
-        <section className="mb-8">
-          <div className="bg-card rounded-xl border p-6">
-            <h3 className="font-semibold mb-4">Filter Results</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Price Range */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Price Range</label>
-                <div className="space-y-2">
-                  <Slider
-                    value={priceRange}
-                    onValueChange={setPriceRange}
-                    max={500000}
-                    step={10000}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>₦{priceRange[0].toLocaleString()}</span>
-                    <span>₦{priceRange[1].toLocaleString()}</span>
+        {/* Filters & Style Tags */}
+        <section className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center justify-between">
+            {/* Filter Button */}
+            <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px] sm:w-[400px] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Filter Results</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-6">
+                  {/* Price Range */}
+                  <div>
+                    <label className="text-sm font-medium mb-3 block">Price Range</label>
+                    <div className="space-y-3">
+                      <Slider
+                        value={priceRange}
+                        onValueChange={setPriceRange}
+                        max={500000}
+                        step={10000}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>₦{priceRange[0].toLocaleString()}</span>
+                        <span>₦{priceRange[1].toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="text-sm font-medium mb-3 block">Location</label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lagos">Lagos</SelectItem>
+                        <SelectItem value="abuja">Abuja</SelectItem>
+                        <SelectItem value="rivers">Rivers</SelectItem>
+                        <SelectItem value="all">All Locations</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Rating */}
+                  <div>
+                    <label className="text-sm font-medium mb-3 block">Minimum Rating</label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any rating" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4.5">4.5+ Stars</SelectItem>
+                        <SelectItem value="4.0">4.0+ Stars</SelectItem>
+                        <SelectItem value="3.5">3.5+ Stars</SelectItem>
+                        <SelectItem value="all">Any Rating</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Style Tags */}
+                  <div>
+                    <label className="text-sm font-medium mb-3 block">Style Preferences</label>
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                        Modern
+                      </Badge>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                        Afrocentric
+                      </Badge>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                        Traditional
+                      </Badge>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                        Minimalist
+                      </Badge>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                        Vintage
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </SheetContent>
+            </Sheet>
 
-              {/* Location */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Location</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="lagos">Lagos</SelectItem>
-                    <SelectItem value="abuja">Abuja</SelectItem>
-                    <SelectItem value="rivers">Rivers</SelectItem>
-                    <SelectItem value="all">All Locations</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Rating */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Minimum Rating</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any rating" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="4.5">4.5+ Stars</SelectItem>
-                    <SelectItem value="4.0">4.0+ Stars</SelectItem>
-                    <SelectItem value="3.5">3.5+ Stars</SelectItem>
-                    <SelectItem value="all">Any Rating</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Active Style Tags - Quick Access */}
+            <div className="flex gap-2 flex-wrap flex-1">
+              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs">
+                Modern
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs">
+                Afrocentric
+              </Badge>
+              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs hidden sm:inline-flex">
+                Traditional
+              </Badge>
             </div>
           </div>
         </section>
 
-        {/* Style Tags */}
-        <section className="mb-8">
-          <div className="flex gap-2 flex-wrap">
-            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-              Modern
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-              Afrocentric
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-              Traditional
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-              Minimalist
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-              Vintage
-            </Badge>
-          </div>
-        </section>
-
         {/* Recommended Providers - GET /service-providers */}
-        <section className="mb-16">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <h2 className="text-2xl md:text-3xl font-display font-bold">
+        <section className="mb-12 md:mb-16">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
               {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
             </h2>
             <Select defaultValue="featured">
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger className="w-full sm:w-40 h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,7 +254,7 @@ const MarketplaceHome = () => {
             </Select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
             {filteredProviders.map((provider) => (
               <ProviderCard key={provider.id} provider={provider} />
             ))}
@@ -226,12 +262,12 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Services For You */}
-        <section className="mb-16">
-          <div className="flex items-center gap-2 mb-6">
-            <Shirt className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl md:text-3xl font-display font-bold">Services For You</h2>
+        <section className="mb-12 md:mb-16">
+          <div className="flex items-center gap-2 mb-4 md:mb-6">
+            <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
             {providers.slice(0, 3).map((provider) => (
               <ProviderCard key={provider.id} provider={provider} />
             ))}
@@ -239,12 +275,12 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Deals For You */}
-        <section className="mb-16">
-          <div className="flex items-center gap-2 mb-6">
-            <Tag className="h-6 w-6 text-accent" />
-            <h2 className="text-2xl md:text-3xl font-display font-bold">Deals For You</h2>
+        <section className="mb-12 md:mb-16">
+          <div className="flex items-center gap-2 mb-4 md:mb-6">
+            <Tag className="h-5 w-5 md:h-6 md:w-6 text-accent" />
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Deals For You</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
             {dealProducts.map((product) => (
               <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                 <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
@@ -264,12 +300,12 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Styles For You */}
-        <section className="mb-16">
-          <div className="flex items-center gap-2 mb-6">
-            <Palette className="h-6 w-6 text-secondary" />
-            <h2 className="text-2xl md:text-3xl font-display font-bold">Styles For You</h2>
+        <section className="mb-12 md:mb-16">
+          <div className="flex items-center gap-2 mb-4 md:mb-6">
+            <Palette className="h-5 w-5 md:h-6 md:w-6 text-secondary" />
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Styles For You</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             {styleProducts.map((product) => (
               <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                 <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
@@ -287,12 +323,12 @@ const MarketplaceHome = () => {
 
         {/* Recently Viewed */}
         {recentlyViewed.length > 0 && (
-          <section className="mb-16">
-            <div className="flex items-center gap-2 mb-6">
-              <Clock className="h-6 w-6 text-muted-foreground" />
-              <h2 className="text-2xl md:text-3xl font-display font-bold">Recently Viewed</h2>
+          <section className="mb-12 md:mb-16">
+            <div className="flex items-center gap-2 mb-4 md:mb-6">
+              <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
               {providers.filter(p => recentlyViewed.includes(p.id)).slice(0, 3).map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}

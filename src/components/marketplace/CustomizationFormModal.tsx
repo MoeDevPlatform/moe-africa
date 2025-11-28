@@ -97,26 +97,26 @@ const CustomizationFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] p-0 gap-0">
-        <div className="grid grid-cols-1 lg:grid-cols-3 h-full">
+      <DialogContent className="max-w-7xl h-[85vh] p-0 gap-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 h-full overflow-hidden">
           {/* Main Content */}
-          <div className="lg:col-span-2 overflow-y-auto">
-            <DialogHeader className="p-6 pb-4 border-b sticky top-0 bg-background z-10">
-              <div className="space-y-4">
-                <DialogTitle className="text-2xl font-display">
+          <div className="lg:col-span-2 flex flex-col overflow-hidden">
+            <DialogHeader className="p-4 pb-3 border-b bg-background flex-shrink-0">
+              <div className="space-y-3">
+                <DialogTitle className="text-xl font-display">
                   {stepTitles[step - 1]}
                 </DialogTitle>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm text-muted-foreground">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Step {step} of {totalSteps}</span>
                     <span>{Math.round(progress)}%</span>
                   </div>
-                  <Progress value={progress} className="h-2" />
+                  <Progress value={progress} className="h-1.5" />
                 </div>
               </div>
             </DialogHeader>
 
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-4 pb-20">
               {step === 1 && (
                 <VariantSelectionStep
                   variants={mockVariants}
@@ -163,12 +163,13 @@ const CustomizationFormModal = ({
             </div>
 
             {/* Navigation Footer */}
-            <div className="flex justify-between gap-4 border-t p-6 bg-muted/30 sticky bottom-0">
+            <div className="flex justify-between gap-3 border-t p-4 bg-background/95 backdrop-blur-sm absolute bottom-0 left-0 right-0 flex-shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setStep(step - 1)}
                 disabled={step === 1}
                 className="gap-2"
+                size="sm"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Back
@@ -180,6 +181,7 @@ const CustomizationFormModal = ({
                     onClick={() => setStep(step + 1)}
                     disabled={!canProceed()}
                     className="gap-2"
+                    size="sm"
                   >
                     Next Step
                     <ChevronRight className="h-4 w-4" />
@@ -189,6 +191,7 @@ const CustomizationFormModal = ({
                     onClick={handleSubmit}
                     disabled={!canProceed()}
                     className="bg-primary gap-2"
+                    size="sm"
                   >
                     <ShoppingCart className="h-4 w-4" />
                     Add to Cart
@@ -199,7 +202,7 @@ const CustomizationFormModal = ({
           </div>
 
           {/* Pricing Sidebar */}
-          <div className="hidden lg:block border-l bg-muted/30 p-6">
+          <div className="hidden lg:block border-l bg-muted/30 p-4 overflow-y-auto">
             <PricingSidebar
               basePrice={basePrice}
               variantModifiers={variantModifiers}
