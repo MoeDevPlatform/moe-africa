@@ -33,18 +33,18 @@ const ReviewStep = ({
   const totalPrice = basePrice + variantTotal + customizationFee;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-xl font-display font-semibold mb-2">Review Your Customization</h3>
-        <p className="text-muted-foreground">Please review all selections before adding to cart</p>
+        <h3 className="text-lg font-display font-semibold mb-1">Review Your Customization</h3>
+        <p className="text-sm text-muted-foreground">Please review all selections before adding to cart</p>
       </div>
 
-      <div className="border rounded-xl p-6 space-y-6 bg-muted/30">
+      <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
         {/* Variants */}
         {selectedVariantDetails.length > 0 && (
           <div>
-            <h4 className="font-semibold mb-3">Selected Variants</h4>
-            <div className="space-y-2">
+            <h4 className="font-semibold text-sm mb-2">Selected Variants</h4>
+            <div className="space-y-1.5">
               {selectedVariantDetails.map(({ type, variant }) => (
                 <div key={type} className="flex justify-between items-center">
                   <span className="text-sm capitalize text-muted-foreground">{type}:</span>
@@ -66,9 +66,9 @@ const ReviewStep = ({
 
         {/* Size */}
         <div>
-          <h4 className="font-semibold mb-3">Size Selection</h4>
+          <h4 className="font-semibold text-sm mb-2">Size Selection</h4>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-base px-4 py-2">{selectedSize}</Badge>
+            <Badge variant="outline" className="text-sm px-3 py-1">{selectedSize}</Badge>
           </div>
         </div>
 
@@ -78,8 +78,8 @@ const ReviewStep = ({
         {selectedBodyType && (
           <>
             <div>
-              <h4 className="font-semibold mb-3">Body Type</h4>
-              <Badge className="capitalize">{selectedBodyType}</Badge>
+              <h4 className="font-semibold text-sm mb-2">Body Type</h4>
+              <Badge className="capitalize text-xs">{selectedBodyType}</Badge>
             </div>
             <Separator />
           </>
@@ -89,13 +89,13 @@ const ReviewStep = ({
         {Object.keys(measurements).length > 0 && (
           <>
             <div>
-              <h4 className="font-semibold mb-3">Custom Measurements</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <h4 className="font-semibold text-sm mb-2">Custom Measurements</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {Object.entries(measurements).map(([field, value]) => (
                   value && (
-                    <div key={field} className="bg-card rounded-lg p-3 border">
-                      <p className="text-xs text-muted-foreground capitalize">{field}</p>
-                      <p className="font-medium">{value} cm</p>
+                    <div key={field} className="bg-card rounded-md p-2 border">
+                      <p className="text-[10px] text-muted-foreground capitalize">{field}</p>
+                      <p className="font-medium text-sm">{value} cm</p>
                     </div>
                   )
                 ))}
@@ -109,8 +109,8 @@ const ReviewStep = ({
         {notes && (
           <>
             <div>
-              <h4 className="font-semibold mb-3">Additional Notes</h4>
-              <p className="text-sm text-muted-foreground bg-card rounded-lg p-4 border">{notes}</p>
+              <h4 className="font-semibold text-sm mb-2">Additional Notes</h4>
+              <p className="text-xs text-muted-foreground bg-card rounded-md p-3 border">{notes}</p>
             </div>
             <Separator />
           </>
