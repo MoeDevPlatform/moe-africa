@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 interface Variant {
   id: string;
   name: string;
-  type: "color" | "material" | "design";
-  value: string;
+  type: string;
+  value?: string;
   imageUrl?: string;
   priceModifier: number;
 }
@@ -51,7 +51,7 @@ const VariantSelectionStep = ({ variants, selectedVariants, onVariantSelect }: V
                       <img src={variant.imageUrl} alt={variant.name} className="w-full h-full object-cover" />
                     </div>
                   )}
-                  {type === "color" && !variant.imageUrl && (
+                  {type === "color" && !variant.imageUrl && variant.value && (
                     <div 
                       className="aspect-square rounded-md mb-2 border" 
                       style={{ backgroundColor: variant.value }}

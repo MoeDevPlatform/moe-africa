@@ -1,13 +1,31 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trash2, Edit, Package } from "lucide-react";
+import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const Cart = () => {
+  const { toast } = useToast();
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
+  
   // Mock cart items - API: GET /cart
-  const cartItems = [
+  const [cartItems, setCartItems] = useState([
     {
       id: 1,
       productName: "Custom Ankara Jacket",
@@ -42,7 +60,21 @@ const Cart = () => {
       deliveryDays: 10,
       imageUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=200",
     },
-  ];
+  ]);
+
+  const handleEditItem = (item: any) => {
+    setEditingItem(item);
+    setShowCustomizationModal(true);
+  };
+
+  const handleDeleteItem = (itemId: number) => {
+    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+    setDeleteItemId(null);
+    toast({
+      title: "Item removed",
+      description: "The item has been removed from your cart.",
+    });
+  };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
   const deliveryFee = 2500;
@@ -110,10 +142,19 @@ const Cart = () => {
                       <div className="text-right space-y-4">
                         <p className="text-2xl font-bold text-primary">₦{item.price.toLocaleString()}</p>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditItem(item)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => setDeleteItemId(item.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -164,8 +205,49 @@ const Cart = () => {
       </main>
 
       <MarketplaceFooter />
+
+      {/* Edit Item Modal */}
+      {editingItem && (
+        <CustomizationFormModal
+          open={showCustomizationModal}
+          onOpenChange={(open) => {
+            setShowCustomizationModal(open);
+            if (!open) setEditingItem(null);
+          }}
+          providerId={1}
+          productId={editingItem.id}
+          productName={editingItem.productName}
+          providerName={editingItem.providerName}
+          basePrice={editingItem.basePrice}
+          estimatedDeliveryDays={editingItem.deliveryDays}
+          category="tailoring"
+          existingCustomization={editingItem.customization}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteItemId !== null} onOpenChange={() => setDeleteItemId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from cart?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this item from your cart? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteItemId && handleDeleteItem(deleteItemId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default Cart;
+
