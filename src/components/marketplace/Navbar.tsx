@@ -1,11 +1,38 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShoppingCart, User, Search } from "lucide-react";
 import logo from "@/assets/logo.png";
+import SearchResults from "./SearchResults";
 
 const MarketplaceNavbar = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const handleSearchFocus = () => {
+    setShowSearchResults(true);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (value.trim()) {
+      setShowSearchResults(true);
+    }
+  };
+
   return (
+    <>
+      {showSearchResults && (
+        <SearchResults
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onClose={() => {
+            setShowSearchResults(false);
+            setSearchQuery("");
+          }}
+        />
+      )}
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-4">
@@ -22,6 +49,9 @@ const MarketplaceNavbar = () => {
                 type="search"
                 placeholder="Search for artisans, products, or services..."
                 className="pl-10 w-full"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={handleSearchFocus}
               />
             </div>
           </div>
@@ -60,12 +90,17 @@ const MarketplaceNavbar = () => {
               type="search"
               placeholder="Search..."
               className="pl-10 w-full"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={handleSearchFocus}
             />
           </div>
         </div>
       </div>
     </header>
+    </>
   );
 };
 
 export default MarketplaceNavbar;
+
