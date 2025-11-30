@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { CartProvider } from "@/contexts/CartContext";
 import Index from "./pages/Index";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -18,17 +19,19 @@ import ProviderDetail from "./pages/marketplace/ProviderDetail";
 import ProductDetail from "./pages/marketplace/ProductDetail";
 import Cart from "./pages/marketplace/Cart";
 import Checkout from "./pages/marketplace/Checkout";
+import Messages from "./pages/marketplace/Messages";
 import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
+    <CartProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           
@@ -38,6 +41,7 @@ const App = () => (
           <Route path="/marketplace/product/:id" element={<ProductDetail />} />
           <Route path="/marketplace/cart" element={<Cart />} />
           <Route path="/marketplace/checkout" element={<Checkout />} />
+          <Route path="/marketplace/messages" element={<Messages />} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
@@ -52,7 +56,8 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </CartProvider>
   </QueryClientProvider>
 );
 

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock, SlidersHorizontal } from "lucide-react";
+import { providers as allProviders, products as allProducts, getProvidersByCategory } from "@/data/mockData";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
@@ -28,8 +29,11 @@ const MarketplaceHome = () => {
     { id: "other", name: "Other", icon: Package, count: 78 },
   ];
 
-  // Mock data - GET /service-providers
-  const providers = [
+  const providers = selectedCategory 
+    ? getProvidersByCategory(selectedCategory)
+    : allProviders.slice(0, 6);
+  
+  const filteredProviders = providers;
     {
       id: 1,
       brandName: "Ade Tailors",

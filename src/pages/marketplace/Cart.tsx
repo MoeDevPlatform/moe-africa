@@ -17,58 +17,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/contexts/CartContext";
+import { getProductById } from "@/data/mockData";
 
 const Cart = () => {
   const { toast } = useToast();
+  const { items, removeItem, getTotalPrice } = useCart();
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   
-  // Mock cart items - API: GET /cart
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      productName: "Custom Ankara Jacket",
-      providerName: "Ade Tailors",
-      customization: {
-        size: "L",
-        bodyType: "Athletic",
-        variants: "Blue & Gold pattern, Premium Cotton",
-        measurements: "Chest: 95cm, Waist: 85cm",
-      },
-      basePrice: 25000,
-      customizationFee: 2500,
-      variantFee: 3000,
-      price: 30500,
-      deliveryDays: 7,
-      imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200",
-    },
-    {
-      id: 2,
-      productName: "Leather Brogues",
-      providerName: "Royal Shoes",
-      customization: {
-        size: "42",
-        bodyType: "Average",
-        variants: "Brown leather, Traditional Style",
-        measurements: null,
-      },
-      basePrice: 32000,
-      customizationFee: 0,
-      variantFee: 3000,
-      price: 35000,
-      deliveryDays: 10,
-      imageUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=200",
-    },
-  ]);
-
   const handleEditItem = (item: any) => {
-    setEditingItem(item);
-    setShowCustomizationModal(true);
+    const product = getProductById(item.productId);
+    if (product) {
+      setEditingItem(item);
+      setShowCustomizationModal(true);
+    }
   };
 
-  const handleDeleteItem = (itemId: number) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+  const handleDeleteItem = (itemId: string) => {
+    removeItem(itemId);
     setDeleteItemId(null);
     toast({
       title: "Item removed",
@@ -76,7 +44,7 @@ const Cart = () => {
     });
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+  const subtotal = getTotalPrice();
   const deliveryFee = 2500;
   const total = subtotal + deliveryFee;
 
@@ -87,7 +55,7 @@ const Cart = () => {
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-4xl font-display font-bold mb-8">Shopping Cart</h1>
 
-        {cartItems.length === 0 ? (
+        {items.length === 0 ? (
           <Card className="p-12 text-center">
             <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-display font-semibold mb-2">Your cart is empty</h2>
@@ -100,12 +68,14 @@ const Cart = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item) => (
+              {items.map((item) => {
+                const product = getProductById(item.productId);
+                return (
                 <Card key={item.id}>
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       <img 
-                        src={item.imageUrl} 
+                        src={product?.images[0] || ""} 
                         alt={item.productName}
                         className="w-32 h-32 object-cover rounded-lg"
                       />
@@ -115,39 +85,46 @@ const Cart = () => {
                         <p className="text-sm text-muted-foreground mb-3">by {item.providerName}</p>
                         
                         <div className="space-y-1 mb-3">
-                          <p className="text-sm">
-                            <span className="text-muted-foreground">Size:</span> <strong>{item.customization.size}</strong>
-                            {" • "}
-                            <span className="text-muted-foreground">Body Type:</span> <strong>{item.customization.bodyType}</strong>
-                          </p>
-                          <p className="text-sm text-muted-foreground">{item.customization.variants}</p>
-                          {item.customization.measurements && (
-                            <p className="text-xs text-muted-foreground">{item.customization.measurements}</p>
+                          {item.selectedSize && (
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Size:</span> <strong>{item.selectedSize}</strong>
+                            </p>
+                          )}
+                          {item.selectedBodyType && (
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Body Type:</span> <strong>{item.selectedBodyType}</strong>
+                            </p>
+                          )}
+                          {Object.keys(item.selectedVariants).length > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              {Object.values(item.selectedVariants).join(", ")}
+                            </p>
+                          )}
+                          {Object.keys(item.measurements).length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {Object.entries(item.measurements).map(([key, value]) => `${key}: ${value}`).join(", ")}
+                            </p>
                           )}
                         </div>
 
                         <div className="flex flex-wrap gap-2 text-xs">
                           <span className="px-2 py-1 bg-muted rounded">Base: ₦{item.basePrice.toLocaleString()}</span>
-                          {item.variantFee > 0 && (
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">Variants: +₦{item.variantFee.toLocaleString()}</span>
-                          )}
-                          {item.customizationFee > 0 && (
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">Custom: +₦{item.customizationFee.toLocaleString()}</span>
+                          {item.finalPrice > item.basePrice && (
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">
+                              Customization: +₦{(item.finalPrice - item.basePrice).toLocaleString()}
+                            </span>
                           )}
                         </div>
-                        
-                        <p className="text-xs text-muted-foreground mt-2">Estimated delivery: ~{item.deliveryDays} days</p>
                       </div>
 
                       <div className="text-right space-y-4">
-                        <p className="text-2xl font-bold text-primary">₦{item.price.toLocaleString()}</p>
+                        <p className="text-2xl font-bold text-primary">₦{item.finalPrice.toLocaleString()}</p>
                         <div className="flex gap-2">
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => handleEditItem(item)}
                           >
-                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="outline" 
@@ -162,7 +139,7 @@ const Cart = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </div>
 
             {/* Order Summary */}
@@ -214,14 +191,15 @@ const Cart = () => {
             setShowCustomizationModal(open);
             if (!open) setEditingItem(null);
           }}
-          providerId={1}
-          productId={editingItem.id}
+          providerId={editingItem.providerId}
+          productId={editingItem.productId}
           productName={editingItem.productName}
           providerName={editingItem.providerName}
           basePrice={editingItem.basePrice}
-          estimatedDeliveryDays={editingItem.deliveryDays}
-          category="tailoring"
-          existingCustomization={editingItem.customization}
+          estimatedDeliveryDays={7}
+          category={editingItem.category}
+          existingCustomization={editingItem}
+          editingCartItemId={editingItem.id}
         />
       )}
 

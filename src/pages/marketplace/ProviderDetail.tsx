@@ -1,38 +1,29 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 import CustomOrderModal from "@/components/marketplace/CustomOrderModal";
+import MessagingModal from "@/components/marketplace/MessagingModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock } from "lucide-react";
+import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle } from "lucide-react";
+import { getProviderById, getProductsByProviderId } from "@/data/mockData";
 
 const ProviderDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
 
-  // Mock data - GET /service-providers/{id}
-  const provider = {
-    id: 1,
-    brandName: "Ade Tailors",
-    firstName: "Ade",
-    lastName: "Olu",
-    about: "With over 15 years of experience in traditional and modern African tailoring, Ade Tailors specializes in creating custom-made Ankara suits, dresses, and traditional attire. We use only premium fabrics sourced locally and internationally, ensuring each piece is unique and of the highest quality.",
-    city: "Ikeja",
-    state: "Lagos",
-    phone: "+2348000000000",
-    email: "ade@tailors.ng",
-    rating: 4.8,
-    reviewCount: 124,
-    verified: true,
-    estimatedDeliveryDays: 7,
-    heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
-    customOrdersEnabled: true, // Admin-controlled toggle
-  };
+  const provider = getProviderById(Number(id));
+  const products = provider ? getProductsByProviderId(provider.id) : [];
+
+  if (!provider) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   useEffect(() => {
     // Track viewed provider
@@ -42,34 +33,6 @@ const ProviderDetail = () => {
       localStorage.setItem("recentlyViewed", JSON.stringify(viewed.slice(0, 10)));
     }
   }, [provider.id]);
-
-  // Mock data - GET /products?serviceProviderId={id}
-  const products = [
-    {
-      id: 101,
-      name: "Custom Ankara Jacket",
-      description: "Handmade fitted jacket from premium Ankara fabric",
-      price: 25000,
-      currency: "NGN",
-      previewImageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400",
-    },
-    {
-      id: 102,
-      name: "Traditional Agbada",
-      description: "Full traditional three-piece set with embroidery",
-      price: 45000,
-      currency: "NGN",
-      previewImageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400",
-    },
-    {
-      id: 103,
-      name: "Women's Ankara Dress",
-      description: "Elegant floor-length dress with custom fitting",
-      price: 30000,
-      currency: "NGN",
-      previewImageUrl: "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=400",
-    },
-  ];
 
   // Mock reviews
   const reviews = [
@@ -139,8 +102,9 @@ const ProviderDetail = () => {
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button size="lg" onClick={() => setShowCustomizationForm(true)} className="bg-secondary hover:bg-secondary-dark">
-                  Request Custom Order
+                <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Message
                 </Button>
                 <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur">
                   <Share2 className="h-4 w-4 mr-2" />
@@ -249,7 +213,14 @@ const ProviderDetail = () => {
         providerName={provider.brandName}
         basePrice={25000}
         estimatedDeliveryDays={provider.estimatedDeliveryDays}
-        category="tailoring"
+        category={provider.category as "tailoring" | "shoemaking"}
+      />
+
+      <MessagingModal
+        open={showMessaging}
+        onOpenChange={setShowMessaging}
+        providerId={provider.id}
+        providerName={provider.brandName}
       />
     </div>
   );
