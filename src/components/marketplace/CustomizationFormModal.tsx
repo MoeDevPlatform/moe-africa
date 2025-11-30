@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 import VariantSelectionStep from "./customization/VariantSelectionStep";
 import SizeSelectionStep from "./customization/SizeSelectionStep";
 import BodyTypeSelectionStep from "./customization/BodyTypeSelectionStep";
@@ -26,6 +27,7 @@ interface CustomizationFormModalProps {
   estimatedDeliveryDays: number;
   category: string;
   existingCustomization?: any;
+  editingCartItemId?: string;
 }
 
 // Mock variants for tailoring - API: GET /products/{id}/variants
@@ -64,6 +66,7 @@ const CustomizationFormModal = ({
   estimatedDeliveryDays,
   category,
   existingCustomization,
+  editingCartItemId,
 }: CustomizationFormModalProps) => {
   const [step, setStep] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
@@ -73,6 +76,7 @@ const CustomizationFormModal = ({
   const [measurements, setMeasurements] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const { toast } = useToast();
+  const { addItem, updateItem } = useCart();
 
   const isShoemaking = category.toLowerCase().includes("shoe");
   const mockVariants = isShoemaking ? mockShoemakingVariants : mockTailoringVariants;
@@ -105,11 +109,37 @@ const CustomizationFormModal = ({
   };
 
   const handleSubmit = () => {
-    // API: POST /orders/customizations or POST /cart
-    toast({
-      title: "Added to cart! 🎉",
-      description: `Your custom ${productName} has been added to your cart.`,
-    });
+    const cartItem = {
+      id: editingCartItemId || Date.now().toString(),
+      productId,
+      productName,
+      providerId,
+      providerName,
+      basePrice,
+      finalPrice: basePrice + variantModifiers + customizationFee,
+      category: category as "tailoring" | "shoemaking",
+      selectedSize,
+      selectedBodyType: isShoemaking ? selectedFootType : selectedBodyType,
+      selectedVariants,
+      measurements,
+      notes,
+      quantity: 1,
+    };
+
+    if (editingCartItemId) {
+      updateItem(editingCartItemId, cartItem);
+      toast({
+        title: "Cart updated! 🎉",
+        description: "Your customization has been updated.",
+      });
+    } else {
+      addItem(cartItem);
+      toast({
+        title: "Added to cart! 🎉",
+        description: `Your custom ${productName} has been added to your cart.`,
+      });
+    }
+    
     onOpenChange(false);
     setStep(1);
   };

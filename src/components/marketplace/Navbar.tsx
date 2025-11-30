@@ -2,13 +2,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search } from "lucide-react";
+import { ShoppingCart, User, Search, MessageSquare } from "lucide-react";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
+import { useCart } from "@/contexts/CartContext";
 
 const MarketplaceNavbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const { getItemCount } = useCart();
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
@@ -57,19 +59,27 @@ const MarketplaceNavbar = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2">
             <Link to="/marketplace">
               <Button variant="ghost" className="hidden sm:inline-flex">
                 Explore
               </Button>
             </Link>
             
+            <Link to="/marketplace/messages">
+              <Button variant="ghost" size="icon">
+                <MessageSquare className="h-5 w-5" />
+              </Button>
+            </Link>
+            
             <Link to="/marketplace/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  0
-                </span>
+                {getItemCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {getItemCount()}
+                  </span>
+                )}
               </Button>
             </Link>
 

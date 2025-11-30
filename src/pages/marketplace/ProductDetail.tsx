@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
@@ -7,33 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Star, Truck, Shield, Clock } from "lucide-react";
+import { getProductById, getProviderById } from "@/data/mockData";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
 
-  // Mock data - GET /products/{id}
-  const product = {
-    id: 101,
-    name: "Custom Ankara Jacket",
-    description: "This handmade fitted jacket is crafted from premium Ankara fabric sourced directly from local markets. Each piece is unique and made to order based on your exact specifications. Perfect for both casual and formal occasions, combining traditional African patterns with modern tailoring techniques.",
-    priceRange: { min: 25000, max: 35000 },
-    currency: "NGN",
-    estimatedDeliveryDays: 7,
-    materials: "100% Cotton Ankara Fabric",
-    tags: ["Afrocentric", "Modern", "Custom Fit"],
-    images: [
-      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800",
-      "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=800",
-      "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=800",
-    ],
-    provider: {
-      id: 1,
-      brandName: "Ade Tailors",
-      city: "Lagos",
-      rating: 4.8,
-    },
-  };
+  const product = getProductById(Number(id));
+  const provider = product ? getProviderById(product.providerId) : null;
+
+  if (!product || !provider) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -66,16 +51,16 @@ const ProductDetail = () => {
           <div className="space-y-6">
             <div>
               <h1 className="text-4xl font-display font-bold mb-3">{product.name}</h1>
-              <p className="text-muted-foreground">by {product.provider.brandName}</p>
+              <p className="text-muted-foreground">by {provider.brandName}</p>
             </div>
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <Star className="h-5 w-5 fill-accent text-accent" />
-                <span className="font-semibold">{product.provider.rating}</span>
+                <span className="font-semibold">{provider.rating}</span>
               </div>
               <span className="text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{product.provider.city}</span>
+              <span className="text-sm text-muted-foreground">{provider.city}</span>
             </div>
 
             <div className="border-y py-6">
@@ -138,13 +123,13 @@ const ProductDetail = () => {
       <CustomizationFormModal
         open={showCustomizationForm}
         onOpenChange={setShowCustomizationForm}
-        providerId={product.provider.id}
+        providerId={provider.id}
         productId={product.id}
         productName={product.name}
-        providerName={product.provider.brandName}
+        providerName={provider.brandName}
         basePrice={product.priceRange.min}
         estimatedDeliveryDays={product.estimatedDeliveryDays}
-        category="tailoring"
+        category={product.category}
       />
     </div>
   );

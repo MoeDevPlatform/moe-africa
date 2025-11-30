@@ -1,27 +1,19 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  previewImageUrl: string;
-}
+import { Product } from "@/data/mockData";
 
 interface ProductCardProps {
   product: Product;
-  providerId: number;
+  providerId?: number;
 }
 
-const ProductCard = ({ product, providerId }: ProductCardProps) => {
+const ProductCard = ({ product }: ProductCardProps) => {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
       <div className="relative h-64 bg-muted">
         <img 
-          src={product.previewImageUrl} 
+          src={product.images[0]} 
           alt={product.name}
           className="w-full h-full object-cover"
         />
@@ -35,7 +27,7 @@ const ProductCard = ({ product, providerId }: ProductCardProps) => {
           <div>
             <p className="text-xs text-muted-foreground">Starting from</p>
             <p className="text-xl font-bold text-primary">
-              {product.currency === "NGN" ? "₦" : "$"}{product.price.toLocaleString()}
+              {product.currency === "NGN" ? "₦" : "$"}{product.priceRange.min.toLocaleString()}
             </p>
           </div>
           
