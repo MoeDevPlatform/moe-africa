@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, MessageSquare } from "lucide-react";
+import { ShoppingCart, User, Search, MessageSquare, Heart } from "lucide-react";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 const MarketplaceNavbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { getItemCount } = useCart();
+  const { getItemCount: getWishlistCount } = useWishlist();
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
@@ -69,6 +71,17 @@ const MarketplaceNavbar = () => {
             <Link to="/marketplace/messages">
               <Button variant="ghost" size="icon">
                 <MessageSquare className="h-5 w-5" />
+              </Button>
+            </Link>
+
+            <Link to="/marketplace/wishlist">
+              <Button variant="ghost" size="icon" className="relative">
+                <Heart className="h-5 w-5" />
+                {getWishlistCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {getWishlistCount()}
+                  </span>
+                )}
               </Button>
             </Link>
             

@@ -6,15 +6,50 @@ import CustomizationFormModal from "@/components/marketplace/CustomizationFormMo
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Star, Truck, Shield, Clock } from "lucide-react";
+import { Star, Truck, Shield, Clock, Heart } from "lucide-react";
 import { getProductById, getProviderById } from "@/data/mockData";
+import { useWishlist } from "@/contexts/WishlistContext";
+import { useToast } from "@/hooks/use-toast";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
+  const { addItem, removeItem, isInWishlist } = useWishlist();
+  const { toast } = useToast();
 
   const product = getProductById(Number(id));
   const provider = product ? getProviderById(product.providerId) : null;
+
+  const inWishlist = product ? isInWishlist(product.id) : false;
+
+  const handleWishlistToggle = () => {
+    if (!product || !provider) return;
+
+    if (inWishlist) {
+      removeItem(product.id);
+      toast({
+        title: "Removed from wishlist",
+        description: `${product.name} has been removed from your wishlist.`,
+      });
+    } else {
+      addItem({
+        productId: product.id,
+        productName: product.name,
+        providerId: product.providerId,
+        providerName: provider.brandName,
+        priceRange: product.priceRange,
+        currency: product.currency,
+        category: product.category,
+        imageUrl: product.images[0],
+        styleTags: product.tags,
+        addedAt: new Date(),
+      });
+      toast({
+        title: "Added to wishlist",
+        description: `${product.name} has been added to your wishlist.`,
+      });
+    }
+  };
 
   if (!product || !provider) {
     return <Navigate to="/marketplace" replace />;
@@ -107,13 +142,28 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <Button 
-              size="lg" 
-              className="w-full bg-primary hover:bg-primary-dark"
-              onClick={() => setShowCustomizationForm(true)}
-            >
-              Customize This Product
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                size="lg" 
+                className="flex-1 bg-primary hover:bg-primary-dark"
+                onClick={() => setShowCustomizationForm(true)}
+              >
+                Customize This Product
+              </Button>
+              
+              <Button
+                size="lg"
+                variant="outline"
+                className="aspect-square p-0"
+                onClick={handleWishlistToggle}
+              >
+                <Heart 
+                  className={`h-6 w-6 transition-colors ${
+                    inWishlist ? "fill-primary text-primary" : ""
+                  }`}
+                />
+              </Button>
+            </div>
           </div>
         </div>
       </main>

@@ -125,6 +125,7 @@ const Cart = () => {
                             size="sm"
                             onClick={() => handleEditItem(item)}
                           >
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="outline" 
