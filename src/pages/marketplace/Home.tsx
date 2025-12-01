@@ -75,10 +75,8 @@ const MarketplaceHome = () => {
               return (
                 <button
                   key={category.id}
-                  onClick={() => setSelectedCategory(isSelected ? null : category.id)}
-                  className={`p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group ${
-                    isSelected ? "border-primary shadow-md bg-primary/5" : ""
-                  }`}
+                  onClick={() => navigate(`/marketplace/category/${category.id}`)}
+                  className="p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" />
                   <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
