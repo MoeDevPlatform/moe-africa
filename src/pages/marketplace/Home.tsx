@@ -32,51 +32,6 @@ const MarketplaceHome = () => {
   const providers = selectedCategory 
     ? getProvidersByCategory(selectedCategory)
     : allProviders.slice(0, 6);
-  
-  const filteredProviders = providers;
-    {
-      id: 1,
-      brandName: "Ade Tailors",
-      firstName: "Ade",
-      lastName: "Olu",
-      about: "Custom Ankara suits and dresses with premium fabrics.",
-      city: "Lagos",
-      state: "Lagos",
-      rating: 4.8,
-      reviewCount: 124,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400",
-      featuredProducts: 3,
-    },
-    {
-      id: 2,
-      brandName: "Royal Shoes",
-      firstName: "Chidi",
-      lastName: "Okafor",
-      about: "Handcrafted leather shoes for the modern African.",
-      city: "Abuja",
-      state: "FCT",
-      rating: 4.9,
-      reviewCount: 98,
-      verified: true,
-      logoUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400",
-      featuredProducts: 5,
-    },
-    {
-      id: 3,
-      brandName: "Kente Kreations",
-      firstName: "Ama",
-      lastName: "Mensah",
-      about: "Traditional Ghanaian kente cloth and accessories.",
-      city: "Port Harcourt",
-      state: "Rivers",
-      rating: 4.7,
-      reviewCount: 76,
-      verified: false,
-      logoUrl: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=400",
-      featuredProducts: 8,
-    },
-  ];
 
   // Mock products for new sections - GET /products
   const dealProducts = [

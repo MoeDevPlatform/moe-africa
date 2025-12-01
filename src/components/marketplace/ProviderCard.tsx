@@ -3,30 +3,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle2, Package } from "lucide-react";
-
-interface Provider {
-  id: number;
-  brandName: string;
-  about: string;
-  city: string;
-  state: string;
-  rating: number;
-  reviewCount: number;
-  verified: boolean;
-  logoUrl: string;
-  featuredProducts: number;
-}
+import { Provider, getProductsByProviderId } from "@/data/mockData";
 
 interface ProviderCardProps {
   provider: Provider;
 }
 
 const ProviderCard = ({ provider }: ProviderCardProps) => {
+  const productCount = getProductsByProviderId(provider.id).length;
+  
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-border">
       <div className="relative h-48 bg-gradient-hero">
         <img 
-          src={provider.logoUrl} 
+          src={provider.heroImage} 
           alt={provider.brandName}
           className="w-full h-full object-cover"
         />
@@ -60,7 +50,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Package className="h-4 w-4" />
-            <span>{provider.featuredProducts} products</span>
+            <span>{productCount} products</span>
           </div>
           
           <Link to={`/marketplace/provider/${provider.id}`}>
