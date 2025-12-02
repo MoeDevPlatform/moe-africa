@@ -32,6 +32,7 @@ const ProviderForm = ({ provider, onSubmit, onCancel }: ProviderFormProps) => {
     about: provider?.about || "",
     enabled: provider?.enabled ?? true,
     verified: provider?.verified ?? false,
+    featured: provider?.featured ?? false,
     serviceCategoryIds: provider?.serviceCategoryIds || [],
   });
 
@@ -202,6 +203,20 @@ const ProviderForm = ({ provider, onSubmit, onCancel }: ProviderFormProps) => {
             id="verified"
             checked={formData.verified}
             onCheckedChange={(checked) => setFormData({ ...formData, verified: checked })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label htmlFor="featured">Feature this Artisan</Label>
+            <p className="text-xs text-muted-foreground">
+              Highlight in Featured Artisans section
+            </p>
+          </div>
+          <Switch
+            id="featured"
+            checked={formData.featured}
+            onCheckedChange={(checked) => setFormData({ ...formData, featured: checked })}
           />
         </div>
       </div>
