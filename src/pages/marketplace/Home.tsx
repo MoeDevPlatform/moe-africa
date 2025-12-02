@@ -3,22 +3,24 @@ import { useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
-import ProductCard from "@/components/marketplace/ProductCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
+import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
+import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock, SlidersHorizontal } from "lucide-react";
-import { providers as allProviders, products as allProducts, getProvidersByCategory } from "@/data/mockData";
+import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
+import { providers as allProviders, getProvidersByCategory } from "@/data/mockData";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
-  const [priceRange, setPriceRange] = useState([0, 500000]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    priceRange: [0, 500000],
+    materials: [],
+    styleTags: [],
+    deliveryEstimate: null,
+  });
 
   const categories = [
     { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
@@ -33,7 +35,7 @@ const MarketplaceHome = () => {
     ? getProvidersByCategory(selectedCategory)
     : allProviders.slice(0, 6);
 
-  // Mock products for new sections - GET /products
+  // Mock products for new sections
   const dealProducts = [
     { id: 201, name: "Summer Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28 },
     { id: 202, name: "Leather Sandals", price: 12000, originalPrice: 15000, imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400", providerId: 2, discount: 20 },
@@ -46,7 +48,6 @@ const MarketplaceHome = () => {
   ];
 
   useEffect(() => {
-    // Load recently viewed from localStorage
     const viewed = localStorage.getItem("recentlyViewed");
     if (viewed) setRecentlyViewed(JSON.parse(viewed));
   }, []);
@@ -65,13 +66,12 @@ const MarketplaceHome = () => {
           <HeroBanner />
         </section>
 
-        {/* Categories Section - GET /service-categories */}
+        {/* Categories Section */}
         <section className="mb-8 md:mb-12">
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Service</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {
               const Icon = category.icon;
-              const isSelected = selectedCategory === category.id;
               return (
                 <button
                   key={category.id}
@@ -90,110 +90,36 @@ const MarketplaceHome = () => {
         {/* Filters & Style Tags */}
         <section className="mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center justify-between">
-            {/* Filter Button */}
-            <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filters
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] sm:w-[400px] overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Filter Results</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6 space-y-6">
-                  {/* Price Range */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Price Range</label>
-                    <div className="space-y-3">
-                      <Slider
-                        value={priceRange}
-                        onValueChange={setPriceRange}
-                        max={500000}
-                        step={10000}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>₦{priceRange[0].toLocaleString()}</span>
-                        <span>₦{priceRange[1].toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Location</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lagos">Lagos</SelectItem>
-                        <SelectItem value="abuja">Abuja</SelectItem>
-                        <SelectItem value="rivers">Rivers</SelectItem>
-                        <SelectItem value="all">All Locations</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Rating */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Minimum Rating</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any rating" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="4.5">4.5+ Stars</SelectItem>
-                        <SelectItem value="4.0">4.0+ Stars</SelectItem>
-                        <SelectItem value="3.5">3.5+ Stars</SelectItem>
-                        <SelectItem value="all">Any Rating</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Style Tags */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Style Preferences</label>
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                        Modern
-                      </Badge>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                        Afrocentric
-                      </Badge>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                        Traditional
-                      </Badge>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                        Minimalist
-                      </Badge>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
-                        Vintage
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+            <FilterDrawer filters={filters} onFiltersChange={setFilters} />
 
             {/* Active Style Tags - Quick Access */}
             <div className="flex gap-2 flex-wrap flex-1">
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs">
-                Modern
-              </Badge>
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs">
-                Afrocentric
-              </Badge>
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs hidden sm:inline-flex">
-                Traditional
-              </Badge>
+              {["Modern", "Afrocentric", "Traditional"].map((tag) => (
+                <Badge 
+                  key={tag}
+                  variant={filters.styleTags.includes(tag.toLowerCase()) ? "default" : "outline"} 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
+                  onClick={() => {
+                    const lowTag = tag.toLowerCase();
+                    setFilters(prev => ({
+                      ...prev,
+                      styleTags: prev.styleTags.includes(lowTag) 
+                        ? prev.styleTags.filter(t => t !== lowTag)
+                        : [...prev.styleTags, lowTag]
+                    }));
+                  }}
+                >
+                  {tag}
+                </Badge>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* Recommended Providers - GET /service-providers */}
+        {/* Featured Artisans Section */}
+        <FeaturedArtisans providers={allProviders} />
+
+        {/* Recommended Providers */}
         <section className="mb-12 md:mb-16">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4">
             <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
@@ -212,7 +138,7 @@ const MarketplaceHome = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-            {filteredProviders.map((provider) => (
+            {filteredProviders.filter(p => !p.featured).map((provider) => (
               <ProviderCard key={provider.id} provider={provider} />
             ))}
           </div>

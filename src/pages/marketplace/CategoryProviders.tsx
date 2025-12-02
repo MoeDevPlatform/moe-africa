@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
+import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
 import { getProvidersByCategory } from "@/data/mockData";
@@ -73,11 +74,20 @@ const CategoryProviders = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {providers.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} />
-            ))}
-          </div>
+          <>
+            {/* Featured Artisans in this category */}
+            <FeaturedArtisans 
+              providers={providers} 
+              title={`Featured ${categoryName} Artisans`} 
+            />
+
+            {/* All Providers */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {providers.filter(p => !p.featured).map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} />
+              ))}
+            </div>
+          </>
         )}
       </main>
 

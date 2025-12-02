@@ -3,17 +3,22 @@ import { useParams, Navigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
+import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
+import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
+import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Star, Truck, Shield, Clock, Heart } from "lucide-react";
+import { Star, Shield, Clock, Heart, CheckCircle } from "lucide-react";
 import { getProductById, getProviderById } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "react-router-dom";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
+  const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
 
@@ -51,6 +56,10 @@ const ProductDetail = () => {
     }
   };
 
+  const handleRushOrderChange = (enabled: boolean, additionalCost: number) => {
+    setRushOrderCost(additionalCost);
+  };
+
   if (!product || !provider) {
     return <Navigate to="/marketplace" replace />;
   }
@@ -63,30 +72,34 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div>
-            <Carousel className="w-full">
-              <CarouselContent>
-                {product.images.map((image, index) => (
-                  <CarouselItem key={index}>
-                    <div className="aspect-square rounded-2xl overflow-hidden bg-muted">
-                      <img 
-                        src={image} 
-                        alt={`${product.name} - View ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-4" />
-              <CarouselNext className="right-4" />
-            </Carousel>
+            <ProductImageGallery 
+              images={product.images} 
+              productName={product.name} 
+            />
           </div>
 
           {/* Product Info */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-4xl font-display font-bold mb-3">{product.name}</h1>
-              <p className="text-muted-foreground">by {provider.brandName}</p>
+              <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">{product.name}</h1>
+              <Link 
+                to={`/marketplace/provider/${provider.id}`}
+                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                by {provider.brandName}
+                {provider.verified && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <CheckCircle className="h-4 w-4 text-primary fill-primary/20" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Verified artisan — quality checked by MOE</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </Link>
             </div>
 
             <div className="flex items-center gap-2">
@@ -95,7 +108,7 @@ const ProductDetail = () => {
                 <span className="font-semibold">{provider.rating}</span>
               </div>
               <span className="text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{provider.city}</span>
+              <span className="text-sm text-muted-foreground">{provider.city}, {provider.state}</span>
             </div>
 
             <div className="border-y py-6">
@@ -104,6 +117,11 @@ const ProductDetail = () => {
                 <p className="text-3xl font-bold text-primary">
                   ₦{product.priceRange.min.toLocaleString()} - ₦{product.priceRange.max.toLocaleString()}
                 </p>
+                {rushOrderCost > 0 && (
+                  <p className="text-sm text-accent mt-1">
+                    +₦{rushOrderCost.toLocaleString()} rush order fee
+                  </p>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">Final price depends on customization options</p>
             </div>
@@ -127,11 +145,13 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 py-6 border-y">
-              <div className="text-center">
-                <Truck className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground">~{product.estimatedDeliveryDays} days</p>
-              </div>
+            {/* Delivery Estimate Module */}
+            <DeliveryEstimate 
+              estimatedDeliveryDays={product.estimatedDeliveryDays}
+              onRushOrderChange={handleRushOrderChange}
+            />
+
+            <div className="grid grid-cols-2 gap-4 py-6 border-y">
               <div className="text-center">
                 <Shield className="h-6 w-6 mx-auto mb-2 text-primary" />
                 <p className="text-xs text-muted-foreground">Quality Guaranteed</p>
@@ -166,6 +186,9 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Complete Your Look Section */}
+        <CompleteYourLook currentProduct={product} />
       </main>
 
       <MarketplaceFooter />
@@ -177,7 +200,7 @@ const ProductDetail = () => {
         productId={product.id}
         productName={product.name}
         providerName={provider.brandName}
-        basePrice={product.priceRange.min}
+        basePrice={product.priceRange.min + rushOrderCost}
         estimatedDeliveryDays={product.estimatedDeliveryDays}
         category={product.category}
       />

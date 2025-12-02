@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
+import { Heart, CheckCircle } from "lucide-react";
 import { Product, getProviderById } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProductCardProps {
   product: Product;
@@ -70,7 +71,21 @@ const ProductCard = ({ product }: ProductCardProps) => {
       </div>
       
       <CardContent className="p-4">
-        <h3 className="font-display font-semibold text-lg mb-2 line-clamp-1">{product.name}</h3>
+        <div className="flex items-center gap-1.5 mb-2">
+          <h3 className="font-display font-semibold text-lg line-clamp-1">{product.name}</h3>
+          {provider?.verified && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <CheckCircle className="h-4 w-4 text-primary fill-primary/20 flex-shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">From a verified artisan</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
         
         <div className="flex items-center justify-between">

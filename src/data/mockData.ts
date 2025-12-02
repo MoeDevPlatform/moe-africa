@@ -27,6 +27,7 @@ export interface Provider {
   rating: number;
   reviewCount: number;
   verified: boolean;
+  featured: boolean;
   estimatedDeliveryDays: number;
   heroImage: string;
   customOrdersEnabled: boolean;
@@ -48,6 +49,7 @@ export const providers: Provider[] = [
     rating: 4.8,
     reviewCount: 124,
     verified: true,
+    featured: true,
     estimatedDeliveryDays: 7,
     heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
     customOrdersEnabled: true,
@@ -67,6 +69,7 @@ export const providers: Provider[] = [
     rating: 4.7,
     reviewCount: 89,
     verified: true,
+    featured: false,
     estimatedDeliveryDays: 5,
     heroImage: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=1200",
     customOrdersEnabled: true,
@@ -86,6 +89,7 @@ export const providers: Provider[] = [
     rating: 4.9,
     reviewCount: 156,
     verified: true,
+    featured: true,
     estimatedDeliveryDays: 6,
     heroImage: "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=1200",
     customOrdersEnabled: true,
@@ -105,6 +109,7 @@ export const providers: Provider[] = [
     rating: 4.8,
     reviewCount: 98,
     verified: true,
+    featured: true,
     estimatedDeliveryDays: 10,
     heroImage: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=1200",
     customOrdersEnabled: true,
@@ -123,7 +128,8 @@ export const providers: Provider[] = [
     email: "amaka@footwearelegance.ng",
     rating: 4.6,
     reviewCount: 72,
-    verified: true,
+    verified: false,
+    featured: false,
     estimatedDeliveryDays: 8,
     heroImage: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=1200",
     customOrdersEnabled: true,
@@ -143,6 +149,7 @@ export const providers: Provider[] = [
     rating: 4.9,
     reviewCount: 201,
     verified: true,
+    featured: false,
     estimatedDeliveryDays: 1,
     heroImage: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=1200",
     customOrdersEnabled: true,
@@ -162,6 +169,7 @@ export const providers: Provider[] = [
     rating: 4.7,
     reviewCount: 84,
     verified: true,
+    featured: false,
     estimatedDeliveryDays: 7,
     heroImage: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=1200",
     customOrdersEnabled: true,
