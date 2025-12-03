@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ShoppingCart, User, Search, MessageSquare, Heart } from "lucide-react";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
+import NotificationCenter from "./NotificationCenter";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 
@@ -67,6 +68,8 @@ const MarketplaceNavbar = () => {
                 Explore
               </Button>
             </Link>
+            
+            <NotificationCenter />
             
             <Link to="/marketplace/messages">
               <Button variant="ghost" size="icon">

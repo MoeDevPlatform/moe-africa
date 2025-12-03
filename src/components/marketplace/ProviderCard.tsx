@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,18 @@ interface ProviderCardProps {
 }
 
 const ProviderCard = ({ provider }: ProviderCardProps) => {
+  const navigate = useNavigate();
   const productCount = getProductsByProviderId(provider.id).length;
+
+  const handleCardClick = () => {
+    navigate(`/marketplace/provider/${provider.id}`);
+  };
   
   return (
-    <Card className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-border ${provider.featured ? 'ring-2 ring-accent/50' : ''}`}>
+    <Card 
+      className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-border cursor-pointer ${provider.featured ? 'ring-2 ring-accent/50' : ''}`}
+      onClick={handleCardClick}
+    >
       <div className="relative h-48 bg-gradient-hero">
         <img 
           src={provider.heroImage} 
@@ -36,7 +44,9 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
       
       <CardContent className="p-6">
         <div className="flex items-center gap-2 mb-2">
-          <h3 className="text-xl font-display font-bold">{provider.brandName}</h3>
+          <h3 className="text-xl font-display font-bold hover:text-primary transition-colors">
+            {provider.brandName}
+          </h3>
           {provider.verified && (
             <TooltipProvider>
               <Tooltip>
@@ -81,11 +91,17 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
             <span>{productCount} products</span>
           </div>
           
-          <Link to={`/marketplace/provider/${provider.id}`}>
-            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-              View Profile
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/marketplace/provider/${provider.id}`);
+            }}
+          >
+            View Profile
+          </Button>
         </div>
       </CardContent>
     </Card>

@@ -6,11 +6,45 @@ import ProductCard from "@/components/marketplace/ProductCard";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 import CustomOrderModal from "@/components/marketplace/CustomOrderModal";
 import MessagingModal from "@/components/marketplace/MessagingModal";
+import CustomerReviews, { Review } from "@/components/marketplace/CustomerReviews";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle } from "lucide-react";
 import { getProviderById, getProductsByProviderId } from "@/data/mockData";
+
+// Mock reviews with images
+const mockReviews: Review[] = [
+  {
+    id: "1",
+    authorName: "Ngozi A.",
+    rating: 5,
+    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
+    comment: "Absolutely amazing work! The attention to detail is incredible. My Ankara suit fits perfectly and I received so many compliments.",
+    images: ["https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400"],
+    verifiedPurchase: true,
+    helpful: 12,
+  },
+  {
+    id: "2",
+    authorName: "Emeka O.",
+    rating: 5,
+    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+    comment: "Professional service from start to finish. The custom measurements ensured a perfect fit.",
+    verifiedPurchase: true,
+    helpful: 8,
+  },
+  {
+    id: "3",
+    authorName: "Amaka C.",
+    rating: 4,
+    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
+    comment: "Great quality and fast delivery. Would definitely recommend!",
+    images: ["https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=400"],
+    verifiedPurchase: true,
+    helpful: 5,
+  },
+];
 
 const ProviderDetail = () => {
   const { id } = useParams();
@@ -142,23 +176,12 @@ const ProviderDetail = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="reviews" className="mt-6 space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="bg-card rounded-xl border p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="font-semibold">{review.author}</p>
-                          <p className="text-sm text-muted-foreground">{review.date}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: review.rating }).map((_, i) => (
-                            <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-muted-foreground">{review.comment}</p>
-                    </div>
-                  ))}
+                <TabsContent value="reviews" className="mt-6">
+                  <CustomerReviews 
+                    reviews={mockReviews} 
+                    averageRating={provider.rating} 
+                    totalReviews={provider.reviewCount} 
+                  />
                 </TabsContent>
               </Tabs>
             </div>

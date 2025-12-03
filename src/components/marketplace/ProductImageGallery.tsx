@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ZoomIn, ZoomOut, RotateCw, X, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCw, X, Maximize2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import useEmblaCarousel from "embla-carousel-react";
 
 interface ProductImageGalleryProps {
   images: string[];
@@ -18,6 +19,30 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
   const [isHovering, setIsHovering] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Embla carousel for swipe support
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) {
+      emblaApi.scrollPrev();
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    }
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) {
+      emblaApi.scrollNext();
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    }
+  }, [emblaApi]);
+
+  const scrollTo = useCallback((index: number) => {
+    if (emblaApi) {
+      emblaApi.scrollTo(index);
+      setSelectedIndex(index);
+    }
+  }, [emblaApi]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!imageContainerRef.current || !isHovering) return;
@@ -38,30 +63,74 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
 
   return (
     <div className="space-y-4">
-      {/* Main Image */}
-      <div 
-        ref={imageContainerRef}
-        className="relative aspect-square rounded-2xl overflow-hidden bg-muted cursor-zoom-in group"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-        onMouseMove={handleMouseMove}
-        onClick={() => setShowFullscreen(true)}
-      >
-        <img 
-          src={images[selectedIndex]} 
-          alt={`${productName} - View ${selectedIndex + 1}`}
-          className="w-full h-full object-cover transition-transform duration-200"
-          style={{
-            transform: isHovering ? `scale(1.5)` : 'scale(1)',
-            transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
-          }}
-        />
+      {/* Main Image Carousel */}
+      <div className="relative">
+        <div 
+          ref={emblaRef}
+          className="overflow-hidden rounded-2xl"
+        >
+          <div className="flex">
+            {images.map((image, index) => (
+              <div 
+                key={index}
+                className="flex-[0_0_100%] min-w-0"
+              >
+                <div 
+                  ref={index === selectedIndex ? imageContainerRef : null}
+                  className="relative aspect-square bg-muted cursor-zoom-in group"
+                  onMouseEnter={() => setIsHovering(true)}
+                  onMouseLeave={() => setIsHovering(false)}
+                  onMouseMove={handleMouseMove}
+                  onClick={() => setShowFullscreen(true)}
+                >
+                  <img 
+                    src={image} 
+                    alt={`${productName} - View ${index + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-200"
+                    style={{
+                      transform: isHovering && index === selectedIndex ? `scale(1.5)` : 'scale(1)',
+                      transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                scrollPrev();
+              }}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                scrollNext();
+              }}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
         
         {/* Fullscreen Button */}
         <Button
           variant="secondary"
           size="icon"
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-4 right-4 opacity-70 hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             setShowFullscreen(true);
@@ -73,17 +142,22 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
         {/* Zoom indicator */}
         {isHovering && (
           <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
-            Hover to zoom • Click for fullscreen
+            Swipe or use arrows • Click for fullscreen
           </div>
         )}
+        
+        {/* Image counter */}
+        <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
+          {selectedIndex + 1} / {images.length}
+        </div>
       </div>
 
       {/* Thumbnail Strip */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {images.map((image, index) => (
           <button
             key={index}
-            onClick={() => setSelectedIndex(index)}
+            onClick={() => scrollTo(index)}
             className={cn(
               "flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted transition-all",
               selectedIndex === index 
