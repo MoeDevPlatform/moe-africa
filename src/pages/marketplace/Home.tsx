@@ -5,6 +5,7 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
+import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
 import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -118,6 +119,9 @@ const MarketplaceHome = () => {
 
         {/* Featured Artisans Section */}
         <FeaturedArtisans providers={allProviders} />
+
+        {/* Featured Products Section */}
+        <FeaturedProducts />
 
         {/* Recommended Providers */}
         <section className="mb-12 md:mb-16">

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, CheckCircle } from "lucide-react";
@@ -13,6 +13,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const navigate = useNavigate();
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
   const inWishlist = isInWishlist(product.id);
@@ -48,8 +49,21 @@ const ProductCard = ({ product }: ProductCardProps) => {
     }
   };
 
+  const handleProviderClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/marketplace/provider/${product.providerId}`);
+  };
+
+  const handleCardClick = () => {
+    navigate(`/marketplace/product/${product.id}`);
+  };
+
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
+    <Card 
+      className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
+      onClick={handleCardClick}
+    >
       <div className="relative h-64 bg-muted">
         <img 
           src={product.images[0]} 
@@ -71,7 +85,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       </div>
       
       <CardContent className="p-4">
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5 mb-1">
           <h3 className="font-display font-semibold text-lg line-clamp-1">{product.name}</h3>
           {provider?.verified && (
             <TooltipProvider>
@@ -86,6 +100,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
             </TooltipProvider>
           )}
         </div>
+        
+        {provider && (
+          <button
+            onClick={handleProviderClick}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors mb-2 text-left"
+          >
+            by {provider.brandName}
+          </button>
+        )}
+        
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
         
         <div className="flex items-center justify-between">
@@ -96,11 +120,17 @@ const ProductCard = ({ product }: ProductCardProps) => {
             </p>
           </div>
           
-          <Link to={`/marketplace/product/${product.id}`}>
-            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-              View Details
-            </Button>
-          </Link>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/marketplace/product/${product.id}`);
+            }}
+          >
+            View Details
+          </Button>
         </div>
       </CardContent>
     </Card>
