@@ -24,6 +24,8 @@ import Checkout from "./pages/marketplace/Checkout";
 import Messages from "./pages/marketplace/Messages";
 import Wishlist from "./pages/marketplace/Wishlist";
 import CategoryProviders from "./pages/marketplace/CategoryProviders";
+import CustomerOrders from "./pages/marketplace/Orders";
+import OrderDetail from "./pages/marketplace/OrderDetail";
 import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
@@ -50,6 +52,8 @@ const App = () => (
           <Route path="/marketplace/checkout" element={<Checkout />} />
           <Route path="/marketplace/messages" element={<Messages />} />
           <Route path="/marketplace/wishlist" element={<Wishlist />} />
+          <Route path="/marketplace/orders" element={<CustomerOrders />} />
+          <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />

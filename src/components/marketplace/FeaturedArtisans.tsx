@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface FeaturedArtisansProps {
 }
 
 const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedArtisansProps) => {
+  const navigate = useNavigate();
   const featuredProviders = providers.filter(p => p.featured);
   
   if (featuredProviders.length === 0) return null;
@@ -26,7 +27,11 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
         {featuredProviders.map((provider) => {
           const products = getProductsByProviderId(provider.id).slice(0, 3);
           return (
-            <Card key={provider.id} className="overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent">
+            <Card 
+              key={provider.id} 
+              className="overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => navigate(`/marketplace/provider/${provider.id}`)}
+            >
               {/* Featured Badge Ribbon */}
               <div className="relative">
                 <div className="absolute top-4 -left-8 z-10 bg-accent text-accent-foreground px-10 py-1 text-xs font-semibold transform -rotate-45 shadow-md">
@@ -75,10 +80,13 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                     <p className="text-xs font-medium text-muted-foreground mb-2">Top Products</p>
                     <div className="flex gap-2">
                       {products.map((product) => (
-                        <Link 
+                        <div 
                           key={product.id} 
-                          to={`/marketplace/product/${product.id}`}
-                          className="relative group"
+                          className="relative group cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/marketplace/product/${product.id}`);
+                          }}
                         >
                           <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
                             <img 
@@ -87,17 +95,22 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                             />
                           </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <Link to={`/marketplace/provider/${provider.id}`}>
-                  <Button className="w-full" variant="default">
-                    View Profile
-                  </Button>
-                </Link>
+                <Button 
+                  className="w-full" 
+                  variant="default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/marketplace/provider/${provider.id}`);
+                  }}
+                >
+                  View Profile
+                </Button>
               </CardContent>
             </Card>
           );
