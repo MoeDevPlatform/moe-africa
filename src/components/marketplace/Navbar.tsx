@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, MessageSquare, Heart, Package } from "lucide-react";
+import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings } from "lucide-react";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
 import NotificationCenter from "./NotificationCenter";
@@ -91,6 +91,12 @@ const MarketplaceNavbar = () => {
             <Link to="/marketplace/orders">
               <Button variant="ghost" size="icon">
                 <Package className="h-5 w-5" />
+              </Button>
+            </Link>
+
+            <Link to="/marketplace/settings">
+              <Button variant="ghost" size="icon">
+                <Settings className="h-5 w-5" />
               </Button>
             </Link>
             

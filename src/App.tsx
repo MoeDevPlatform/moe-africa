@@ -26,6 +26,7 @@ import Wishlist from "./pages/marketplace/Wishlist";
 import CategoryProviders from "./pages/marketplace/CategoryProviders";
 import CustomerOrders from "./pages/marketplace/Orders";
 import OrderDetail from "./pages/marketplace/OrderDetail";
+import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/marketplace/wishlist" element={<Wishlist />} />
           <Route path="/marketplace/orders" element={<CustomerOrders />} />
           <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />
+          <Route path="/marketplace/settings" element={<Settings />} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
