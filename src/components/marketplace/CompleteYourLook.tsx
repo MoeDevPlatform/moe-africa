@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,13 @@ interface CompleteYourLookProps {
 }
 
 const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
+  const navigate = useNavigate();
+
+  const handleProductClick = (productId: number) => {
+    navigate(`/marketplace/product/${productId}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Find complementary products based on style tags and different categories
   const getSuggestions = (): Product[] => {
     const currentTags = currentProduct.tags.map(t => t.toLowerCase());
@@ -53,7 +60,11 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
         {suggestions.map((product) => {
           const provider = getProviderById(product.providerId);
           return (
-            <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow group">
+            <Card 
+              key={product.id} 
+              className="overflow-hidden hover:shadow-md transition-shadow group cursor-pointer"
+              onClick={() => handleProductClick(product.id)}
+            >
               <div className="relative aspect-square bg-muted">
                 <img 
                   src={product.images[0]} 
@@ -78,11 +89,17 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
                   <span className="text-sm font-bold text-primary">
                     ₦{product.priceRange.min.toLocaleString()}+
                   </span>
-                  <Link to={`/marketplace/product/${product.id}`}>
-                    <Button size="sm" variant="outline" className="h-7 text-xs">
-                      View
-                    </Button>
-                  </Link>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-7 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleProductClick(product.id);
+                    }}
+                  >
+                    View
+                  </Button>
                 </div>
               </CardContent>
             </Card>

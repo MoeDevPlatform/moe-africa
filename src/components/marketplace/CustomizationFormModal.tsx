@@ -145,10 +145,17 @@ const CustomizationFormModal = ({
   };
 
   const canProceed = () => {
-    if (step === 1) return Object.keys(selectedVariants).length > 0;
-    if (step === 2) return selectedSize !== "";
-    if (step === 3) return isShoemaking ? selectedFootType !== "" : selectedBodyType !== "";
-    return true;
+    if (isShoemaking) {
+      if (step === 1) return selectedSize !== "";
+      if (step === 2) return selectedFootType !== "";
+      if (step === 3) return Object.keys(selectedVariants).length > 0;
+      return true;
+    } else {
+      if (step === 1) return Object.keys(selectedVariants).length > 0;
+      if (step === 2) return selectedSize !== "";
+      if (step === 3) return selectedBodyType !== "";
+      return true;
+    }
   };
 
   const stepTitles = isShoemaking 

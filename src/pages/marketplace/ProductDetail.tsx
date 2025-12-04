@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
@@ -21,6 +21,11 @@ const ProductDetail = () => {
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
+
+  // Scroll to top when product changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [id]);
 
   const product = getProductById(Number(id));
   const provider = product ? getProviderById(product.providerId) : null;
