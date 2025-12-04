@@ -12,9 +12,7 @@ import {
   Clock, 
   Truck, 
   MapPin,
-  MessageSquare,
   FileText,
-  Bell,
   Paintbrush,
   Search,
   Box
@@ -317,43 +315,14 @@ const OrderDetail = () => {
 
             {/* Actions */}
             <Card>
-              <CardContent className="p-4 space-y-3">
-                <Button className="w-full gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Message Artisan
+              <CardContent className="p-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2 text-sm sm:text-base px-3 py-2 h-auto min-h-[40px] whitespace-normal"
+                >
+                  <FileText className="h-4 w-4 flex-shrink-0" />
+                  <span>Download Invoice</span>
                 </Button>
-                <Button variant="outline" className="w-full gap-2">
-                  <Bell className="h-4 w-4" />
-                  Notification Preferences
-                </Button>
-                <Button variant="ghost" className="w-full gap-2 text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  Download Invoice
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Notifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  Notifications
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span>In-app notifications</span>
-                  <Badge variant="secondary">Enabled</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>SMS alerts</span>
-                  <Badge variant="outline">Set up</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>Email confirmations</span>
-                  <Badge variant="secondary">Enabled</Badge>
-                </div>
               </CardContent>
             </Card>
           </div>
