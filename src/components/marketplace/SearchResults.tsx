@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ interface SearchResultsProps {
 const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsProps) => {
   const navigate = useNavigate();
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search
   useEffect(() => {
@@ -24,6 +26,29 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Handle ESC key and click outside
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
 
   // Mock data - API: GET /search?q={query}
   const mockCategories = [
@@ -90,19 +115,29 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div ref={containerRef} className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Search Header */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={inputRef}
               type="search"
               placeholder="Search for artisans, products, or services..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-4"
+              className="pl-10 pr-10"
               autoFocus
             />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
