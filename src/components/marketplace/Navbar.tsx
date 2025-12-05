@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,9 @@ const MarketplaceNavbar = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { getItemCount } = useCart();
   const { getItemCount: getWishlistCount } = useWishlist();
+  
+  // Hover delay timer for mega menu stability
+  const megaMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
@@ -29,6 +32,21 @@ const MarketplaceNavbar = () => {
       setShowSearchResults(true);
     }
   };
+
+  // Mega menu hover handlers with delay
+  const handleMegaMenuEnter = useCallback(() => {
+    if (megaMenuTimeoutRef.current) {
+      clearTimeout(megaMenuTimeoutRef.current);
+      megaMenuTimeoutRef.current = null;
+    }
+    setShowMegaMenu(true);
+  }, []);
+
+  const handleMegaMenuLeave = useCallback(() => {
+    megaMenuTimeoutRef.current = setTimeout(() => {
+      setShowMegaMenu(false);
+    }, 200); // 200ms delay before closing
+  }, []);
 
   return (
     <>
@@ -66,8 +84,8 @@ const MarketplaceNavbar = () => {
           {/* Categories Button - Desktop */}
           <div 
             className="hidden md:block relative"
-            onMouseEnter={() => setShowMegaMenu(true)}
-            onMouseLeave={() => setShowMegaMenu(false)}
+            onMouseEnter={handleMegaMenuEnter}
+            onMouseLeave={handleMegaMenuLeave}
           >
             <Button 
               variant="ghost" 
@@ -169,7 +187,12 @@ const MarketplaceNavbar = () => {
       </div>
       
       {/* Mega Menu - Desktop */}
-      <MegaMenu isOpen={showMegaMenu} onClose={() => setShowMegaMenu(false)} />
+      <MegaMenu 
+        isOpen={showMegaMenu} 
+        onClose={() => setShowMegaMenu(false)}
+        onMouseEnter={handleMegaMenuEnter}
+        onMouseLeave={handleMegaMenuLeave}
+      />
     </header>
     </>
   );

@@ -201,9 +201,11 @@ const quickLinks = [
 interface MegaMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-const MegaMenu = ({ isOpen, onClose }: MegaMenuProps) => {
+const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps) => {
   const [activeCategory, setActiveCategory] = useState<CategoryData | null>(categories[0]);
 
   if (!isOpen) return null;
@@ -211,7 +213,8 @@ const MegaMenu = ({ isOpen, onClose }: MegaMenuProps) => {
   return (
     <div 
       className="absolute top-full left-0 w-full bg-card border-b border-border shadow-lg z-50"
-      onMouseLeave={onClose}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-12 gap-6">
