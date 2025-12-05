@@ -284,6 +284,17 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
           {/* Column C - Category Details */}
           {activeCategory && (
             <div className="col-span-6">
+              {/* All Artisans Link - Prominent Position */}
+              <Link
+                to={`/category/${activeCategory.slug}/artisans`}
+                onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 mb-4 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors group"
+              >
+                <Users className="h-5 w-5" />
+                <span className="font-medium">View All {activeCategory.name} Artisans</span>
+                <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
+              </Link>
+
               <div className="grid grid-cols-2 gap-8">
                 {/* Featured Subsections */}
                 <div>
