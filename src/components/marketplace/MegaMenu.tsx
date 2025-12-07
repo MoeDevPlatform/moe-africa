@@ -17,42 +17,85 @@ import {
   Watch,
   Palette,
   Gem,
-  Home,
-  Shirt,
-  Crown,
-  Glasses,
-  Gift,
-  Heart,
-  Lamp,
-  Frame,
-  Sofa,
-  Brush,
-  PenTool,
-  Ruler,
-  Zap,
-  Award,
-  Hexagon,
-  Circle,
-  Square,
-  Triangle,
-  Flower2,
-  Leaf,
-  Wand2
+  Home
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+// Category thumbnail images for the third column
+const categoryThumbnails: Record<string, string> = {
+  // Tailoring
+  "kaftans": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=100&h=100&fit=crop",
+  "ankara-jackets": "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=100&h=100&fit=crop",
+  "agbada": "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=100&h=100&fit=crop",
+  "ankara-pants": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=100&h=100&fit=crop",
+  "kaftan-sets": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=100&h=100&fit=crop",
+  "traditional-wear": "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=100&h=100&fit=crop",
+  "customized-outfits": "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=100&h=100&fit=crop",
+  "ready-to-wear": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=100&h=100&fit=crop",
+  // Shoemaking
+  "leather-sandals": "https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=100&h=100&fit=crop",
+  "loafers": "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=100&h=100&fit=crop",
+  "sneakers": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop",
+  "custom-boots": "https://images.unsplash.com/photo-1542840843-3349799cded6?w=100&h=100&fit=crop",
+  "handmade-slides": "https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=100&h=100&fit=crop",
+  "luxury-shoes": "https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=100&h=100&fit=crop",
+  "occasion-footwear": "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=100&h=100&fit=crop",
+  // Leatherwork
+  "bags": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=100&h=100&fit=crop",
+  "wallets": "https://images.unsplash.com/photo-1627123424574-724758594e93?w=100&h=100&fit=crop",
+  "belts": "https://images.unsplash.com/photo-1624222247344-550fb60583dc?w=100&h=100&fit=crop",
+  "laptop-sleeves": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=100&h=100&fit=crop",
+  "travel-cases": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=100&h=100&fit=crop",
+  // Beauty
+  "hair-extensions": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+  "wigs": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+  "braiding": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+  "natural-hair-care": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+  "beauty-products": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+  // Accessories
+  "hats-caps": "https://images.unsplash.com/photo-1521369909029-2afed882baee?w=100&h=100&fit=crop",
+  "scarves": "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=100&h=100&fit=crop",
+  "ties-bowties": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=100&h=100&fit=crop",
+  "cufflinks": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=100&h=100&fit=crop",
+  "sunglasses": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=100&h=100&fit=crop",
+  // Crafts
+  "pottery": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=100&h=100&fit=crop",
+  "woodwork": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  "textiles": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  "beadwork": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  "sculptures": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  // Jewelry
+  "necklaces": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  "earrings": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  "bracelets": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  "rings": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  "anklets": "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=100&h=100&fit=crop",
+  // Home & Decor
+  "wall-art": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  "furniture": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=100&h=100&fit=crop",
+  "lighting": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=100&h=100&fit=crop",
+  "rugs-carpets": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  "cushions-throws": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
+  // Featured
+  "featured-styles": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=100&h=100&fit=crop",
+  "best-sellers": "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=100&h=100&fit=crop",
+  "seasonal-picks": "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=100&h=100&fit=crop",
+  "trending-pieces": "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=100&h=100&fit=crop",
+};
+
+const defaultThumbnail = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop";
+
 interface SubCategory {
   name: string;
   slug: string;
-  icon: React.ReactNode;
 }
 
 interface CategoryData {
   name: string;
   slug: string;
   icon: React.ReactNode;
-  featured: { name: string; slug: string; icon: React.ReactNode }[];
+  featured: { name: string; slug: string }[];
   subcategories: SubCategory[];
 }
 
@@ -62,20 +105,20 @@ const categories: CategoryData[] = [
     slug: "tailoring",
     icon: <Scissors className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Kaftans", slug: "kaftans", icon: <Shirt className="h-3.5 w-3.5" /> },
-      { name: "Ankara Jackets", slug: "ankara-jackets", icon: <Crown className="h-3.5 w-3.5" /> },
-      { name: "Agbada", slug: "agbada", icon: <Award className="h-3.5 w-3.5" /> },
-      { name: "Ankara Pants", slug: "ankara-pants", icon: <Ruler className="h-3.5 w-3.5" /> },
-      { name: "Kaftan Sets", slug: "kaftan-sets", icon: <Hexagon className="h-3.5 w-3.5" /> },
-      { name: "Traditional Wear", slug: "traditional-wear", icon: <Star className="h-3.5 w-3.5" /> },
-      { name: "Customized Outfits", slug: "customized-outfits", icon: <PenTool className="h-3.5 w-3.5" /> },
-      { name: "Ready-to-wear", slug: "ready-to-wear", icon: <Zap className="h-3.5 w-3.5" /> },
+      { name: "Kaftans", slug: "kaftans" },
+      { name: "Ankara Jackets", slug: "ankara-jackets" },
+      { name: "Agbada", slug: "agbada" },
+      { name: "Ankara Pants", slug: "ankara-pants" },
+      { name: "Kaftan Sets", slug: "kaftan-sets" },
+      { name: "Traditional Wear", slug: "traditional-wear" },
+      { name: "Customized Outfits", slug: "customized-outfits" },
+      { name: "Ready-to-wear", slug: "ready-to-wear" },
     ],
   },
   {
@@ -83,19 +126,19 @@ const categories: CategoryData[] = [
     slug: "shoemaking",
     icon: <Footprints className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Leather Sandals", slug: "leather-sandals", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Loafers", slug: "loafers", icon: <Square className="h-3.5 w-3.5" /> },
-      { name: "Sneakers", slug: "sneakers", icon: <Zap className="h-3.5 w-3.5" /> },
-      { name: "Custom Boots", slug: "custom-boots", icon: <Award className="h-3.5 w-3.5" /> },
-      { name: "Handmade Slides", slug: "handmade-slides", icon: <Triangle className="h-3.5 w-3.5" /> },
-      { name: "Luxury Shoes", slug: "luxury-shoes", icon: <Crown className="h-3.5 w-3.5" /> },
-      { name: "Occasion Footwear", slug: "occasion-footwear", icon: <Star className="h-3.5 w-3.5" /> },
+      { name: "Leather Sandals", slug: "leather-sandals" },
+      { name: "Loafers", slug: "loafers" },
+      { name: "Sneakers", slug: "sneakers" },
+      { name: "Custom Boots", slug: "custom-boots" },
+      { name: "Handmade Slides", slug: "handmade-slides" },
+      { name: "Luxury Shoes", slug: "luxury-shoes" },
+      { name: "Occasion Footwear", slug: "occasion-footwear" },
     ],
   },
   {
@@ -103,17 +146,17 @@ const categories: CategoryData[] = [
     slug: "leatherwork",
     icon: <Briefcase className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Bags", slug: "bags", icon: <Briefcase className="h-3.5 w-3.5" /> },
-      { name: "Wallets", slug: "wallets", icon: <Square className="h-3.5 w-3.5" /> },
-      { name: "Belts", slug: "belts", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Laptop Sleeves", slug: "laptop-sleeves", icon: <Frame className="h-3.5 w-3.5" /> },
-      { name: "Travel Cases", slug: "travel-cases", icon: <Package className="h-3.5 w-3.5" /> },
+      { name: "Bags", slug: "bags" },
+      { name: "Wallets", slug: "wallets" },
+      { name: "Belts", slug: "belts" },
+      { name: "Laptop Sleeves", slug: "laptop-sleeves" },
+      { name: "Travel Cases", slug: "travel-cases" },
     ],
   },
   {
@@ -121,17 +164,17 @@ const categories: CategoryData[] = [
     slug: "beauty",
     icon: <Sparkle className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Hair Extensions", slug: "hair-extensions", icon: <Wand2 className="h-3.5 w-3.5" /> },
-      { name: "Wigs", slug: "wigs", icon: <Crown className="h-3.5 w-3.5" /> },
-      { name: "Braiding", slug: "braiding", icon: <Hexagon className="h-3.5 w-3.5" /> },
-      { name: "Natural Hair Care", slug: "natural-hair-care", icon: <Flower2 className="h-3.5 w-3.5" /> },
-      { name: "Beauty Products", slug: "beauty-products", icon: <Heart className="h-3.5 w-3.5" /> },
+      { name: "Hair Extensions", slug: "hair-extensions" },
+      { name: "Wigs", slug: "wigs" },
+      { name: "Braiding", slug: "braiding" },
+      { name: "Natural Hair Care", slug: "natural-hair-care" },
+      { name: "Beauty Products", slug: "beauty-products" },
     ],
   },
   {
@@ -139,17 +182,17 @@ const categories: CategoryData[] = [
     slug: "accessories",
     icon: <Watch className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Hats & Caps", slug: "hats-caps", icon: <Crown className="h-3.5 w-3.5" /> },
-      { name: "Scarves", slug: "scarves", icon: <Brush className="h-3.5 w-3.5" /> },
-      { name: "Ties & Bowties", slug: "ties-bowties", icon: <Award className="h-3.5 w-3.5" /> },
-      { name: "Cufflinks", slug: "cufflinks", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Sunglasses", slug: "sunglasses", icon: <Glasses className="h-3.5 w-3.5" /> },
+      { name: "Hats & Caps", slug: "hats-caps" },
+      { name: "Scarves", slug: "scarves" },
+      { name: "Ties & Bowties", slug: "ties-bowties" },
+      { name: "Cufflinks", slug: "cufflinks" },
+      { name: "Sunglasses", slug: "sunglasses" },
     ],
   },
   {
@@ -157,17 +200,17 @@ const categories: CategoryData[] = [
     slug: "art",
     icon: <Palette className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Pottery", slug: "pottery", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Woodwork", slug: "woodwork", icon: <Square className="h-3.5 w-3.5" /> },
-      { name: "Textiles", slug: "textiles", icon: <Brush className="h-3.5 w-3.5" /> },
-      { name: "Beadwork", slug: "beadwork", icon: <Hexagon className="h-3.5 w-3.5" /> },
-      { name: "Sculptures", slug: "sculptures", icon: <Triangle className="h-3.5 w-3.5" /> },
+      { name: "Pottery", slug: "pottery" },
+      { name: "Woodwork", slug: "woodwork" },
+      { name: "Textiles", slug: "textiles" },
+      { name: "Beadwork", slug: "beadwork" },
+      { name: "Sculptures", slug: "sculptures" },
     ],
   },
   {
@@ -175,17 +218,17 @@ const categories: CategoryData[] = [
     slug: "jewelry",
     icon: <Gem className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Necklaces", slug: "necklaces", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Earrings", slug: "earrings", icon: <Gem className="h-3.5 w-3.5" /> },
-      { name: "Bracelets", slug: "bracelets", icon: <Hexagon className="h-3.5 w-3.5" /> },
-      { name: "Rings", slug: "rings", icon: <Circle className="h-3.5 w-3.5" /> },
-      { name: "Anklets", slug: "anklets", icon: <Square className="h-3.5 w-3.5" /> },
+      { name: "Necklaces", slug: "necklaces" },
+      { name: "Earrings", slug: "earrings" },
+      { name: "Bracelets", slug: "bracelets" },
+      { name: "Rings", slug: "rings" },
+      { name: "Anklets", slug: "anklets" },
     ],
   },
   {
@@ -193,17 +236,17 @@ const categories: CategoryData[] = [
     slug: "furniture",
     icon: <Home className="h-4 w-4" />,
     featured: [
-      { name: "Featured Styles", slug: "featured-styles", icon: <Sparkles className="h-3.5 w-3.5" /> },
-      { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-      { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Leaf className="h-3.5 w-3.5" /> },
-      { name: "Trending Pieces", slug: "trending-pieces", icon: <Flame className="h-3.5 w-3.5" /> },
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
     ],
     subcategories: [
-      { name: "Wall Art", slug: "wall-art", icon: <Frame className="h-3.5 w-3.5" /> },
-      { name: "Furniture", slug: "furniture", icon: <Sofa className="h-3.5 w-3.5" /> },
-      { name: "Lighting", slug: "lighting", icon: <Lamp className="h-3.5 w-3.5" /> },
-      { name: "Rugs & Carpets", slug: "rugs-carpets", icon: <Square className="h-3.5 w-3.5" /> },
-      { name: "Cushions & Throws", slug: "cushions-throws", icon: <Gift className="h-3.5 w-3.5" /> },
+      { name: "Wall Art", slug: "wall-art" },
+      { name: "Furniture", slug: "furniture" },
+      { name: "Lighting", slug: "lighting" },
+      { name: "Rugs & Carpets", slug: "rugs-carpets" },
+      { name: "Cushions & Throws", slug: "cushions-throws" },
     ],
   },
 ];
@@ -218,6 +261,28 @@ const quickLinks = [
   { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace?featured=best-sellers" },
   { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace?featured=trending" },
 ];
+
+// Mini image card component for subcategories
+const MiniImageCard = ({ slug, name, onClick }: { slug: string; name: string; onClick: () => void }) => {
+  const thumbnail = categoryThumbnails[slug] || defaultThumbnail;
+  
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left group w-full"
+    >
+      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-border group-hover:border-primary/50 transition-colors">
+        <img 
+          src={thumbnail} 
+          alt={name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+      <span className="truncate">{name}</span>
+    </button>
+  );
+};
 
 interface MegaMenuProps {
   isOpen: boolean;
@@ -237,6 +302,11 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
     navigate(`/marketplace/category/${categorySlug}`);
   };
 
+  const handleBrowseAllProductsClick = (categorySlug: string) => {
+    onClose();
+    navigate(`/marketplace/category/${categorySlug}/products`);
+  };
+
   const handleArtisansClick = (categorySlug: string) => {
     onClose();
     navigate(`/marketplace/category/${categorySlug}`);
@@ -244,12 +314,12 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
 
   const handleSubcategoryClick = (categorySlug: string, subcategorySlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}?subcategory=${subcategorySlug}`);
+    navigate(`/marketplace/category/${categorySlug}/products?subcategory=${subcategorySlug}`);
   };
 
   const handleFeaturedClick = (categorySlug: string, featuredSlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}?featured=${featuredSlug}`);
+    navigate(`/marketplace/category/${categorySlug}/products?featured=${featuredSlug}`);
   };
 
   return (
@@ -341,14 +411,12 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                   </h3>
                   <nav className="space-y-1">
                     {activeCategory.featured.map((item) => (
-                      <button
+                      <MiniImageCard
                         key={item.slug}
+                        slug={item.slug}
+                        name={item.name}
                         onClick={() => handleFeaturedClick(activeCategory.slug, item.slug)}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                      >
-                        <span className="text-primary">{item.icon}</span>
-                        {item.name}
-                      </button>
+                      />
                     ))}
                   </nav>
                 </div>
@@ -358,28 +426,27 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                   <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
                     Shop by Type
                   </h3>
-                  <nav className="grid grid-cols-2 gap-1">
+                  <nav className="grid grid-cols-1 gap-0.5">
                     {activeCategory.subcategories.map((sub) => (
-                      <button
+                      <MiniImageCard
                         key={sub.slug}
+                        slug={sub.slug}
+                        name={sub.name}
                         onClick={() => handleSubcategoryClick(activeCategory.slug, sub.slug)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                      >
-                        <span className="text-muted-foreground">{sub.icon}</span>
-                        {sub.name}
-                      </button>
+                      />
                     ))}
                   </nav>
                 </div>
               </div>
 
-              {/* Browse All Link */}
+              {/* Browse All Products Link */}
               <div className="mt-6 pt-4 border-t border-border">
                 <button
-                  onClick={() => handleCategoryClick(activeCategory.slug)}
+                  onClick={() => handleBrowseAllProductsClick(activeCategory.slug)}
                   className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                 >
-                  Browse all {activeCategory.name}
+                  <Package className="h-4 w-4" />
+                  Browse all {activeCategory.name} Products
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
