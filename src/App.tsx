@@ -24,6 +24,7 @@ import Checkout from "./pages/marketplace/Checkout";
 import Messages from "./pages/marketplace/Messages";
 import Wishlist from "./pages/marketplace/Wishlist";
 import CategoryProviders from "./pages/marketplace/CategoryProviders";
+import CategoryProducts from "./pages/marketplace/CategoryProducts";
 import CustomerOrders from "./pages/marketplace/Orders";
 import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
@@ -47,6 +48,7 @@ const App = () => (
           {/* Marketplace Routes */}
           <Route path="/marketplace" element={<MarketplaceHome />} />
           <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
+          <Route path="/marketplace/category/:category/products" element={<CategoryProducts />} />
           <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
           <Route path="/marketplace/product/:id" element={<ProductDetail />} />
           <Route path="/marketplace/cart" element={<Cart />} />
