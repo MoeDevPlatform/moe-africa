@@ -253,13 +253,13 @@ const categories: CategoryData[] = [
 
 const quickLinks = [
   { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace" },
-  { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace?view=products" },
-  { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace?view=artisans" },
-  { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace?featured=true", badge: "New" },
-  { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace?sort=newest" },
-  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: "/marketplace?featured=seasonal" },
-  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace?featured=best-sellers" },
-  { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace?featured=trending" },
+  { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace/products" },
+  { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
+  { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?featured=true", badge: "New" },
+  { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace/products?sort=newest" },
+  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: "/marketplace/products?featured=seasonal" },
+  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace/products?featured=best-sellers" },
+  { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace/products?featured=trending" },
 ];
 
 // Mini image card component for subcategories

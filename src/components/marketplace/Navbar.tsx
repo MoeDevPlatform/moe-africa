@@ -2,7 +2,13 @@ import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings, Menu, ChevronDown } from "lucide-react";
+import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings, Menu, ChevronDown, HelpCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
 import NotificationCenter from "./NotificationCenter";
@@ -10,6 +16,16 @@ import MegaMenu from "./MegaMenu";
 import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+
+const supportLinks = [
+  { name: "Help Center", path: "/marketplace/support/help" },
+  { name: "FAQs", path: "/marketplace/support/faqs" },
+  { name: "Order Support", path: "/marketplace/support/order-support" },
+  { name: "Contact Us", path: "/marketplace/support/contact" },
+  { name: "Report an Issue", path: "/marketplace/support/report" },
+  { name: "Track My Order", path: "/marketplace/support/track-order" },
+  { name: "Return / Refund Policy", path: "/marketplace/support/return-policy" },
+];
 
 const MarketplaceNavbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,6 +159,24 @@ const MarketplaceNavbar = () => {
                 <Package className="h-5 w-5" />
               </Button>
             </Link>
+
+            {/* Support Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hidden sm:flex">
+                  <HelpCircle className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-card">
+                {supportLinks.map((link) => (
+                  <DropdownMenuItem key={link.path} asChild>
+                    <Link to={link.path} className="cursor-pointer">
+                      {link.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Link to="/marketplace/settings" className="hidden sm:block">
               <Button variant="ghost" size="icon">

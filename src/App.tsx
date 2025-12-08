@@ -29,6 +29,17 @@ import CustomerOrders from "./pages/marketplace/Orders";
 import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
+import AllProducts from "./pages/marketplace/AllProducts";
+import AllArtisans from "./pages/marketplace/AllArtisans";
+
+// Support Pages
+import HelpCenter from "./pages/marketplace/support/HelpCenter";
+import FAQs from "./pages/marketplace/support/FAQs";
+import ContactUs from "./pages/marketplace/support/ContactUs";
+import OrderSupport from "./pages/marketplace/support/OrderSupport";
+import ReportIssue from "./pages/marketplace/support/ReportIssue";
+import TrackOrder from "./pages/marketplace/support/TrackOrder";
+import ReturnPolicy from "./pages/marketplace/support/ReturnPolicy";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +58,8 @@ const App = () => (
           
           {/* Marketplace Routes */}
           <Route path="/marketplace" element={<MarketplaceHome />} />
+          <Route path="/marketplace/products" element={<AllProducts />} />
+          <Route path="/marketplace/artisans" element={<AllArtisans />} />
           <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
           <Route path="/marketplace/category/:category/products" element={<CategoryProducts />} />
           <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
@@ -58,6 +71,15 @@ const App = () => (
           <Route path="/marketplace/orders" element={<CustomerOrders />} />
           <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />
           <Route path="/marketplace/settings" element={<Settings />} />
+          
+          {/* Support Routes */}
+          <Route path="/marketplace/support/help" element={<HelpCenter />} />
+          <Route path="/marketplace/support/faqs" element={<FAQs />} />
+          <Route path="/marketplace/support/contact" element={<ContactUs />} />
+          <Route path="/marketplace/support/order-support" element={<OrderSupport />} />
+          <Route path="/marketplace/support/report" element={<ReportIssue />} />
+          <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
+          <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
