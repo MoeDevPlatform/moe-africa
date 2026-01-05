@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
+import { usePreferences } from "@/contexts/PreferencesContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface PreferenceModalProps {
   open: boolean;
@@ -17,10 +19,12 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
   const [budget, setBudget] = useState([50000]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const navigate = useNavigate();
+  const { updatePreferences } = usePreferences();
+  const { toast } = useToast();
 
   const categories = [
-    { id: "clothing", name: "Clothing", icon: Shirt },
-    { id: "shoes", name: "Shoes", icon: Footprints },
+    { id: "tailoring", name: "Clothing", icon: Shirt },
+    { id: "shoemaking", name: "Shoes", icon: Footprints },
     { id: "accessories", name: "Accessories", icon: Gem },
     { id: "furniture", name: "Furniture", icon: Sofa },
     { id: "art", name: "Art & Crafts", icon: Palette },
@@ -42,7 +46,17 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
   };
 
   const handleSave = () => {
-    // TODO: POST /users/preferences
+    updatePreferences({
+      categories: selectedCategories,
+      budget: budget[0],
+      styles: selectedStyles,
+    });
+    
+    toast({
+      title: "Preferences saved",
+      description: "Your personalized recommendations have been updated.",
+    });
+    
     onOpenChange(false);
     navigate("/marketplace");
   };
@@ -83,8 +97,10 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50"
                     }`}
+                    aria-label={`Select ${category.name} category`}
+                    aria-pressed={isSelected}
                   >
-                    <Icon className={`h-8 w-8 mx-auto mb-3 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                    <Icon className={`h-8 w-8 mx-auto mb-3 ${isSelected ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
                     <p className="font-medium text-sm">{category.name}</p>
                   </button>
                 );
@@ -106,6 +122,7 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
                   max={500000}
                   step={10000}
                   className="w-full"
+                  aria-label="Budget range slider"
                 />
               </div>
               <p className="text-sm text-center text-muted-foreground">
@@ -124,6 +141,15 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
                     variant={isSelected ? "default" : "outline"}
                     className="cursor-pointer px-6 py-3 text-base transition-all duration-300"
                     onClick={() => toggleStyle(style)}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleStyle(style);
+                      }
+                    }}
                   >
                     {style}
                   </Badge>

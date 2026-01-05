@@ -206,20 +206,21 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
-      <div ref={containerRef} className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="fixed inset-0 z-50 bg-background">
+      <div ref={containerRef} className="container mx-auto px-4 py-6 max-w-4xl bg-background">
         {/* Search Header */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               ref={inputRef}
               type="search"
               placeholder="Search for artisans, products, or services..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-10"
+              className="pl-10 pr-10 border-border focus:ring-primary"
               autoFocus
+              aria-label="Search input"
             />
             {searchQuery && (
               <button

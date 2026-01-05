@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import Index from "./pages/Index";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -41,6 +42,15 @@ import ReportIssue from "./pages/marketplace/support/ReportIssue";
 import TrackOrder from "./pages/marketplace/support/TrackOrder";
 import ReturnPolicy from "./pages/marketplace/support/ReturnPolicy";
 
+// Footer Pages
+import About from "./pages/marketplace/About";
+import HowItWorks from "./pages/marketplace/HowItWorks";
+import Blog from "./pages/marketplace/Blog";
+import ShippingInfo from "./pages/marketplace/ShippingInfo";
+import PrivacyPolicy from "./pages/marketplace/PrivacyPolicy";
+import TermsOfService from "./pages/marketplace/TermsOfService";
+import CookiePolicy from "./pages/marketplace/CookiePolicy";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -48,53 +58,64 @@ const App = () => (
     <NotificationProvider>
       <WishlistProvider>
         <CartProvider>
-          <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
-          
-          {/* Marketplace Routes */}
-          <Route path="/marketplace" element={<MarketplaceHome />} />
-          <Route path="/marketplace/products" element={<AllProducts />} />
-          <Route path="/marketplace/artisans" element={<AllArtisans />} />
-          <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
-          <Route path="/marketplace/category/:category/products" element={<CategoryProducts />} />
-          <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
-          <Route path="/marketplace/product/:id" element={<ProductDetail />} />
-          <Route path="/marketplace/cart" element={<Cart />} />
-          <Route path="/marketplace/checkout" element={<Checkout />} />
-          <Route path="/marketplace/messages" element={<Messages />} />
-          <Route path="/marketplace/wishlist" element={<Wishlist />} />
-          <Route path="/marketplace/orders" element={<CustomerOrders />} />
-          <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />
-          <Route path="/marketplace/settings" element={<Settings />} />
-          
-          {/* Support Routes */}
-          <Route path="/marketplace/support/help" element={<HelpCenter />} />
-          <Route path="/marketplace/support/faqs" element={<FAQs />} />
-          <Route path="/marketplace/support/contact" element={<ContactUs />} />
-          <Route path="/marketplace/support/order-support" element={<OrderSupport />} />
-          <Route path="/marketplace/support/report" element={<ReportIssue />} />
-          <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
-          <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/login" element={<Login />} />
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/providers" element={<Providers />} />
-          <Route path="/admin/products" element={<Products />} />
-          <Route path="/admin/categories" element={<Categories />} />
-          <Route path="/admin/media" element={<Media />} />
-          <Route path="/admin/orders" element={<Orders />} />
-          
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-          </TooltipProvider>
+          <PreferencesProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Footer & Static Pages */}
+                  <Route path="/about" element={<About />} />
+                  <Route path="/how-it-works" element={<HowItWorks />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/shipping" element={<ShippingInfo />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  
+                  {/* Marketplace Routes */}
+                  <Route path="/marketplace" element={<MarketplaceHome />} />
+                  <Route path="/marketplace/products" element={<AllProducts />} />
+                  <Route path="/marketplace/artisans" element={<AllArtisans />} />
+                  <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
+                  <Route path="/marketplace/category/:category/products" element={<CategoryProducts />} />
+                  <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
+                  <Route path="/marketplace/product/:id" element={<ProductDetail />} />
+                  <Route path="/marketplace/cart" element={<Cart />} />
+                  <Route path="/marketplace/checkout" element={<Checkout />} />
+                  <Route path="/marketplace/messages" element={<Messages />} />
+                  <Route path="/marketplace/wishlist" element={<Wishlist />} />
+                  <Route path="/marketplace/orders" element={<CustomerOrders />} />
+                  <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />
+                  <Route path="/marketplace/settings" element={<Settings />} />
+                  
+                  {/* Support Routes */}
+                  <Route path="/marketplace/support/help" element={<HelpCenter />} />
+                  <Route path="/marketplace/support/faqs" element={<FAQs />} />
+                  <Route path="/marketplace/support/contact" element={<ContactUs />} />
+                  <Route path="/marketplace/support/order-support" element={<OrderSupport />} />
+                  <Route path="/marketplace/support/report" element={<ReportIssue />} />
+                  <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
+                  <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
+                  
+                  {/* Admin Routes */}
+                  <Route path="/admin/login" element={<Login />} />
+                  <Route path="/admin" element={<Dashboard />} />
+                  <Route path="/admin/providers" element={<Providers />} />
+                  <Route path="/admin/products" element={<Products />} />
+                  <Route path="/admin/categories" element={<Categories />} />
+                  <Route path="/admin/media" element={<Media />} />
+                  <Route path="/admin/orders" element={<Orders />} />
+                  
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </PreferencesProvider>
         </CartProvider>
       </WishlistProvider>
     </NotificationProvider>

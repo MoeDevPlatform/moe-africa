@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Button } from "@/components/ui/button";
@@ -6,8 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const Checkout = () => {
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+
+  const states = useMemo(() => {
+    return selectedCountry ? getStatesByCountry(selectedCountry) : [];
+  }, [selectedCountry]);
+
+  const handleCountryChange = (value: string) => {
+    setSelectedCountry(value);
+    setSelectedState(""); // Reset state when country changes
+  };
+
   const cartItems = [
     { name: "Custom Ankara Jacket", price: 28000 },
     { name: "Leather Brogues", price: 35000 },
@@ -36,29 +51,62 @@ const Checkout = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstname">First Name</Label>
-                    <Input id="firstname" />
+                    <Input id="firstname" aria-required="true" />
                   </div>
                   <div>
                     <Label htmlFor="lastname">Last Name</Label>
-                    <Input id="lastname" />
+                    <Input id="lastname" aria-required="true" />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="+234" />
+                  <Input id="phone" type="tel" placeholder="+234" aria-required="true" />
                 </div>
                 <div>
                   <Label htmlFor="address">Street Address</Label>
-                  <Input id="address" />
+                  <Input id="address" aria-required="true" />
                 </div>
+                
+                {/* Country Selection */}
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Select value={selectedCountry} onValueChange={handleCountryChange}>
+                    <SelectTrigger id="country" aria-label="Select country">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card max-h-60">
+                      {countries.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="city">City</Label>
-                    <Input id="city" />
+                    <Input id="city" aria-required="true" />
                   </div>
                   <div>
-                    <Label htmlFor="state">State</Label>
-                    <Input id="state" />
+                    <Label htmlFor="state">State / Province</Label>
+                    <Select 
+                      value={selectedState} 
+                      onValueChange={setSelectedState}
+                      disabled={!selectedCountry}
+                    >
+                      <SelectTrigger id="state" aria-label="Select state or province">
+                        <SelectValue placeholder={selectedCountry ? "Select state" : "Select country first"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card max-h-60">
+                        {states.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -70,11 +118,23 @@ const Checkout = () => {
                 <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent>
-                <RadioGroup defaultValue="card">
+                <RadioGroup defaultValue="card" aria-label="Payment method options">
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
                     <RadioGroupItem value="card" id="card" />
                     <Label htmlFor="card" className="flex-1 cursor-pointer">
                       Credit/Debit Card
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border rounded-lg p-4">
+                    <RadioGroupItem value="paystack" id="paystack" />
+                    <Label htmlFor="paystack" className="flex-1 cursor-pointer">
+                      Pay with Paystack
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border rounded-lg p-4">
+                    <RadioGroupItem value="flutterwave" id="flutterwave" />
+                    <Label htmlFor="flutterwave" className="flex-1 cursor-pointer">
+                      Pay with Flutterwave
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
@@ -126,7 +186,7 @@ const Checkout = () => {
                   <span className="text-primary">₦{total.toLocaleString()}</span>
                 </div>
 
-                <Button className="w-full bg-primary hover:bg-primary-dark mt-4">
+                <Button className="w-full bg-primary hover:bg-primary-dark mt-4" aria-label="Place your order">
                   Place Order
                 </Button>
 
