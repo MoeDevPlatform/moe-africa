@@ -156,16 +156,19 @@ const ProductDetail = () => {
               onRushOrderChange={handleRushOrderChange}
             />
 
-            <div className="grid grid-cols-2 gap-4 py-6 border-y">
+            <div className="grid grid-cols-2 gap-4 py-6 border-t">
               <div className="text-center">
-                <Shield className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <Shield className="h-6 w-6 mx-auto mb-2 text-primary" aria-hidden="true" />
                 <p className="text-xs text-muted-foreground">Quality Guaranteed</p>
               </div>
               <div className="text-center">
-                <Clock className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <Clock className="h-6 w-6 mx-auto mb-2 text-primary" aria-hidden="true" />
                 <p className="text-xs text-muted-foreground">Made to Order</p>
               </div>
             </div>
+
+            {/* Spacer before button */}
+            <div className="border-t pt-6"></div>
 
             <div className="flex gap-3">
               <Button 

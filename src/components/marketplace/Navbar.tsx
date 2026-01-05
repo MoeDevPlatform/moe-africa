@@ -88,8 +88,9 @@ const MarketplaceNavbar = () => {
             size="icon" 
             className="md:hidden"
             onClick={() => setShowMobileMenu(true)}
+            aria-label="Open mobile menu"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
 
           {/* Logo */}
@@ -138,16 +139,16 @@ const MarketplaceNavbar = () => {
             <NotificationCenter />
             
             <Link to="/marketplace/messages">
-              <Button variant="ghost" size="icon">
-                <MessageSquare className="h-5 w-5" />
+              <Button variant="ghost" size="icon" aria-label="View messages">
+                <MessageSquare className="h-5 w-5" aria-hidden="true" />
               </Button>
             </Link>
 
             <Link to="/marketplace/wishlist">
-              <Button variant="ghost" size="icon" className="relative">
-                <Heart className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative" aria-label={`View wishlist${getWishlistCount() > 0 ? `, ${getWishlistCount()} items` : ''}`}>
+                <Heart className="h-5 w-5" aria-hidden="true" />
                 {getWishlistCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
                     {getWishlistCount()}
                   </span>
                 )}
@@ -155,16 +156,16 @@ const MarketplaceNavbar = () => {
             </Link>
 
             <Link to="/marketplace/orders" className="hidden sm:block">
-              <Button variant="ghost" size="icon">
-                <Package className="h-5 w-5" />
+              <Button variant="ghost" size="icon" aria-label="View your orders">
+                <Package className="h-5 w-5" aria-hidden="true" />
               </Button>
             </Link>
 
             {/* Support Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="hidden sm:flex">
-                  <HelpCircle className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="hidden sm:flex" aria-label="Open support menu">
+                  <HelpCircle className="h-5 w-5" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-card">
@@ -179,16 +180,16 @@ const MarketplaceNavbar = () => {
             </DropdownMenu>
 
             <Link to="/marketplace/settings" className="hidden sm:block">
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
+              <Button variant="ghost" size="icon" aria-label="Settings">
+                <Settings className="h-5 w-5" aria-hidden="true" />
               </Button>
             </Link>
             
             <Link to="/marketplace/cart">
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative" aria-label={`Shopping cart${getItemCount() > 0 ? `, ${getItemCount()} items` : ''}`}>
+                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                 {getItemCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
                     {getItemCount()}
                   </span>
                 )}
@@ -196,8 +197,8 @@ const MarketplaceNavbar = () => {
             </Link>
 
             <Link to="/auth" className="hidden sm:block">
-              <Button variant="outline" size="sm" className="gap-2">
-                <User className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
+                <User className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden lg:inline">Sign In</span>
               </Button>
             </Link>
