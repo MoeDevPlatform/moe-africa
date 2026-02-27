@@ -1,47 +1,53 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
-import { useProviders } from "@/hooks/useProviders";
+import { providers } from "@/data/mockData";
 
 const AllArtisans = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
   const featured = searchParams.get("featured");
 
-  const { data: rawProviders = [], isLoading } = useProviders({
-    activeOnly: true,
-    featuredOnly: featured === "true",
-  });
+  // Get filtered providers based on query params
+  let displayProviders = [...providers];
+  let title = "All Artisans";
+  let description = "Discover talented artisans from across Africa";
 
-  const title = featured === "true" ? "Featured Artisans" : "All Artisans";
-  const description = featured === "true"
-    ? "Our most acclaimed artisans with exceptional craftsmanship"
-    : "Discover talented artisans from across Africa";
+  if (featured === "true") {
+    displayProviders = providers.filter(p => p.featured);
+    title = "Featured Artisans";
+    description = "Our most acclaimed artisans with exceptional craftsmanship";
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <MarketplaceNavbar />
+      
       <main className="container mx-auto px-4 py-8">
-        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+        {/* Back Link */}
+        <button 
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+        >
           <ChevronLeft className="h-4 w-4" />
           Back
         </button>
+
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
-          <p className="text-sm text-muted-foreground mt-2">{isLoading ? "Loading..." : `${rawProviders.length} artisans found`}</p>
+          <p className="text-sm text-muted-foreground mt-2">{displayProviders.length} artisans found</p>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : rawProviders.length > 0 ? (
+        {/* Providers Grid */}
+        {displayProviders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {rawProviders.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider as any} />
+            {displayProviders.map((provider) => (
+              <ProviderCard key={provider.id} provider={provider} />
             ))}
           </div>
         ) : (
@@ -50,6 +56,7 @@ const AllArtisans = () => {
           </div>
         )}
       </main>
+
       <MarketplaceFooter />
     </div>
   );
