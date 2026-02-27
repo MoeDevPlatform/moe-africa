@@ -55,18 +55,19 @@ const ProviderDetail = () => {
   const provider = getProviderById(Number(id));
   const products = provider ? getProductsByProviderId(provider.id) : [];
 
-  if (!provider) {
-    return <Navigate to="/marketplace" replace />;
-  }
-
   useEffect(() => {
+    if (!provider) return;
     // Track viewed provider
     const viewed = JSON.parse(localStorage.getItem("recentlyViewed") || "[]");
     if (!viewed.includes(provider.id)) {
       viewed.unshift(provider.id);
       localStorage.setItem("recentlyViewed", JSON.stringify(viewed.slice(0, 10)));
     }
-  }, [provider.id]);
+  }, [provider?.id]);
+
+  if (!provider) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   // Mock reviews
   const reviews = [
@@ -171,7 +172,7 @@ const ProviderDetail = () => {
                 <TabsContent value="products" className="mt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {products.map((product) => (
-                      <ProductCard key={product.id} product={product} providerId={provider.id} />
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
                 </TabsContent>
