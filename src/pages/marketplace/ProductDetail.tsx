@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
+import CanvasCustomizationModal from "@/components/marketplace/CanvasCustomizationModal";
 import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
