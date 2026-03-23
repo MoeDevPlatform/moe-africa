@@ -35,6 +35,8 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
     { id: 1, name: "Adanna Fabrics" },
     { id: 2, name: "Kola Leatherworks" },
     { id: 3, name: "Amara Crafts" },
+    { id: 8, name: "Canvas & Co. Lagos" },
+    { id: 9, name: "ArtPrint Naija" },
   ];
 
   const categories = [
