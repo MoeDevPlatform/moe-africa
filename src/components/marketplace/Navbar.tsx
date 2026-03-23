@@ -36,7 +36,7 @@ const MarketplaceNavbar = () => {
   const { getItemCount: getWishlistCount } = useWishlist();
   
   // Hover delay timer for mega menu stability
-  const megaMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
