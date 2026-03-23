@@ -214,6 +214,24 @@ const categories: CategoryData[] = [
     ],
   },
   {
+    name: "Canvas & Painting",
+    slug: "canvas",
+    icon: <Palette className="h-4 w-4" />,
+    featured: [
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
+    ],
+    subcategories: [
+      { name: "Canvas Paintings", slug: "canvas-paintings" },
+      { name: "Printed Canvas", slug: "printed-canvas" },
+      { name: "Portrait Paintings", slug: "portrait-paintings" },
+      { name: "Abstract Art", slug: "abstract-art" },
+      { name: "Pop Art", slug: "pop-art" },
+    ],
+  },
+  {
     name: "Jewelry",
     slug: "jewelry",
     icon: <Gem className="h-4 w-4" />,
