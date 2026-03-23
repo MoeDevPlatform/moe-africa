@@ -42,6 +42,7 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
     { id: 2, name: "Accessories" },
     { id: 3, name: "Home Decor" },
     { id: 4, name: "Furniture" },
+    { id: 5, name: "Canvas & Painting" },
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
