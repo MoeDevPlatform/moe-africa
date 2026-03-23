@@ -110,7 +110,7 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <img src={logo} alt="MOE" className="h-12 w-auto mx-auto mb-4" />
           <p className="text-muted-foreground">
-            © 2025 MOE Marketplace. Built For Africa, By Us.
+            © 2026 MOE Marketplace. Built For Africa, By Us.
           </p>
         </div>
       </footer>
