@@ -94,6 +94,24 @@ const Products = () => {
       stock: "Made to Order",
       status: "active",
     },
+    {
+      id: 7,
+      name: "Custom Portrait Painting",
+      provider: "Canvas & Co. Lagos",
+      category: "Canvas & Painting",
+      price: "₦35,000 – ₦75,000",
+      stock: "Made to Order",
+      status: "active",
+    },
+    {
+      id: 8,
+      name: "Printed Canvas Art",
+      provider: "ArtPrint Naija",
+      category: "Canvas & Painting",
+      price: "₦12,000 – ₦35,000",
+      stock: "Made to Order",
+      status: "active",
+    },
   ];
 
   const handleCreate = () => {

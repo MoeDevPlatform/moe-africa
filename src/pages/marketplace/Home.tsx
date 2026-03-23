@@ -29,9 +29,9 @@ const MarketplaceHome = () => {
     { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
     { id: "shoemaking", name: "Shoemaking", icon: Footprints, count: 89 },
     { id: "accessories", name: "Accessories", icon: Gem, count: 234 },
-    { id: "furniture", name: "Furniture", icon: Sofa, count: 67 },
-    { id: "art", name: "Art & Crafts", icon: Palette, count: 145 },
-    { id: "other", name: "Other", icon: Package, count: 78 },
+    { id: "canvas", name: "Canvas & Painting", icon: Palette, count: 38 },
+    { id: "furniture", name: "Home & Decor", icon: Sofa, count: 67 },
+    { id: "art", name: "Art & Crafts", icon: Package, count: 145 },
   ];
 
   // Apply filters to products

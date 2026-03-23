@@ -3,6 +3,7 @@ import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
+import CanvasCustomizationModal from "@/components/marketplace/CanvasCustomizationModal";
 import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
@@ -229,17 +230,30 @@ const ProductDetail = () => {
 
       <MarketplaceFooter />
       
-      <CustomizationFormModal
-        open={showCustomizationForm}
-        onOpenChange={setShowCustomizationForm}
-        providerId={provider.id}
-        productId={product.id}
-        productName={product.name}
-        providerName={provider.brandName}
-        basePrice={product.priceRange.min + rushOrderCost}
-        estimatedDeliveryDays={product.estimatedDeliveryDays}
-        category={product.category}
-      />
+      {product.category === "canvas" ? (
+        <CanvasCustomizationModal
+          open={showCustomizationForm}
+          onOpenChange={setShowCustomizationForm}
+          providerId={provider.id}
+          productId={product.id}
+          productName={product.name}
+          providerName={provider.brandName}
+          basePrice={product.priceRange.min + rushOrderCost}
+          estimatedDeliveryDays={product.estimatedDeliveryDays}
+        />
+      ) : (
+        <CustomizationFormModal
+          open={showCustomizationForm}
+          onOpenChange={setShowCustomizationForm}
+          providerId={provider.id}
+          productId={product.id}
+          productName={product.name}
+          providerName={provider.brandName}
+          basePrice={product.priceRange.min + rushOrderCost}
+          estimatedDeliveryDays={product.estimatedDeliveryDays}
+          category={product.category}
+        />
+      )}
     </div>
   );
 };

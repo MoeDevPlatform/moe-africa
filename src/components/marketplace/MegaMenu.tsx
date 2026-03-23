@@ -59,6 +59,12 @@ const categoryThumbnails: Record<string, string> = {
   "ties-bowties": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=100&h=100&fit=crop",
   "cufflinks": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=100&h=100&fit=crop",
   "sunglasses": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=100&h=100&fit=crop",
+  // Canvas & Painting
+  "canvas-paintings": "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=100&h=100&fit=crop",
+  "printed-canvas": "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=100&h=100&fit=crop",
+  "portrait-paintings": "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=100&h=100&fit=crop",
+  "abstract-art": "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=100&h=100&fit=crop",
+  "pop-art": "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=100&h=100&fit=crop",
   // Crafts
   "pottery": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=100&h=100&fit=crop",
   "woodwork": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop",
@@ -211,6 +217,24 @@ const categories: CategoryData[] = [
       { name: "Textiles", slug: "textiles" },
       { name: "Beadwork", slug: "beadwork" },
       { name: "Sculptures", slug: "sculptures" },
+    ],
+  },
+  {
+    name: "Canvas & Painting",
+    slug: "canvas",
+    icon: <Palette className="h-4 w-4" />,
+    featured: [
+      { name: "Featured Styles", slug: "featured-styles" },
+      { name: "Best Sellers", slug: "best-sellers" },
+      { name: "Seasonal Picks", slug: "seasonal-picks" },
+      { name: "Trending Pieces", slug: "trending-pieces" },
+    ],
+    subcategories: [
+      { name: "Canvas Paintings", slug: "canvas-paintings" },
+      { name: "Printed Canvas", slug: "printed-canvas" },
+      { name: "Portrait Paintings", slug: "portrait-paintings" },
+      { name: "Abstract Art", slug: "abstract-art" },
+      { name: "Pop Art", slug: "pop-art" },
     ],
   },
   {

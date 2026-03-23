@@ -10,7 +10,7 @@ export interface Product {
   materials: string;
   tags: string[];
   images: string[];
-  category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts";
+  category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts" | "canvas";
   providerId: number;
 }
 
@@ -175,6 +175,46 @@ export const providers: Provider[] = [
     customOrdersEnabled: true,
     category: "leatherwork",
     styleTags: ["Artisan", "Premium", "Handcrafted"],
+  },
+  {
+    id: 8,
+    brandName: "Canvas & Co. Lagos",
+    firstName: "Chisom",
+    lastName: "Obi",
+    about: "Professional canvas painting and printing studio based in Lagos. Specialising in custom portraits, abstract paintings, and high-quality printed canvas art. Every piece is a collaboration between your vision and our artistry.",
+    city: "Lekki",
+    state: "Lagos",
+    phone: "+2348000000008",
+    email: "chisom@canvasco.ng",
+    rating: 4.8,
+    reviewCount: 63,
+    verified: true,
+    featured: true,
+    estimatedDeliveryDays: 14,
+    heroImage: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=1200",
+    customOrdersEnabled: true,
+    category: "canvas",
+    styleTags: ["Portraits", "Abstract", "Prints"],
+  },
+  {
+    id: 9,
+    brandName: "ArtPrint Naija",
+    firstName: "Kunle",
+    lastName: "Adeyemi",
+    about: "Digital printing experts turning your photos and digital designs into stunning canvas art. Fast turnaround and premium materials for every order.",
+    city: "Abuja",
+    state: "FCT",
+    phone: "+2348000000009",
+    email: "kunle@artprintnaija.ng",
+    rating: 4.6,
+    reviewCount: 41,
+    verified: true,
+    featured: false,
+    estimatedDeliveryDays: 7,
+    heroImage: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=1200",
+    customOrdersEnabled: true,
+    category: "canvas",
+    styleTags: ["Digital Print", "Photo Canvas", "Modern"],
   },
 ];
 
@@ -372,6 +412,73 @@ export const products: Product[] = [
     ],
     category: "shoemaking",
     providerId: 5,
+  },
+
+  // Canvas & Co. Lagos (Provider 8) - Canvas Painting & Printing
+  {
+    id: 801,
+    name: "Custom Portrait Painting",
+    description: "Commission a hand-painted portrait from your favourite photo. Each painting is crafted by a professional artist using premium acrylic or oil paints on gallery-grade canvas.",
+    priceRange: { min: 35000, max: 75000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 14,
+    materials: "Acrylic/Oil on Gallery Canvas",
+    tags: ["Portrait", "Hand-painted", "Custom", "Gift"],
+    images: [
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800",
+    ],
+    category: "canvas",
+    providerId: 8,
+  },
+  {
+    id: 802,
+    name: "Abstract Canvas Art",
+    description: "Bold, expressive abstract paintings created to your mood and colour preference. Perfect for home and office spaces.",
+    priceRange: { min: 25000, max: 60000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 12,
+    materials: "Acrylic on Stretched Canvas",
+    tags: ["Abstract", "Modern", "Wall Art", "Interior"],
+    images: [
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800",
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+    ],
+    category: "canvas",
+    providerId: 8,
+  },
+
+  // ArtPrint Naija (Provider 9) - Canvas Painting & Printing
+  {
+    id: 901,
+    name: "Printed Canvas Art",
+    description: "Transform your favourite photo or digital artwork into a stunning high-resolution canvas print. Vibrant colours, sharp detail, and long-lasting materials.",
+    priceRange: { min: 12000, max: 35000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 7,
+    materials: "Archival Ink on Premium Cotton Canvas",
+    tags: ["Print", "Photo Canvas", "Digital Art", "Gift"],
+    images: [
+      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800",
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800",
+    ],
+    category: "canvas",
+    providerId: 9,
+  },
+  {
+    id: 902,
+    name: "Pop Art Canvas Print",
+    description: "Turn portraits or objects into vibrant Pop Art-style canvas prints. Bold colours and iconic styling inspired by classic Pop Art movements.",
+    priceRange: { min: 18000, max: 45000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 7,
+    materials: "Archival Ink on Matte/Glossy Canvas",
+    tags: ["Pop Art", "Printed", "Modern", "Colourful"],
+    images: [
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+    ],
+    category: "canvas",
+    providerId: 9,
   },
 ];
 

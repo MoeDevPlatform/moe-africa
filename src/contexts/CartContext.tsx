@@ -8,7 +8,7 @@ export interface CartItem {
   providerName: string;
   basePrice: number;
   finalPrice: number;
-  category: "tailoring" | "shoemaking";
+  category: "tailoring" | "shoemaking" | "canvas";
   selectedSize?: string;
   selectedBodyType?: string;
   selectedVariants: Record<string, string>;
