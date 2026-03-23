@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
@@ -8,7 +8,7 @@ import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Shield, Clock, Heart, CheckCircle } from "lucide-react";
+import { Star, Shield, Clock, Heart, CheckCircle, ArrowLeft, ShoppingCart, Sliders } from "lucide-react";
 import { getProductById, getProviderById } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
@@ -73,7 +74,16 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
-      <main className="container mx-auto px-4 py-12">
+      <main className="container mx-auto px-4 py-8 md:py-12">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back
+        </button>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div>
@@ -167,30 +177,48 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Spacer before button */}
-            <div className="border-t pt-6"></div>
+            {/* Action Buttons — with proper spacing from divider */}
+            <div className="pt-4 flex gap-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="lg" 
+                      className="flex-1 bg-primary hover:bg-primary-dark"
+                      onClick={() => setShowCustomizationForm(true)}
+                    >
+                      <Sliders className="h-4 w-4 mr-2" />
+                      Customize This Product
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Customize size, color & more</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-            <div className="flex gap-3">
-              <Button 
-                size="lg" 
-                className="flex-1 bg-primary hover:bg-primary-dark"
-                onClick={() => setShowCustomizationForm(true)}
-              >
-                Customize This Product
-              </Button>
-              
-              <Button
-                size="lg"
-                variant="outline"
-                className="aspect-square p-0"
-                onClick={handleWishlistToggle}
-              >
-                <Heart 
-                  className={`h-6 w-6 transition-colors ${
-                    inWishlist ? "fill-primary text-primary" : ""
-                  }`}
-                />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="aspect-square p-0"
+                      onClick={handleWishlistToggle}
+                      aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart 
+                        className={`h-6 w-6 transition-colors ${
+                          inWishlist ? "fill-primary text-primary" : ""
+                        }`}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{inWishlist ? "Remove from wishlist" : "Save to wishlist"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>
