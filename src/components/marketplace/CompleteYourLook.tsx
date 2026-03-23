@@ -50,7 +50,7 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
   if (suggestions.length === 0) return null;
 
   return (
-    <section className="py-8 border-t">
+    <section className="mt-12 border-t pt-10 pb-8 md:mt-16 md:pt-12">
       <div className="flex items-center gap-2 mb-6">
         <Sparkles className="h-5 w-5 text-accent" />
         <h2 className="text-xl md:text-2xl font-display font-bold">Complete Your Look</h2>
