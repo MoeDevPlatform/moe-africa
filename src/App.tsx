@@ -46,6 +46,7 @@ import ReturnPolicy from "./pages/marketplace/support/ReturnPolicy";
 import About from "./pages/marketplace/About";
 import HowItWorks from "./pages/marketplace/HowItWorks";
 import Blog from "./pages/marketplace/Blog";
+import BlogDetail from "./pages/marketplace/BlogDetail";
 import ShippingInfo from "./pages/marketplace/ShippingInfo";
 import PrivacyPolicy from "./pages/marketplace/PrivacyPolicy";
 import TermsOfService from "./pages/marketplace/TermsOfService";
@@ -71,6 +72,7 @@ const App = () => (
                   <Route path="/about" element={<About />} />
                   <Route path="/how-it-works" element={<HowItWorks />} />
                   <Route path="/blog" element={<Blog />} />
+                  <Route path="/blog/:id" element={<BlogDetail />} />
                   <Route path="/shipping" element={<ShippingInfo />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
