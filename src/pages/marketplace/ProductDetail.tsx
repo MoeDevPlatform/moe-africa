@@ -179,7 +179,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Action Buttons — with proper spacing from divider */}
-            <div className="pt-4 flex gap-3">
+            <div className="pt-8 mt-2 flex gap-3">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
