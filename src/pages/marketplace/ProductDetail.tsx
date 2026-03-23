@@ -26,7 +26,7 @@ const ProductDetail = () => {
 
   // Scroll to top when product changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
   const product = getProductById(Number(id));
@@ -88,17 +88,14 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div>
-            <ProductImageGallery 
-              images={product.images} 
-              productName={product.name} 
-            />
+            <ProductImageGallery images={product.images} productName={product.name} />
           </div>
 
           {/* Product Info */}
           <div className="space-y-6">
             <div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">{product.name}</h1>
-              <Link 
+              <Link
                 to={`/marketplace/provider/${provider.id}`}
                 className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
               >
@@ -124,7 +121,9 @@ const ProductDetail = () => {
                 <span className="font-semibold">{provider.rating}</span>
               </div>
               <span className="text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{provider.city}, {provider.state}</span>
+              <span className="text-sm text-muted-foreground">
+                {provider.city}, {provider.state}
+              </span>
             </div>
 
             <div className="border-y py-6">
@@ -134,9 +133,7 @@ const ProductDetail = () => {
                   ₦{product.priceRange.min.toLocaleString()} - ₦{product.priceRange.max.toLocaleString()}
                 </p>
                 {rushOrderCost > 0 && (
-                  <p className="text-sm text-accent mt-1">
-                    +₦{rushOrderCost.toLocaleString()} rush order fee
-                  </p>
+                  <p className="text-sm text-accent mt-1">+₦{rushOrderCost.toLocaleString()} rush order fee</p>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">Final price depends on customization options</p>
@@ -156,13 +153,15 @@ const ProductDetail = () => {
               <h3 className="font-semibold mb-3">Style Tags</h3>
               <div className="flex gap-2 flex-wrap">
                 {product.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
                 ))}
               </div>
             </div>
 
             {/* Delivery Estimate Module */}
-            <DeliveryEstimate 
+            <DeliveryEstimate
               estimatedDeliveryDays={product.estimatedDeliveryDays}
               onRushOrderChange={handleRushOrderChange}
             />
@@ -179,12 +178,12 @@ const ProductDetail = () => {
             </div>
 
             {/* Action Buttons — generous spacing from trust badges */}
-            <div className="pt-6 mt-4 border-t flex gap-3">
+            <div className="pt-6 mt-4 mb-4 border-t flex gap-3">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       className="flex-1 bg-primary hover:bg-primary-dark"
                       onClick={() => setShowCustomizationForm(true)}
                     >
@@ -208,11 +207,7 @@ const ProductDetail = () => {
                       onClick={handleWishlistToggle}
                       aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
                     >
-                      <Heart 
-                        className={`h-6 w-6 transition-colors ${
-                          inWishlist ? "fill-primary text-primary" : ""
-                        }`}
-                      />
+                      <Heart className={`h-6 w-6 transition-colors ${inWishlist ? "fill-primary text-primary" : ""}`} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -229,7 +224,7 @@ const ProductDetail = () => {
       </main>
 
       <MarketplaceFooter />
-      
+
       {product.category === "canvas" ? (
         <CanvasCustomizationModal
           open={showCustomizationForm}
