@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
@@ -10,7 +10,8 @@ import CustomerReviews, { Review } from "@/components/marketplace/CustomerReview
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { getProviderById, getProductsByProviderId } from "@/data/mockData";
 
 // Mock reviews with images
@@ -48,6 +49,7 @@ const mockReviews: Review[] = [
 
 const ProviderDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
@@ -55,43 +57,18 @@ const ProviderDetail = () => {
   const provider = getProviderById(Number(id));
   const products = provider ? getProductsByProviderId(provider.id) : [];
 
-  if (!provider) {
-    return <Navigate to="/marketplace" replace />;
-  }
-
   useEffect(() => {
-    // Track viewed provider
+    if (!provider) return;
     const viewed = JSON.parse(localStorage.getItem("recentlyViewed") || "[]");
     if (!viewed.includes(provider.id)) {
       viewed.unshift(provider.id);
       localStorage.setItem("recentlyViewed", JSON.stringify(viewed.slice(0, 10)));
     }
-  }, [provider.id]);
+  }, [provider?.id]);
 
-  // Mock reviews
-  const reviews = [
-    {
-      id: 1,
-      author: "Ngozi A.",
-      rating: 5,
-      date: "2 weeks ago",
-      comment: "Absolutely amazing work! The attention to detail is incredible. My Ankara suit fits perfectly and I received so many compliments.",
-    },
-    {
-      id: 2,
-      author: "Emeka O.",
-      rating: 5,
-      date: "1 month ago",
-      comment: "Professional service from start to finish. Ade really knows his craft. Highly recommended!",
-    },
-    {
-      id: 3,
-      author: "Aisha M.",
-      rating: 4,
-      date: "2 months ago",
-      comment: "Beautiful dress, excellent quality fabric. Delivery took slightly longer than expected but worth the wait.",
-    },
-  ];
+  if (!provider) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -106,6 +83,15 @@ const ProviderDetail = () => {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+
+          {/* Back button overlay */}
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors group bg-black/20 hover:bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 text-sm"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back
+          </button>
           
           <div className="absolute bottom-0 left-0 right-0 container mx-auto px-4 pb-8">
             <div className="flex flex-col md:flex-row md:items-end gap-4">
@@ -136,14 +122,28 @@ const ProviderDetail = () => {
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Message
-                </Button>
-                <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Message
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Send a message to this artisan</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur">
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Share this artisan's profile</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
@@ -205,12 +205,19 @@ const ProviderDetail = () => {
                   </div>
                 </div>
                 {provider.customOrdersEnabled && (
-                  <Button 
-                    className="w-full mt-6 bg-secondary hover:bg-secondary-dark" 
-                    onClick={() => setShowCustomOrderModal(true)}
-                  >
-                    Start Custom Order
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          className="w-full mt-6 bg-secondary hover:bg-secondary-dark" 
+                          onClick={() => setShowCustomOrderModal(true)}
+                        >
+                          Start Custom Order
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">Request a fully custom piece from this artisan</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             </div>

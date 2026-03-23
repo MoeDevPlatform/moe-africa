@@ -2,7 +2,8 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ZoomIn, ZoomOut, RotateCw, X, Maximize2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCw, X, Maximize2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import useEmblaCarousel from "embla-carousel-react";
 
@@ -20,7 +21,6 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
   
-  // Embla carousel for swipe support
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
 
   const scrollPrev = useCallback(() => {
@@ -105,10 +105,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
               variant="secondary"
               size="icon"
               className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                scrollPrev();
-              }}
+              onClick={(e) => { e.stopPropagation(); scrollPrev(); }}
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -116,10 +113,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
               variant="secondary"
               size="icon"
               className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                scrollNext();
-              }}
+              onClick={(e) => { e.stopPropagation(); scrollNext(); }}
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
@@ -127,17 +121,21 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
         )}
         
         {/* Fullscreen Button */}
-        <Button
-          variant="secondary"
-          size="icon"
-          className="absolute top-4 right-4 opacity-70 hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowFullscreen(true);
-          }}
-        >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute top-4 right-4 opacity-70 hover:opacity-100 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); setShowFullscreen(true); }}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p className="text-xs">View fullscreen</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Zoom indicator */}
         {isHovering && (
@@ -179,13 +177,21 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-background/95 backdrop-blur-xl">
           <DialogTitle className="sr-only">{productName} - Full View</DialogTitle>
           
-          {/* Controls */}
-          <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-full px-4 py-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.max(50, zoom - 25))}>
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <div className="w-32">
+          {/* Controls — single close button, proper Reset sizing */}
+          <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between gap-2">
+            {/* Zoom controls */}
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.max(50, zoom - 25))}>
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Zoom out</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <div className="w-28">
                 <Slider
                   value={[zoom]}
                   onValueChange={(value) => setZoom(value[0])}
@@ -194,22 +200,53 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                   step={10}
                 />
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.min(200, zoom + 25))}>
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <span className="text-xs font-medium min-w-[40px] text-center">{zoom}%</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(Math.min(200, zoom + 25))}>
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Zoom in</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span className="text-xs font-medium min-w-[36px] text-center">{zoom}%</span>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="icon" className="h-8 w-8" onClick={handleRotate}>
-                <RotateCw className="h-4 w-4" />
-              </Button>
-              <Button variant="secondary" size="icon" className="h-8 w-8" onClick={resetView}>
-                Reset
-              </Button>
-              <Button variant="secondary" size="icon" className="h-8 w-8" onClick={() => setShowFullscreen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
+
+            {/* Right action buttons */}
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotate}>
+                      <RotateCw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Rotate 90°</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* Reset button: icon-only to avoid oversized text */}
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetView} aria-label="Reset view">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Reset zoom & rotation</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* Single close button */}
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowFullscreen(false)} aria-label="Close fullscreen">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Close</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
