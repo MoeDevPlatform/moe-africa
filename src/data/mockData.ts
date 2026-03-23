@@ -415,6 +415,74 @@ export const products: Product[] = [
   },
 ];
 
+  // Canvas & Co. Lagos (Provider 8) - Canvas Painting & Printing
+  {
+    id: 801,
+    name: "Custom Portrait Painting",
+    description: "Commission a hand-painted portrait from your favourite photo. Each painting is crafted by a professional artist using premium acrylic or oil paints on gallery-grade canvas.",
+    priceRange: { min: 35000, max: 75000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 14,
+    materials: "Acrylic/Oil on Gallery Canvas",
+    tags: ["Portrait", "Hand-painted", "Custom", "Gift"],
+    images: [
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800",
+    ],
+    category: "canvas",
+    providerId: 8,
+  },
+  {
+    id: 802,
+    name: "Abstract Canvas Art",
+    description: "Bold, expressive abstract paintings created to your mood and colour preference. Perfect for home and office spaces.",
+    priceRange: { min: 25000, max: 60000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 12,
+    materials: "Acrylic on Stretched Canvas",
+    tags: ["Abstract", "Modern", "Wall Art", "Interior"],
+    images: [
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800",
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+    ],
+    category: "canvas",
+    providerId: 8,
+  },
+
+  // ArtPrint Naija (Provider 9) - Canvas Painting & Printing
+  {
+    id: 901,
+    name: "Printed Canvas Art",
+    description: "Transform your favourite photo or digital artwork into a stunning high-resolution canvas print. Vibrant colours, sharp detail, and long-lasting materials.",
+    priceRange: { min: 12000, max: 35000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 7,
+    materials: "Archival Ink on Premium Cotton Canvas",
+    tags: ["Print", "Photo Canvas", "Digital Art", "Gift"],
+    images: [
+      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800",
+      "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800",
+    ],
+    category: "canvas",
+    providerId: 9,
+  },
+  {
+    id: 902,
+    name: "Pop Art Canvas Print",
+    description: "Turn portraits or objects into vibrant Pop Art-style canvas prints. Bold colours and iconic styling inspired by classic Pop Art movements.",
+    priceRange: { min: 18000, max: 45000 },
+    currency: "NGN",
+    estimatedDeliveryDays: 7,
+    materials: "Archival Ink on Matte/Glossy Canvas",
+    tags: ["Pop Art", "Printed", "Modern", "Colourful"],
+    images: [
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
+    ],
+    category: "canvas",
+    providerId: 9,
+  },
+];
+
 export const getProductById = (id: number): Product | undefined => {
   return products.find((p) => p.id === id);
 };
