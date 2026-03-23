@@ -105,13 +105,13 @@ const ProviderDetail = () => {
             alt={provider.brandName}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
           
           <div className="absolute bottom-0 left-0 right-0 container mx-auto px-4 pb-8">
             <div className="flex flex-col md:flex-row md:items-end gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-display font-bold text-primary-foreground">{provider.brandName}</h1>
+                  <h1 className="text-4xl font-display font-bold text-white drop-shadow-lg">{provider.brandName}</h1>
                   {provider.verified && (
                     <Badge className="bg-primary text-primary-foreground gap-1">
                       <CheckCircle2 className="h-3 w-3" />
@@ -119,7 +119,7 @@ const ProviderDetail = () => {
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-6 text-primary-foreground/90">
+                <div className="flex items-center gap-6 text-white/90 drop-shadow-md">
                   <div className="flex items-center gap-1">
                     <Star className="h-5 w-5 fill-accent text-accent" />
                     <span className="font-semibold">{provider.rating}</span>
