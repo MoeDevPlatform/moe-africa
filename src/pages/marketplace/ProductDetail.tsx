@@ -230,17 +230,30 @@ const ProductDetail = () => {
 
       <MarketplaceFooter />
       
-      <CustomizationFormModal
-        open={showCustomizationForm}
-        onOpenChange={setShowCustomizationForm}
-        providerId={provider.id}
-        productId={product.id}
-        productName={product.name}
-        providerName={provider.brandName}
-        basePrice={product.priceRange.min + rushOrderCost}
-        estimatedDeliveryDays={product.estimatedDeliveryDays}
-        category={product.category}
-      />
+      {product.category === "canvas" ? (
+        <CanvasCustomizationModal
+          open={showCustomizationForm}
+          onOpenChange={setShowCustomizationForm}
+          providerId={provider.id}
+          productId={product.id}
+          productName={product.name}
+          providerName={provider.brandName}
+          basePrice={product.priceRange.min + rushOrderCost}
+          estimatedDeliveryDays={product.estimatedDeliveryDays}
+        />
+      ) : (
+        <CustomizationFormModal
+          open={showCustomizationForm}
+          onOpenChange={setShowCustomizationForm}
+          providerId={provider.id}
+          productId={product.id}
+          productName={product.name}
+          providerName={provider.brandName}
+          basePrice={product.priceRange.min + rushOrderCost}
+          estimatedDeliveryDays={product.estimatedDeliveryDays}
+          category={product.category}
+        />
+      )}
     </div>
   );
 };
