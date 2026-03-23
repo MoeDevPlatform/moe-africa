@@ -51,7 +51,7 @@ const MarketplaceFooter = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2025 MOE Marketplace. Proudly Built in Africa 🇳🇬
+            © 2026 MOE Marketplace. Proudly Built in Africa 🇳🇬
           </p>
           
           {/* Social Icons */}
