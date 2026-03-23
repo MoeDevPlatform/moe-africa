@@ -51,6 +51,7 @@ import ShippingInfo from "./pages/marketplace/ShippingInfo";
 import PrivacyPolicy from "./pages/marketplace/PrivacyPolicy";
 import TermsOfService from "./pages/marketplace/TermsOfService";
 import CookiePolicy from "./pages/marketplace/CookiePolicy";
+import FloatingRefreshButton from "./components/marketplace/FloatingRefreshButton";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <FloatingRefreshButton />
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Landing />} />
