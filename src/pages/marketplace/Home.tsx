@@ -109,12 +109,12 @@ const MarketplaceHome = () => {
     return providers;
   }, [selectedCategory, filters, preferences, hasPreferences]);
 
-  // Deal products filtered
+  // Deal products filtered — use real product IDs from mockData
   const dealProducts = useMemo(() => {
     const baseDeals = [
-      { id: 201, name: "Summer Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28, tags: ["Modern", "Afrocentric"] },
-      { id: 202, name: "Leather Sandals", price: 12000, originalPrice: 15000, imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400", providerId: 2, discount: 20, tags: ["Classic", "Casual"] },
-      { id: 203, name: "Hand-woven Basket", price: 8000, originalPrice: 12000, imageUrl: "https://images.unsplash.com/photo-1590736969955-71cc94901144?w=400", providerId: 3, discount: 33, tags: ["Traditional", "Handmade"] },
+      { id: 103, name: "Women's Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28, tags: ["Modern", "Afrocentric"] },
+      { id: 401, name: "Leather Oxford Shoes", price: 22000, originalPrice: 28000, imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400", providerId: 4, discount: 21, tags: ["Classic", "Premium"] },
+      { id: 301, name: "Handmade Craft Item", price: 8000, originalPrice: 12000, imageUrl: "https://images.unsplash.com/photo-1590736969955-71cc94901144?w=400", providerId: 3, discount: 33, tags: ["Traditional", "Handmade"] },
     ];
     
     return baseDeals.filter(deal => {
@@ -129,11 +129,11 @@ const MarketplaceHome = () => {
     });
   }, [filters]);
 
-  // Style products filtered
+  // Style products filtered — use real product IDs from mockData
   const styleProducts = useMemo(() => {
     const baseStyles = [
-      { id: 204, name: "Modern Kaftan", price: 28000, imageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", providerId: 1, tag: "Modern" },
-      { id: 205, name: "Traditional Beaded Necklace", price: 15000, imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400", providerId: 3, tag: "Afrocentric" },
+      { id: 102, name: "Traditional Agbada Set", price: 45000, imageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", providerId: 1, tag: "Traditional" },
+      { id: 101, name: "Custom Ankara Jacket", price: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, tag: "Afrocentric" },
     ];
     
     return baseStyles.filter(style => {
