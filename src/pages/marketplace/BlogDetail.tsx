@@ -122,13 +122,15 @@ const BlogDetail = () => {
         <div className="max-w-3xl mx-auto">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-            Back
+            Back to Blog
           </button>
 
-          <Badge className="mb-4">{post.category}</Badge>
+          <div className="mb-3">
+            <Badge variant="secondary" className="text-xs">{post.category}</Badge>
+          </div>
 
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">{post.title}</h1>
 

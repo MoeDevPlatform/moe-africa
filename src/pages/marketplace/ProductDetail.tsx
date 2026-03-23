@@ -178,8 +178,8 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Action Buttons — with proper spacing from divider */}
-            <div className="pt-8 mt-2 flex gap-3">
+            {/* Action Buttons — generous spacing from trust badges */}
+            <div className="pt-6 mt-4 border-t flex gap-3">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
