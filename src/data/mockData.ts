@@ -413,7 +413,6 @@ export const products: Product[] = [
     category: "shoemaking",
     providerId: 5,
   },
-];
 
   // Canvas & Co. Lagos (Provider 8) - Canvas Painting & Printing
   {
