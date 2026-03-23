@@ -10,7 +10,7 @@ export interface Product {
   materials: string;
   tags: string[];
   images: string[];
-  category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts";
+  category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts" | "canvas";
   providerId: number;
 }
 
