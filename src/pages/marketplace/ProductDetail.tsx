@@ -166,7 +166,7 @@ const ProductDetail = () => {
               onRushOrderChange={handleRushOrderChange}
             />
 
-            <div className="grid grid-cols-2 gap-4 py-6 border-t">
+            <div className="grid grid-cols-2 gap-4 py-6">
               <div className="text-center">
                 <Shield className="h-6 w-6 mx-auto mb-2 text-primary" aria-hidden="true" />
                 <p className="text-xs text-muted-foreground">Quality Guaranteed</p>
