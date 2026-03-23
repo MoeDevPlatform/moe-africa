@@ -27,6 +27,7 @@ const CategoryProducts = () => {
     furniture: Home,
     art: Palette,
     jewelry: Gem,
+    canvas: Palette,
   };
 
   const categoryNames: Record<string, string> = {
@@ -39,6 +40,7 @@ const CategoryProducts = () => {
     furniture: "Home & Decor",
     art: "Crafts",
     jewelry: "Jewelry",
+    canvas: "Canvas & Painting",
   };
 
   const Icon = categoryIcons[category || ""] || Package;
