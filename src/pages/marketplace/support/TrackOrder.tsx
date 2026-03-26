@@ -6,32 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
-
-// Mock order status for demonstration
-const mockOrder = {
-  orderNumber: "MOE-123456",
-  status: "in_transit",
-  estimatedDelivery: "Dec 12, 2024",
-  product: "Custom Ankara Jacket",
-  artisan: "Ade Tailors",
-  timeline: [
-    { status: "Order Placed", date: "Dec 5, 2024", completed: true },
-    { status: "Order Confirmed", date: "Dec 5, 2024", completed: true },
-    { status: "Production Started", date: "Dec 6, 2024", completed: true },
-    { status: "Quality Check", date: "Dec 9, 2024", completed: true },
-    { status: "Shipped", date: "Dec 10, 2024", completed: true },
-    { status: "Out for Delivery", date: "Dec 12, 2024", completed: false },
-    { status: "Delivered", date: "", completed: false },
-  ],
-};
+import { apiGet } from "@/lib/moeApi";
 
 const TrackOrder = () => {
   const [orderNumber, setOrderNumber] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [order, setOrder] = useState<any>(null);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowResults(true);
+    setError(null);
+    setShowResults(false);
+
+    const trimmed = orderNumber.trim();
+    if (!trimmed) {
+      setError("Please enter an order reference.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const json = await apiGet<any>(`/orders/${encodeURIComponent(trimmed)}`);
+      setOrder(json?.data ?? json);
+      setShowResults(true);
+    } catch (e: any) {
+      setOrder(null);
+      setError(e?.message || "Failed to fetch order");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -85,66 +90,49 @@ const TrackOrder = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
                     <p className="text-sm text-muted-foreground">Order Number</p>
-                    <p className="font-semibold text-lg">{mockOrder.orderNumber}</p>
+                    <p className="font-semibold text-lg">{order?.id ?? order?.orderId ?? orderNumber}</p>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
                     <Truck className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-primary">In Transit</span>
+                    <span className="font-medium text-primary">{order?.status ?? "In Transit"}</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Product</p>
-                    <p className="font-medium">{mockOrder.product}</p>
+                    <p className="font-medium">{order?.productName ?? "—"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Artisan</p>
-                    <p className="font-medium">{mockOrder.artisan}</p>
+                    <p className="font-medium">{order?.providerName ?? "—"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Est. Delivery</p>
-                    <p className="font-medium">{mockOrder.estimatedDelivery}</p>
+                    <p className="text-sm text-muted-foreground">Price</p>
+                    <p className="font-medium">
+                      ₦{typeof order?.price === "number" ? order.price.toLocaleString() : "—"}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Timeline */}
+            {/* Timeline (simplified) */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="font-semibold mb-6">Order Timeline</h2>
-                <div className="space-y-0">
-                  {mockOrder.timeline.map((step, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          step.completed 
-                            ? "bg-primary text-primary-foreground" 
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          {step.completed ? (
-                            <CheckCircle className="h-4 w-4" />
-                          ) : (
-                            <Clock className="h-4 w-4" />
-                          )}
-                        </div>
-                        {index < mockOrder.timeline.length - 1 && (
-                          <div className={`w-0.5 h-12 ${
-                            step.completed ? "bg-primary" : "bg-muted"
-                          }`} />
-                        )}
-                      </div>
-                      <div className="pb-8">
-                        <p className={`font-medium ${!step.completed && "text-muted-foreground"}`}>
-                          {step.status}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {step.date || "Pending"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                <h2 className="font-semibold mb-2">Order Timeline</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Real-time steps are backend-driven. For now, we display the latest status.
+                </p>
+
+                <div className="flex items-center gap-3 px-4 py-3 bg-muted rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="font-medium">{order?.status ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Updated: {order?.updatedAt ? new Date(order.updatedAt).toLocaleString() : "—"}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -157,9 +145,11 @@ const TrackOrder = () => {
                   <div>
                     <h3 className="font-medium mb-1">Delivery Address</h3>
                     <p className="text-sm text-muted-foreground">
-                      123 Example Street<br />
-                      Victoria Island, Lagos<br />
-                      Nigeria
+                      {order?.shippingAddress?.addressLine1 ?? "—"}
+                      {order?.shippingAddress?.addressLine2 ? <><br />{order.shippingAddress.addressLine2}</> : null}
+                      {order?.shippingAddress?.city ? <><br />{order.shippingAddress.city}</> : null}
+                      {order?.shippingAddress?.state ? <>, {order.shippingAddress.state}</> : null}
+                      {order?.shippingAddress?.country ? <><br />{order.shippingAddress.country}</> : null}
                     </p>
                   </div>
                 </div>
@@ -175,6 +165,13 @@ const TrackOrder = () => {
                 <Button variant="outline">Contact Support</Button>
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="max-w-2xl mx-auto">
+            <p className="text-destructive text-sm mt-4">{error}</p>
           </div>
         )}
 

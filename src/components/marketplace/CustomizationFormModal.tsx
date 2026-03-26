@@ -15,6 +15,7 @@ import ShoeSizeSelectionStep from "./customization/shoemaking/ShoeSizeSelectionS
 import FootTypeSelectionStep from "./customization/shoemaking/FootTypeSelectionStep";
 import ShoeStyleVariantStep from "./customization/shoemaking/ShoeStyleVariantStep";
 import ShoeAdvancedMeasurementStep from "./customization/shoemaking/ShoeAdvancedMeasurementStep";
+import { apiGet } from "@/lib/moeApi";
 
 interface CustomizationFormModalProps {
   open: boolean;
@@ -29,31 +30,6 @@ interface CustomizationFormModalProps {
   existingCustomization?: any;
   editingCartItemId?: string;
 }
-
-// Mock variants for tailoring - API: GET /products/{id}/variants
-const mockTailoringVariants = [
-  { id: "v1", name: "Blue & Gold", type: "color" as const, value: "#1e40af", priceModifier: 0, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200" },
-  { id: "v2", name: "Red & Green", type: "color" as const, value: "#dc2626", priceModifier: 2000, imageUrl: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=200" },
-  { id: "v3", name: "Premium Cotton", type: "material" as const, value: "cotton", priceModifier: 3000 },
-  { id: "v4", name: "Silk Blend", type: "material" as const, value: "silk", priceModifier: 8000 },
-  { id: "v5", name: "Modern Cut", type: "design" as const, value: "modern", priceModifier: 0 },
-  { id: "v6", name: "Traditional Style", type: "design" as const, value: "traditional", priceModifier: 1500 },
-];
-
-// Mock variants for shoemaking
-const mockShoemakingVariants = [
-  { id: "s1", name: "Genuine Leather", type: "material" as const, value: "leather", priceModifier: 5000 },
-  { id: "s2", name: "Suede", type: "material" as const, value: "suede", priceModifier: 4000 },
-  { id: "s3", name: "Canvas", type: "material" as const, value: "canvas", priceModifier: 0 },
-  { id: "s4", name: "Black", type: "color" as const, value: "#000000", priceModifier: 0 },
-  { id: "s5", name: "Brown", type: "color" as const, value: "#8B4513", priceModifier: 0 },
-  { id: "s6", name: "Tan", type: "color" as const, value: "#D2B48C", priceModifier: 1000 },
-  { id: "s7", name: "Rubber Sole", type: "sole" as const, value: "rubber", priceModifier: 0 },
-  { id: "s8", name: "Leather Sole", type: "sole" as const, value: "leather-sole", priceModifier: 3000 },
-  { id: "s9", name: "Flat (0cm)", type: "heel" as const, value: "flat", priceModifier: 0 },
-  { id: "s10", name: "Low (2-3cm)", type: "heel" as const, value: "low", priceModifier: 1500 },
-  { id: "s11", name: "Medium (5-7cm)", type: "heel" as const, value: "medium", priceModifier: 2500 },
-];
 
 const CustomizationFormModal = ({
   open,
@@ -78,9 +54,51 @@ const CustomizationFormModal = ({
   const { toast } = useToast();
   const { addItem, updateItem } = useCart();
 
+  const [variants, setVariants] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    value?: string;
+    imageUrl?: string;
+    priceModifier: number;
+  }>>([]);
+  const [isLoadingVariants, setIsLoadingVariants] = useState(false);
+
   const isShoemaking = category.toLowerCase().includes("shoe");
-  const mockVariants = isShoemaking ? mockShoemakingVariants : mockTailoringVariants;
   const totalSteps = 5;
+
+  // Load variants from API
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!open) return;
+      setIsLoadingVariants(true);
+      try {
+        const json = await apiGet<any>(`/products/${productId}/variants`);
+        const arr = (json?.data ?? json) as any[];
+        if (!cancelled) {
+          setVariants(
+            (arr ?? []).map((v) => ({
+              id: String(v.id),
+              name: String(v.name ?? ""),
+              type: String(v.type ?? ""),
+              value: v.value != null ? String(v.value) : undefined,
+              imageUrl: (typeof v.imageUrl === "string" ? v.imageUrl : v.imageUrl?.url) ?? undefined,
+              priceModifier: typeof v.priceModifier === "number" ? v.priceModifier : 0,
+            }))
+          );
+        }
+      } catch (e) {
+        if (!cancelled) setVariants([]);
+      } finally {
+        if (!cancelled) setIsLoadingVariants(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, productId]);
 
   // Load existing customization data when editing
   useEffect(() => {
@@ -95,7 +113,7 @@ const CustomizationFormModal = ({
 
   // Calculate dynamic pricing
   const variantModifiers = Object.values(selectedVariants).reduce((sum, variantId) => {
-    const variant = mockVariants.find(v => v.id === variantId);
+    const variant = variants.find((v) => v.id === variantId);
     return sum + (variant?.priceModifier || 0);
   }, 0);
   const customizationFee = (selectedBodyType || Object.keys(measurements).length > 0) ? 2500 : 0;
@@ -215,7 +233,7 @@ const CustomizationFormModal = ({
 
                   {step === 3 && (
                     <ShoeStyleVariantStep
-                      variants={mockVariants}
+                      variants={variants}
                       selectedVariants={selectedVariants}
                       onVariantSelect={handleVariantSelect}
                     />
@@ -237,7 +255,7 @@ const CustomizationFormModal = ({
                       selectedBodyType={selectedFootType}
                       measurements={measurements}
                       notes={notes}
-                      variants={mockVariants}
+                      variants={variants}
                       basePrice={basePrice}
                     />
                   )}
@@ -246,7 +264,7 @@ const CustomizationFormModal = ({
                 <>
                   {step === 1 && (
                     <VariantSelectionStep
-                      variants={mockVariants}
+                      variants={variants}
                       selectedVariants={selectedVariants}
                       onVariantSelect={handleVariantSelect}
                     />
@@ -283,7 +301,7 @@ const CustomizationFormModal = ({
                       selectedBodyType={selectedBodyType}
                       measurements={measurements}
                       notes={notes}
-                      variants={mockVariants}
+                      variants={variants}
                       basePrice={basePrice}
                     />
                   )}
@@ -308,7 +326,7 @@ const CustomizationFormModal = ({
                 {step < totalSteps ? (
                   <Button
                     onClick={() => setStep(step + 1)}
-                    disabled={!canProceed()}
+                    disabled={!canProceed() || (step === 1 && isLoadingVariants)}
                     className="gap-2"
                     size="sm"
                   >
@@ -318,7 +336,7 @@ const CustomizationFormModal = ({
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    disabled={!canProceed()}
+                    disabled={!canProceed() || isLoadingVariants}
                     className="bg-primary gap-2"
                     size="sm"
                   >

@@ -33,45 +33,9 @@ const getInitialNotifications = (): Notification[] => {
     return parsed.map((n: any) => ({ ...n, timestamp: new Date(n.timestamp) }));
   }
 
-  // Default mock notifications
-  return [
-    {
-      id: "1",
-      type: "quote",
-      title: "New Quote Received",
-      message: "Ade Tailors sent you a quote for your custom Agbada",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-      read: false,
-      link: "/marketplace/messages",
-    },
-    {
-      id: "2",
-      type: "order_status",
-      title: "Order Update",
-      message: "Your Custom Ankara Jacket is now being crafted",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      read: false,
-      link: "/marketplace/cart",
-    },
-    {
-      id: "3",
-      type: "promo",
-      title: "Special Deal! 🎉",
-      message: "20% off on all leather goods this weekend",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      read: true,
-      link: "/marketplace",
-    },
-    {
-      id: "4",
-      type: "message",
-      title: "New Message",
-      message: "SoleCraft Nigeria replied to your inquiry",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3), // 3 hours ago
-      read: false,
-      link: "/marketplace/messages",
-    },
-  ];
+  // No stored notifications yet.
+  // Logged-in notifications should come from GET `/customers/me/notifications` (handled later once auth is wired).
+  return [];
 };
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {

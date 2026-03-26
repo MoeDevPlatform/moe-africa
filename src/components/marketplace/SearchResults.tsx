@@ -20,7 +20,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { providers as allProviders } from "@/data/mockData";
+import { apiGet } from "@/lib/moeApi";
 
 interface SearchResultsProps {
   searchQuery: string;
@@ -52,75 +52,74 @@ const searchableCategories = [
   { id: "furniture", name: "Home & Decor", slug: "furniture", description: "Furniture & home items" },
 ];
 
-// Mock products with more variety
-const searchableProducts = [
-  {
-    id: 101,
-    name: "Custom Ankara Jacket",
-    provider: "Ade Tailors",
-    providerId: 1,
-    category: "tailoring",
-    price: 25000,
-    image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=200",
-    tags: ["Afrocentric", "Modern"],
-  },
-  {
-    id: 102,
-    name: "Leather Brogues",
-    provider: "Royal Shoes",
-    providerId: 2,
-    category: "shoemaking",
-    price: 32000,
-    image: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=200",
-    tags: ["Classic", "Formal"],
-  },
-  {
-    id: 103,
-    name: "Traditional Agbada",
-    provider: "Ade Tailors",
-    providerId: 1,
-    category: "tailoring",
-    price: 45000,
-    image: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=200",
-    tags: ["Traditional", "Luxury"],
-  },
-  {
-    id: 104,
-    name: "Handmade Leather Bag",
-    provider: "Craft Masters",
-    providerId: 3,
-    category: "leatherwork",
-    price: 28000,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=200",
-    tags: ["Handmade", "Premium"],
-  },
-  {
-    id: 105,
-    name: "Beaded Necklace",
-    provider: "Jewelry Artisan",
-    providerId: 4,
-    category: "jewelry",
-    price: 15000,
-    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=200",
-    tags: ["Afrocentric", "Statement"],
-  },
-  {
-    id: 106,
-    name: "Kaftan Set",
-    provider: "Ade Tailors",
-    providerId: 1,
-    category: "tailoring",
-    price: 35000,
-    image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200",
-    tags: ["Modern", "Elegant"],
-  },
-];
+type ProviderResult = {
+  id: number;
+  heroImage?: string;
+  brandName: string;
+  category: string;
+  city?: string;
+  state?: string;
+  rating?: number;
+};
+
+type ProductResult = {
+  id: number;
+  name: string;
+  provider: string;
+  providerId?: number;
+  category?: string;
+  price: number;
+  image?: string;
+  tags: string[];
+};
+
+function coerceImageUrl(maybeImages: any): string | undefined {
+  if (typeof maybeImages === "string") return maybeImages;
+  if (Array.isArray(maybeImages) && typeof maybeImages[0] === "string") return maybeImages[0] as string;
+  if (Array.isArray(maybeImages) && maybeImages[0]?.url) return maybeImages[0].url as string;
+  if (maybeImages?.url) return maybeImages.url as string;
+  return undefined;
+}
+
+function mapProvider(p: any): ProviderResult {
+  return {
+    id: Number(p.id),
+    heroImage: p.heroImageUrl ?? p.heroImage ?? undefined,
+    brandName:
+      p.brandName ??
+      (p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.name ?? ""),
+    category: p.category ?? p.serviceCategories?.[0] ?? "",
+    city: p.city,
+    state: p.state,
+    rating: typeof p.rating === "number" ? p.rating : undefined,
+  };
+}
+
+function mapProduct(p: any): ProductResult {
+  const price =
+    typeof p.priceMin === "number" ? p.priceMin : typeof p.price === "number" ? p.price : 0;
+
+  return {
+    id: Number(p.id),
+    name: p.name ?? "",
+    provider: p.providerName ?? p.provider?.brandName ?? "",
+    providerId: p.providerId ? Number(p.providerId) : undefined,
+    category: p.category ?? p.serviceCategoryId ?? undefined,
+    price,
+    image: coerceImageUrl(p.images ?? p.imageUrls ?? p.imagesUrls ?? p.imageUrl),
+    tags: (p.styleTags ?? p.tags ?? []).filter((t: any) => typeof t === "string"),
+  };
+}
 
 const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsProps) => {
   const navigate = useNavigate();
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [providers, setProviders] = useState<ProviderResult[]>([]);
+  const [products, setProducts] = useState<ProductResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -154,7 +153,47 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
     };
   }, [onClose]);
 
-  // Filter results based on search query
+  // Fetch results based on search query
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const q = debouncedQuery.toLowerCase().trim();
+      if (!q) {
+        setProviders([]);
+        setProducts([]);
+        setApiError(null);
+        return;
+      }
+
+      setIsLoading(true);
+      setApiError(null);
+
+      try {
+        const json = await apiGet<{ products: any[]; providers: any[] }>(
+          "/search",
+          { q, type: "all" }
+        );
+        if (cancelled) return;
+
+        setProviders((json.providers ?? []).map(mapProvider));
+        setProducts((json.products ?? []).map(mapProduct));
+      } catch (e: any) {
+        if (cancelled) return;
+        setApiError(e?.message || "Failed to search");
+        setProviders([]);
+        setProducts([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery]);
+
+  // Filter category suggestions (static)
   const query = debouncedQuery.toLowerCase().trim();
   
   const filteredCategories = query
@@ -164,31 +203,10 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
           c.description.toLowerCase().includes(query)
       )
     : [];
-
-  const filteredProviders = query
-    ? allProviders.filter(
-        (p) =>
-          p.brandName.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          p.styleTags.some((tag) => tag.toLowerCase().includes(query)) ||
-          p.city.toLowerCase().includes(query)
-      )
-    : [];
-
-  const filteredProducts = query
-    ? searchableProducts.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.provider.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          p.tags.some((tag) => tag.toLowerCase().includes(query))
-      )
-    : [];
-
   const hasResults =
     filteredCategories.length > 0 ||
-    filteredProviders.length > 0 ||
-    filteredProducts.length > 0;
+    providers.length > 0 ||
+    products.length > 0;
 
   const handleProductClick = (id: number) => {
     navigate(`/marketplace/product/${id}`);
@@ -288,14 +306,14 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
               )}
 
               {/* Providers */}
-              {filteredProviders.length > 0 && (
+              {providers.length > 0 && (
                 <div>
                   <h3 className="font-display font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
                     <User className="h-4 w-4" />
-                    Artisans ({filteredProviders.length})
+                    Artisans ({providers.length})
                   </h3>
                   <div className="space-y-2">
-                    {filteredProviders.slice(0, 5).map((provider) => (
+                    {providers.slice(0, 5).map((provider) => (
                       <Card
                         key={provider.id}
                         className="hover:border-primary cursor-pointer transition-colors group"
@@ -321,14 +339,14 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant="secondary">⭐ {provider.rating}</Badge>
+                              <Badge variant="secondary">⭐ {provider.rating ?? "—"}</Badge>
                               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
-                    {filteredProviders.length > 5 && (
+                    {providers.length > 5 && (
                       <button
                         onClick={() => {
                           navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}&view=artisans`);
@@ -336,7 +354,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                         }}
                         className="w-full text-center py-2 text-sm text-primary hover:underline"
                       >
-                        View all {filteredProviders.length} artisans
+                        View all {providers.length} artisans
                       </button>
                     )}
                   </div>
@@ -344,14 +362,14 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
               )}
 
               {/* Products */}
-              {filteredProducts.length > 0 && (
+              {products.length > 0 && (
                 <div>
                   <h3 className="font-display font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
                     <Package className="h-4 w-4" />
-                    Products ({filteredProducts.length})
+                    Products ({products.length})
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {filteredProducts.slice(0, 6).map((product) => (
+                    {products.slice(0, 6).map((product) => (
                       <Card
                         key={product.id}
                         className="hover:border-primary cursor-pointer transition-colors overflow-hidden group"
@@ -359,7 +377,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                       >
                         <div className="flex gap-4 p-4">
                           <img
-                            src={product.image}
+                            src={product.image ?? ""}
                             alt={product.name}
                             className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
                           />
@@ -390,7 +408,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                       </Card>
                     ))}
                   </div>
-                  {filteredProducts.length > 6 && (
+                  {products.length > 6 && (
                     <button
                       onClick={() => {
                         navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}&view=products`);
@@ -398,7 +416,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                       }}
                       className="w-full text-center py-3 text-sm text-primary hover:underline"
                     >
-                      View all {filteredProducts.length} products
+                      View all {products.length} products
                     </button>
                   )}
                 </div>
