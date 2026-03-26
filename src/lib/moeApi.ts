@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://api.moe-africa.com";
+const DEFAULT_BASE_URL = "http://localhost:3000";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -18,7 +18,7 @@ export class MoeApiError extends Error {
 
 function getBaseUrl() {
   // Prefer Vite env, fall back to the documented base URL.
-  const envBaseUrl = import.meta.env?.VITE_MOE_API_BASE_URL as string | undefined;
+  const envBaseUrl = (import.meta.env?.VITE_API_BASE_URL ?? import.meta.env?.VITE_MOE_API_BASE_URL) as string | undefined;
   return envBaseUrl || DEFAULT_BASE_URL;
 }
 
