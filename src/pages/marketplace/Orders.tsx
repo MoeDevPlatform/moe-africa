@@ -145,21 +145,47 @@ const OrderCard = ({ order }: { order: Order }) => {
 
 const Orders = () => {
   const [activeTab, setActiveTab] = useState("all");
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        const res = await ordersService.list();
+        if (res.data.length > 0) {
+          setOrders(
+            res.data.map((o) => ({
+              id: o.id,
+              productName: o.productName,
+              productImage: o.productImage,
+              providerName: o.providerName,
+              status: o.status === "custom" ? "custom" : o.status,
+              price: o.price,
+              date: o.createdAt,
+              isCustomOrder: o.isCustomOrder,
+            })) as Order[]
+          );
+        }
+      } catch {
+        // Keep mock data
+      }
+    };
+    loadOrders();
+  }, []);
 
   const filterOrders = (tab: string) => {
     switch (tab) {
       case "in_progress":
-        return mockOrders.filter(o => o.status === "in_progress");
+        return orders.filter(o => o.status === "in_progress");
       case "completed":
-        return mockOrders.filter(o => o.status === "completed");
+        return orders.filter(o => o.status === "completed");
       case "cancelled":
-        return mockOrders.filter(o => o.status === "cancelled");
+        return orders.filter(o => o.status === "cancelled");
       case "awaiting_payment":
-        return mockOrders.filter(o => o.status === "awaiting_payment");
+        return orders.filter(o => o.status === "awaiting_payment");
       case "custom":
-        return mockOrders.filter(o => o.isCustomOrder);
+        return orders.filter(o => o.isCustomOrder);
       default:
-        return mockOrders;
+        return orders;
     }
   };
 
