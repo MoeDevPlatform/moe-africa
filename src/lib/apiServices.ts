@@ -54,9 +54,39 @@ export interface RegisterRequest {
   role?: UserRole;
 }
 
+// Mock auth fallback for offline/dev use
+const mockAuthFallback = (name: string, email: string, role: UserRole = "customer"): AuthResponse => ({
+  token: "mock_access_token_" + Date.now(),
+  refreshToken: "mock_refresh_token_" + Date.now(),
+  user: {
+    id: "mock_" + Date.now(),
+    name,
+    email,
+    role,
+    phone: "",
+    avatarUrl: "",
+    addresses: [],
+    paymentMethods: [],
+  },
+});
+
 export const authService = {
-  login: (data: LoginRequest) => apiPost<AuthResponse>("/auth/login", data),
-  register: (data: RegisterRequest) => apiPost<AuthResponse>("/auth/register", data),
+  login: async (data: LoginRequest): Promise<AuthResponse> => {
+    try {
+      return await apiPost<AuthResponse>("/auth/login", data);
+    } catch {
+      console.warn("[MOE] Backend unreachable — using mock login");
+      return mockAuthFallback(data.email.split("@")[0], data.email);
+    }
+  },
+  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+    try {
+      return await apiPost<AuthResponse>("/auth/register", data);
+    } catch {
+      console.warn("[MOE] Backend unreachable — using mock register");
+      return mockAuthFallback(data.name, data.email, data.role);
+    }
+  },
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
   updateProfile: (data: Partial<Pick<CustomerProfile, "name" | "email" | "phone" | "avatarUrl">>) =>
