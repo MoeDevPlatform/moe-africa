@@ -130,8 +130,16 @@ const ProductSection = ({ title, icon, products }: ProductSectionProps) => {
 };
 
 const FeaturedProducts = () => {
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+
+  useEffect(() => {
+    productsService.list().then((res) => {
+      if (res.data.length > 0) setProducts(res.data);
+    });
+  }, []);
+
   // Transform products into FeaturedProduct format
-  const transformProduct = (p: typeof products[0]): FeaturedProduct => {
+  const transformProduct = (p: Product): FeaturedProduct => {
     const provider = getProviderById(p.providerId);
     return {
       id: p.id,
