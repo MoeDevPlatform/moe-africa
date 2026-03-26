@@ -125,6 +125,7 @@ const App = () => (
         </CartProvider>
       </WishlistProvider>
     </NotificationProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
