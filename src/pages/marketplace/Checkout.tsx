@@ -120,7 +120,7 @@ const Checkout = () => {
                 <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent>
-                <RadioGroup defaultValue="card" aria-label="Payment method options">
+                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} aria-label="Payment method options">
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
                     <RadioGroupItem value="card" id="card" />
                     <Label htmlFor="card" className="flex-1 cursor-pointer">
@@ -140,13 +140,13 @@ const Checkout = () => {
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="transfer" id="transfer" />
+                    <RadioGroupItem value="bank_transfer" id="transfer" />
                     <Label htmlFor="transfer" className="flex-1 cursor-pointer">
                       Bank Transfer
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="delivery" id="delivery" />
+                    <RadioGroupItem value="pay_on_delivery" id="delivery" />
                     <Label htmlFor="delivery" className="flex-1 cursor-pointer">
                       Pay on Delivery
                     </Label>
