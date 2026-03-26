@@ -1,14 +1,16 @@
 import { useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings, Menu, ChevronDown, HelpCircle } from "lucide-react";
+import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
 import NotificationCenter from "./NotificationCenter";
@@ -16,6 +18,7 @@ import MegaMenu from "./MegaMenu";
 import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const supportLinks = [
   { name: "Help Center", path: "/marketplace/support/help" },
