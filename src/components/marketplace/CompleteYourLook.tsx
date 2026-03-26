@@ -13,6 +13,13 @@ interface CompleteYourLookProps {
 
 const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
   const navigate = useNavigate();
+  const [allProducts, setAllProducts] = useState<Product[]>(mockProducts);
+
+  useEffect(() => {
+    productsService.list().then((res) => {
+      if (res.data.length > 0) setAllProducts(res.data);
+    });
+  }, []);
 
   const handleProductClick = (productId: number) => {
     navigate(`/marketplace/product/${productId}`);
