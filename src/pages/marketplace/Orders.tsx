@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Clock, CheckCircle, XCircle, CreditCard, Paintbrush, ChevronRight } from "lucide-react";
-import { ordersService } from "@/lib/apiServices";
+import { Package, Clock, CheckCircle, XCircle, CreditCard, Paintbrush, ChevronRight, Loader2 } from "lucide-react";
+import { ordersService, Order as ApiOrder } from "@/lib/apiServices";
 
 interface Order {
   id: string;
@@ -19,69 +19,6 @@ interface Order {
   date: string;
   isCustomOrder: boolean;
 }
-
-const mockOrders: Order[] = [
-  {
-    id: "ORD-001",
-    productName: "Royal Blue Agbada Set",
-    productImage: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400",
-    providerName: "Ade's Tailoring",
-    status: "in_progress",
-    price: 85000,
-    date: "2024-01-15",
-    isCustomOrder: false,
-  },
-  {
-    id: "ORD-002",
-    productName: "Custom Leather Sandals",
-    productImage: "https://images.unsplash.com/photo-1603487742131-4160ec999306?w=400",
-    providerName: "Musa's Leatherworks",
-    status: "completed",
-    price: 35000,
-    date: "2024-01-10",
-    isCustomOrder: true,
-  },
-  {
-    id: "ORD-003",
-    productName: "Traditional Senator Outfit",
-    productImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=400",
-    providerName: "Ade's Tailoring",
-    status: "awaiting_payment",
-    price: 65000,
-    date: "2024-01-18",
-    isCustomOrder: false,
-  },
-  {
-    id: "ORD-004",
-    productName: "Bespoke Ankara Dress",
-    productImage: "https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=400",
-    providerName: "Funke's Fashion House",
-    status: "pending",
-    price: 45000,
-    date: "2024-01-20",
-    isCustomOrder: false,
-  },
-  {
-    id: "ORD-005",
-    productName: "Custom Wedding Gele",
-    productImage: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400",
-    providerName: "Bisi Accessories",
-    status: "custom",
-    price: 28000,
-    date: "2024-01-12",
-    isCustomOrder: true,
-  },
-  {
-    id: "ORD-006",
-    productName: "Casual Kaftan",
-    productImage: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400",
-    providerName: "Ade's Tailoring",
-    status: "cancelled",
-    price: 25000,
-    date: "2024-01-05",
-    isCustomOrder: false,
-  },
-];
 
 const getStatusConfig = (status: Order["status"]) => {
   const configs = {
@@ -112,6 +49,8 @@ const OrderCard = ({ order }: { order: Order }) => {
               src={order.productImage}
               alt={order.productName}
               className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
             />
           </div>
           <div className="flex-1 p-4">
@@ -145,28 +84,31 @@ const OrderCard = ({ order }: { order: Order }) => {
 
 const Orders = () => {
   const [activeTab, setActiveTab] = useState("all");
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadOrders = async () => {
+      setIsLoading(true);
       try {
         const res = await ordersService.list();
-        if (res.data.length > 0) {
-          setOrders(
-            res.data.map((o) => ({
-              id: o.id,
-              productName: o.productName,
-              productImage: o.productImage,
-              providerName: o.providerName,
-              status: (o.isCustomOrder ? "custom" : o.status) as Order["status"],
-              price: o.price,
-              date: o.createdAt,
-              isCustomOrder: o.isCustomOrder,
-            }))
-          );
-        }
+        setOrders(
+          res.data.map((o: ApiOrder) => ({
+            id: o.id,
+            productName: o.productName,
+            productImage: o.productImage,
+            providerName: o.providerName,
+            status: (o.isCustomOrder ? "custom" : o.status) as Order["status"],
+            price: o.price,
+            date: o.createdAt,
+            isCustomOrder: o.isCustomOrder,
+          }))
+        );
       } catch {
-        // Keep mock data
+        // No orders available — show empty state
+        setOrders([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     loadOrders();
@@ -215,7 +157,11 @@ const Orders = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-0">
-            {filteredOrders.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredOrders.length === 0 ? (
               <div className="text-center py-16">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No orders found</h3>
