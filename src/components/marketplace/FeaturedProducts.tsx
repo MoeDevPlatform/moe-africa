@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,9 @@ import {
 } from "@/components/ui/carousel";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
-import { products, getProviderById } from "@/data/mockData";
+import { products as mockProducts, getProviderById } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
+import type { Product } from "@/data/mockData";
 
 interface FeaturedProduct {
   id: number;
