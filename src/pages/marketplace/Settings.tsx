@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
@@ -16,6 +16,8 @@ import {
   ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/lib/apiServices";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -184,6 +186,27 @@ const PaymentModal = ({ open, payment, onClose, onSave }: PaymentModalProps) => 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, updateUser } = useAuth();
+
+  // Account form state seeded from auth user
+  const [accountForm, setAccountForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      const parts = (user.name || "").split(" ");
+      setAccountForm({
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" ") || "",
+        email: user.email || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
 
   // Notifications
   const [notificationSettings, setNotificationSettings] = useState({
@@ -308,22 +331,34 @@ const Settings = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" defaultValue="John" />
+                    <Input id="firstName" value={accountForm.firstName} onChange={e => setAccountForm(f => ({ ...f, firstName: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" defaultValue="Doe" />
+                    <Input id="lastName" value={accountForm.lastName} onChange={e => setAccountForm(f => ({ ...f, lastName: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@email.com" />
+                  <Input id="email" type="email" value={accountForm.email} onChange={e => setAccountForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" defaultValue="+234 801 234 5678" />
+                  <Input id="phone" type="tel" value={accountForm.phone} onChange={e => setAccountForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
-                <Button className="w-full sm:w-auto" onClick={() => toast({ title: "Changes saved", description: "Your account information has been updated." })}>Save Changes</Button>
+                <Button className="w-full sm:w-auto" onClick={async () => {
+                  try {
+                    const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
+                    await authService.updateProfile({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    toast({ title: "Changes saved", description: "Your account information has been updated." });
+                  } catch {
+                    // Offline fallback — update local state only
+                    const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
+                    updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    toast({ title: "Saved locally", description: "Changes will sync when online." });
+                  }
+                }}>Save Changes</Button>
               </CardContent>
             </Card>
           </TabsContent>

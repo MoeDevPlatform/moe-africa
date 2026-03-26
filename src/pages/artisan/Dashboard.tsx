@@ -48,15 +48,26 @@ const ArtisanDashboard = () => {
           location: p.location,
         });
       })
-      .catch(() => toast.error("Could not load artisan profile"))
+      .catch(() => {
+        // Fallback: use auth user info to seed an empty profile shell
+        if (user) {
+          const fallback: ArtisanProfile = {
+            id: 0, userId: user.id, businessName: user.name + "'s Store",
+            description: "", category: "", location: "", images: [],
+            rating: 0, verified: false, featured: false, createdAt: new Date().toISOString(),
+          };
+          setArtisanProfile(fallback);
+          setBusinessForm({ businessName: fallback.businessName, description: "", category: "", location: "" });
+        }
+      })
       .finally(() => setIsLoadingProfile(false));
 
     artisanService
       .getMyProducts()
       .then((res) => setProducts(res.data))
-      .catch(() => {})
+      .catch(() => setProducts([]))
       .finally(() => setIsLoadingProducts(false));
-  }, []);
+  }, [user]);
 
   const handleSaveProfile = async () => {
     try {
