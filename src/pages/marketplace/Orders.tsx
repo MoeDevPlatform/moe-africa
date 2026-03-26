@@ -158,11 +158,11 @@ const Orders = () => {
               productName: o.productName,
               productImage: o.productImage,
               providerName: o.providerName,
-              status: o.status === "custom" ? "custom" : o.status,
+              status: (o.isCustomOrder ? "custom" : o.status) as Order["status"],
               price: o.price,
               date: o.createdAt,
               isCustomOrder: o.isCustomOrder,
-            })) as Order[]
+            }))
           );
         }
       } catch {
