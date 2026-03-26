@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
-import { Product, getProviderById, products } from "@/data/mockData";
+import { Product, getProviderById, products as mockProducts } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
 
 interface CompleteYourLookProps {
   currentProduct: Product;
