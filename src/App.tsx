@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -57,6 +58,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <NotificationProvider>
       <WishlistProvider>
         <CartProvider>
@@ -123,6 +125,7 @@ const App = () => (
         </CartProvider>
       </WishlistProvider>
     </NotificationProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
