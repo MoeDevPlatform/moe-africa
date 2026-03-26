@@ -56,8 +56,23 @@ const ProviderDetail = () => {
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
 
-  const provider = getProviderById(Number(id));
-  const products = provider ? getProductsByProviderId(provider.id) : [];
+  const [provider, setProvider] = useState<Provider | undefined>(mockGetProviderById(Number(id)));
+  const [products, setProducts] = useState<Product[]>(
+    provider ? mockGetProductsByProviderId(provider.id) : []
+  );
+
+  useEffect(() => {
+    const loadData = async () => {
+      const providerId = Number(id);
+      const prov = await providersService.getById(providerId);
+      if (prov) {
+        setProvider(prov);
+        const prods = await productsService.getByProvider(providerId);
+        setProducts(prods);
+      }
+    };
+    loadData();
+  }, [id]);
 
   useEffect(() => {
     if (!provider) return;
