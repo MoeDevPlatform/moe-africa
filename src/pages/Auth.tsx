@@ -5,8 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/lib/apiServices";
+import { User, Palette } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
@@ -24,6 +27,7 @@ const Auth = () => {
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("customer");
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +35,7 @@ const Auth = () => {
     try {
       await login(signInEmail, signInPassword);
       toast.success("Welcome back!");
-      navigate("/home");
+      navigate("/marketplace");
     } catch (err: any) {
       toast.error(err?.message || "Invalid email or password");
     } finally {
@@ -45,12 +49,16 @@ const Auth = () => {
       toast.error("Passwords do not match");
       return;
     }
+    if (signUpPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
-      await register(name, signUpEmail, signUpPassword);
+      await register(name, signUpEmail, signUpPassword, role);
       toast.success("Account created successfully!");
-      navigate("/home");
+      navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
     } catch (err: any) {
       toast.error(err?.message || "Registration failed");
     } finally {
@@ -115,6 +123,43 @@ const Auth = () => {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  {/* Role Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">I want to join as</Label>
+                    <RadioGroup
+                      value={role}
+                      onValueChange={(v) => setRole(v as UserRole)}
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      <Label
+                        htmlFor="role-customer"
+                        className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          role === "customer"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        <RadioGroupItem value="customer" id="role-customer" className="sr-only" />
+                        <User className="h-6 w-6 text-primary" />
+                        <span className="font-medium text-sm">Customer</span>
+                        <span className="text-xs text-muted-foreground text-center">Browse &amp; shop</span>
+                      </Label>
+                      <Label
+                        htmlFor="role-artisan"
+                        className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          role === "artisan"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        <RadioGroupItem value="artisan" id="role-artisan" className="sr-only" />
+                        <Palette className="h-6 w-6 text-primary" />
+                        <span className="font-medium text-sm">Artisan</span>
+                        <span className="text-xs text-muted-foreground text-center">Sell your craft</span>
+                      </Label>
+                    </RadioGroup>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstname">First Name</Label>
@@ -159,6 +204,7 @@ const Auth = () => {
                       value={signUpPassword}
                       onChange={(e) => setSignUpPassword(e.target.value)}
                       required
+                      minLength={8}
                     />
                   </div>
                   <div>
@@ -173,7 +219,7 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
+                    {isLoading ? "Creating account..." : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
                   </Button>
                 </form>
               </TabsContent>

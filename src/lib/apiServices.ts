@@ -33,6 +33,8 @@ export interface PaginatedResponse<T> {
 
 // ─── Auth ─────────────────────────────────────────────────
 
+export type UserRole = "customer" | "artisan" | "admin";
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -49,6 +51,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phone?: string;
+  role?: UserRole;
 }
 
 export const authService = {
@@ -56,6 +59,50 @@ export const authService = {
   register: (data: RegisterRequest) => apiPost<AuthResponse>("/auth/register", data),
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
+  updateProfile: (data: Partial<Pick<CustomerProfile, "name" | "email" | "phone" | "avatarUrl">>) =>
+    apiPatch<CustomerProfile>("/auth/profile", data),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiPost<void>("/auth/change-password", data),
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ?? import.meta.env?.VITE_MOE_API_BASE_URL ?? "http://localhost:3000") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/auth/profile/avatar`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) throw new MoeApiError("Upload failed", res.status);
+    return (await res.json()) as { avatarUrl: string };
+  },
+};
+
+// ─── Artisan Profile ──────────────────────────────────────
+
+export interface ArtisanProfile {
+  id: number;
+  userId: number;
+  businessName: string;
+  description: string;
+  category: string;
+  location: string;
+  images: string[];
+  rating: number;
+  verified: boolean;
+  featured: boolean;
+  createdAt: string;
+}
+
+export const artisanService = {
+  getMyProfile: () => apiGet<ArtisanProfile>("/artisans/me"),
+  updateProfile: (data: Partial<ArtisanProfile>) => apiPatch<ArtisanProfile>("/artisans/me", data),
+  getMyProducts: (page = 1, pageSize = 20) =>
+    apiGet<PaginatedResponse<Product>>("/artisans/me/products", { page, pageSize }),
+  createProduct: (data: Record<string, unknown>) => apiPost<Product>("/artisans/me/products", data),
+  updateProduct: (id: number, data: Record<string, unknown>) =>
+    apiPatch<Product>(`/artisans/me/products/${id}`, data),
+  deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
 };
 
 // ─── Customer Profile ─────────────────────────────────────
@@ -67,6 +114,8 @@ export interface CustomerProfile {
   email: string;
   phone?: string;
   avatarUrl?: string;
+  role: UserRole;
+  artisanProfile?: ArtisanProfile;
   preferences?: UserPreference;
   createdAt: string;
 }

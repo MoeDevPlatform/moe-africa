@@ -33,6 +33,8 @@ import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
+import ArtisanDashboard from "./pages/artisan/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Support Pages
 import HelpCenter from "./pages/marketplace/support/HelpCenter";
@@ -107,6 +109,9 @@ const App = () => (
                   <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
                   <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
                   
+                  {/* Artisan Routes */}
+                  <Route path="/artisan/dashboard" element={<ProtectedRoute requiredRole="artisan"><ArtisanDashboard /></ProtectedRoute>} />
+
                   {/* Admin Routes */}
                   <Route path="/admin/login" element={<Login />} />
                   <Route path="/admin" element={<Dashboard />} />
