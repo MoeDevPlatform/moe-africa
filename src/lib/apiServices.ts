@@ -60,13 +60,11 @@ const mockAuthFallback = (name: string, email: string, role: UserRole = "custome
   refreshToken: "mock_refresh_token_" + Date.now(),
   user: {
     id: Date.now(),
+    username: email.split("@")[0],
     name,
     email,
     role,
-    phone: "",
-    avatarUrl: "",
-    addresses: [],
-    paymentMethods: [],
+    createdAt: new Date().toISOString(),
   },
 });
 
