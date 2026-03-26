@@ -71,6 +71,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
           src={product.images[0]} 
           alt={product.name}
           className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            const target = e.currentTarget;
+            target.onerror = null;
+            target.src = "/placeholder.svg";
+          }}
         />
         <Button
           variant="ghost"

@@ -29,6 +29,12 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           src={provider.heroImage} 
           alt={provider.brandName}
           className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            const target = e.currentTarget;
+            target.onerror = null;
+            target.src = "/placeholder.svg";
+          }}
         />
         {provider.featured && (
           <Badge className="absolute top-3 left-3 bg-accent text-accent-foreground">
