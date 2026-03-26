@@ -42,6 +42,8 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                     src={provider.heroImage} 
                     alt={provider.brandName}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
                   />
                 </div>
               </div>
