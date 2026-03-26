@@ -95,6 +95,8 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                               src={product.images[0]} 
                               alt={product.name}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                              loading="lazy"
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
                             />
                           </div>
                         </div>
