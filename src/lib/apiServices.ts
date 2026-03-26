@@ -59,7 +59,7 @@ const mockAuthFallback = (name: string, email: string, role: UserRole = "custome
   token: "mock_access_token_" + Date.now(),
   refreshToken: "mock_refresh_token_" + Date.now(),
   user: {
-    id: "mock_" + Date.now(),
+    id: Date.now(),
     name,
     email,
     role,
