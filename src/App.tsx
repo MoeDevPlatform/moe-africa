@@ -33,6 +33,8 @@ import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
+import ArtisanDashboard from "./pages/artisan/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Support Pages
 import HelpCenter from "./pages/marketplace/support/HelpCenter";
