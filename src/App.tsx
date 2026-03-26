@@ -109,6 +109,9 @@ const App = () => (
                   <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
                   <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
                   
+                  {/* Artisan Routes */}
+                  <Route path="/artisan/dashboard" element={<ProtectedRoute requiredRole="artisan"><ArtisanDashboard /></ProtectedRoute>} />
+
                   {/* Admin Routes */}
                   <Route path="/admin/login" element={<Login />} />
                   <Route path="/admin" element={<Dashboard />} />
