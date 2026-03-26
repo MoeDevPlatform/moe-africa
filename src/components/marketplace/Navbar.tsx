@@ -201,12 +201,58 @@ const MarketplaceNavbar = () => {
               </Button>
             </Link>
 
-            <Link to="/auth" className="hidden sm:block">
-              <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
-                <User className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden lg:inline">Sign In</span>
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
+                    <Avatar className="h-8 w-8">
+                      {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-card">
+                  <div className="px-3 py-2">
+                    <p className="font-medium text-sm">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/marketplace/settings" className="cursor-pointer gap-2">
+                      <User className="h-4 w-4" /> My Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/marketplace/orders" className="cursor-pointer gap-2">
+                      <Package className="h-4 w-4" /> My Orders
+                    </Link>
+                  </DropdownMenuItem>
+                  {isArtisan && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/artisan/dashboard" className="cursor-pointer gap-2">
+                        <Store className="h-4 w-4" /> Artisan Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                    onClick={() => { logout(); navigate("/"); }}
+                  >
+                    <LogOut className="h-4 w-4" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/auth" className="hidden sm:block">
+                <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
+                  <User className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden lg:inline">Sign In</span>
+                </Button>
+              </Link>
+            )}
           </nav>
         </div>
 
