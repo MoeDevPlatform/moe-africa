@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
@@ -16,6 +16,8 @@ import {
   ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/lib/apiServices";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
