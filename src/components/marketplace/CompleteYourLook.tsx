@@ -79,6 +79,8 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
                   src={product.images[0]} 
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
                 />
                 <Badge className="absolute top-2 left-2 text-xs" variant="secondary">
                   {product.category}

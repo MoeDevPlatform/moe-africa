@@ -301,6 +301,7 @@ const MiniImageCard = ({ slug, name, onClick }: { slug: string; name: string; on
           alt={name}
           className="w-full h-full object-cover"
           loading="lazy"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
         />
       </div>
       <span className="truncate">{name}</span>

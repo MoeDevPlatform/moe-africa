@@ -65,6 +65,12 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
           src={product.imageUrl}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+          onError={(e) => {
+            const target = e.currentTarget;
+            target.onerror = null;
+            target.src = "/placeholder.svg";
+          }}
         />
         <Button
           variant="secondary"

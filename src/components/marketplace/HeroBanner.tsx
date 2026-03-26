@@ -75,6 +75,7 @@ const HeroBanner = () => {
               src={banner.imageUrl}
               alt={banner.title}
               className="w-full h-full object-cover"
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             
