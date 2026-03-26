@@ -9,10 +9,17 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
+import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
+import { ordersService, paymentsService } from "@/lib/apiServices";
 
 const Checkout = () => {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedState, setSelectedState] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { items: cartItems, getTotalPrice, clearCart } = useCart();
+  const { toast } = useToast();
 
   const states = useMemo(() => {
     return selectedCountry ? getStatesByCountry(selectedCountry) : [];
@@ -20,15 +27,10 @@ const Checkout = () => {
 
   const handleCountryChange = (value: string) => {
     setSelectedCountry(value);
-    setSelectedState(""); // Reset state when country changes
+    setSelectedState("");
   };
 
-  const cartItems = [
-    { name: "Custom Ankara Jacket", price: 28000 },
-    { name: "Leather Brogues", price: 35000 },
-  ];
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+  const subtotal = getTotalPrice();
   const deliveryFee = 2500;
   const total = subtotal + deliveryFee;
 
