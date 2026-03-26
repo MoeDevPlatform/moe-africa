@@ -1,0 +1,632 @@
+/**
+ * API Service Layer — wraps moeApi.ts with typed endpoints
+ * matching the API Documentation Addendum.
+ *
+ * Every function gracefully falls back to mock data when the
+ * backend is unreachable, so the frontend works offline.
+ */
+
+import { apiGet, apiPost, apiPatch, apiDelete, MoeApiError } from "./moeApi";
+import {
+  Product,
+  Provider,
+  products as mockProducts,
+  providers as mockProviders,
+  getProductById as mockGetProductById,
+  getProviderById as mockGetProviderById,
+  getProductsByProviderId as mockGetProductsByProviderId,
+  getProvidersByCategory as mockGetProvidersByCategory,
+} from "@/data/mockData";
+
+// ─── Pagination ───────────────────────────────────────────
+export interface Pagination {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalItems: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: Pagination;
+}
+
+// ─── Auth ─────────────────────────────────────────────────
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  refreshToken: string;
+  user: CustomerProfile;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+}
+
+export const authService = {
+  login: (data: LoginRequest) => apiPost<AuthResponse>("/auth/login", data),
+  register: (data: RegisterRequest) => apiPost<AuthResponse>("/auth/register", data),
+  logout: () => apiPost<void>("/auth/logout"),
+  getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
+};
+
+// ─── Customer Profile ─────────────────────────────────────
+
+export interface CustomerProfile {
+  id: number;
+  username: string;
+  name: string;
+  email: string;
+  phone?: string;
+  avatarUrl?: string;
+  preferences?: UserPreference;
+  createdAt: string;
+}
+
+// ─── Preferences ──────────────────────────────────────────
+
+export interface UserPreference {
+  id: number;
+  userId: number;
+  categories: string[];
+  styleTags: string[];
+  budget: number;
+  updatedAt: string;
+}
+
+export const preferencesService = {
+  get: () => apiGet<UserPreference>("/customers/me/preferences"),
+  update: (data: { categories: string[]; styleTags: string[]; budget: number }) =>
+    apiPost<UserPreference>("/customers/me/preferences", data),
+  clear: () => apiDelete("/customers/me/preferences"),
+};
+
+// ─── Products ─────────────────────────────────────────────
+
+export interface ProductFilters {
+  serviceCategoryId?: number;
+  productCategoryId?: number;
+  category?: string;
+  subcategory?: string;
+  priceMin?: number;
+  priceMax?: number;
+  materials?: string;
+  styleTags?: string;
+  maxDeliveryDays?: number;
+  state?: string;
+  featured?: boolean;
+  isBestSeller?: boolean;
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+  q?: string;
+}
+
+export interface FilterMetadata {
+  priceMin: number;
+  priceMax: number;
+  availableMaterials: string[];
+  availableStyleTags: string[];
+  availableStates: string[];
+  maxDeliveryDays: number;
+}
+
+export interface ProductsResponse {
+  data: Product[];
+  pagination: Pagination;
+  filterMeta?: FilterMetadata;
+}
+
+async function fallbackProducts(filters?: ProductFilters): Promise<ProductsResponse> {
+  let filtered = [...mockProducts];
+
+  if (filters?.category) {
+    filtered = filtered.filter((p) => p.category === filters.category);
+  }
+  if (filters?.featured) {
+    filtered = filtered.filter((p) => {
+      const prov = mockGetProviderById(p.providerId);
+      return prov?.featured;
+    });
+  }
+  if (filters?.priceMin !== undefined) {
+    filtered = filtered.filter((p) => p.priceRange.max >= (filters.priceMin ?? 0));
+  }
+  if (filters?.priceMax !== undefined) {
+    filtered = filtered.filter((p) => p.priceRange.min <= (filters.priceMax ?? Infinity));
+  }
+  if (filters?.q) {
+    const q = filters.q.toLowerCase();
+    filtered = filtered.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.tags.some((t) => t.toLowerCase().includes(q))
+    );
+  }
+
+  return {
+    data: filtered,
+    pagination: { page: 1, pageSize: filtered.length, totalPages: 1, totalItems: filtered.length },
+  };
+}
+
+export const productsService = {
+  list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
+    try {
+      return await apiGet<ProductsResponse>("/products", filters as Record<string, unknown>);
+    } catch {
+      return fallbackProducts(filters);
+    }
+  },
+
+  getById: async (id: number): Promise<Product | undefined> => {
+    try {
+      return await apiGet<Product>(`/products/${id}`);
+    } catch {
+      return mockGetProductById(id);
+    }
+  },
+
+  getByProvider: async (providerId: number): Promise<Product[]> => {
+    try {
+      const res = await apiGet<ProductsResponse>(`/service-providers/${providerId}/products`);
+      return res.data;
+    } catch {
+      return mockGetProductsByProviderId(providerId);
+    }
+  },
+
+  getRecommendations: async (params?: {
+    categories?: string;
+    styleTags?: string;
+    budget?: number;
+  }): Promise<ProductsResponse> => {
+    try {
+      return await apiGet<ProductsResponse>("/products/recommendations", params as Record<string, unknown>);
+    } catch {
+      return fallbackProducts();
+    }
+  },
+};
+
+// ─── Providers ────────────────────────────────────────────
+
+export interface ProviderFilters {
+  category?: string;
+  state?: string;
+  styleTags?: string;
+  featured?: boolean;
+  minRating?: number;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ProvidersResponse {
+  data: Provider[];
+  pagination: Pagination;
+}
+
+async function fallbackProviders(filters?: ProviderFilters): Promise<ProvidersResponse> {
+  let filtered = [...mockProviders];
+  if (filters?.category) {
+    filtered = mockGetProvidersByCategory(filters.category);
+  }
+  if (filters?.featured) {
+    filtered = filtered.filter((p) => p.featured);
+  }
+  return {
+    data: filtered,
+    pagination: { page: 1, pageSize: filtered.length, totalPages: 1, totalItems: filtered.length },
+  };
+}
+
+export const providersService = {
+  list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
+    try {
+      return await apiGet<ProvidersResponse>("/service-providers/public-info", filters as Record<string, unknown>);
+    } catch {
+      return fallbackProviders(filters);
+    }
+  },
+
+  getById: async (id: number): Promise<Provider | undefined> => {
+    try {
+      return await apiGet<Provider>(`/service-providers/${id}/public-info`);
+    } catch {
+      return mockGetProviderById(id);
+    }
+  },
+
+  getByCategory: async (category: string): Promise<Provider[]> => {
+    try {
+      const res = await apiGet<ProvidersResponse>("/service-providers/public-info", { category });
+      return res.data;
+    } catch {
+      return mockGetProvidersByCategory(category);
+    }
+  },
+
+  getRecommendations: async (params?: {
+    categories?: string;
+    styleTags?: string;
+    budget?: number;
+  }): Promise<ProvidersResponse> => {
+    try {
+      return await apiGet<ProvidersResponse>("/service-providers/recommendations", params as Record<string, unknown>);
+    } catch {
+      return fallbackProviders();
+    }
+  },
+};
+
+// ─── Reviews ──────────────────────────────────────────────
+
+export interface Review {
+  id: number;
+  providerId: number;
+  customerId: number;
+  orderId?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export const reviewsService = {
+  getByProvider: async (providerId: number): Promise<PaginatedResponse<Review>> => {
+    try {
+      return await apiGet<PaginatedResponse<Review>>(`/service-providers/${providerId}/reviews`);
+    } catch {
+      return { data: [], pagination: { page: 1, pageSize: 0, totalPages: 0, totalItems: 0 } };
+    }
+  },
+  create: (providerId: number, data: { rating: number; comment: string; orderId?: string }) =>
+    apiPost<Review>(`/service-providers/${providerId}/reviews`, data),
+};
+
+// ─── Orders ───────────────────────────────────────────────
+
+export interface OrderItem {
+  productId: number;
+  customizationId?: number;
+  quantity: number;
+  finalPrice: number;
+}
+
+export interface ShippingAddress {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode?: string;
+}
+
+export interface Order {
+  id: string;
+  customerId: number;
+  productId: number;
+  productName: string;
+  productImage: string;
+  providerId: number;
+  providerName: string;
+  customizationId?: number;
+  isCustomOrder: boolean;
+  status: "pending" | "awaiting_payment" | "in_progress" | "completed" | "cancelled";
+  price: number;
+  currency: string;
+  shippingAddress: ShippingAddress;
+  paymentMethod: "paystack" | "flutterwave" | "bank_transfer" | "pay_on_delivery";
+  paymentReference?: string;
+  paymentStatus: "unpaid" | "paid" | "refunded";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderRequest {
+  customerId?: number;
+  items: OrderItem[];
+  shippingAddress: ShippingAddress;
+  paymentMethod: "paystack" | "flutterwave" | "bank_transfer" | "pay_on_delivery";
+  currency: string;
+}
+
+export const ordersService = {
+  list: async (params?: { status?: string; isCustomOrder?: boolean; page?: number; pageSize?: number }) => {
+    return apiGet<PaginatedResponse<Order>>("/orders", params as Record<string, unknown>);
+  },
+  getById: async (id: string) => {
+    return apiGet<Order>(`/orders/${id}`);
+  },
+  create: async (data: CreateOrderRequest) => {
+    return apiPost<Order>("/orders", data);
+  },
+  update: async (id: string, data: { status?: string; paymentStatus?: string; paymentReference?: string }) => {
+    return apiPatch<Order>(`/orders/${id}`, data);
+  },
+};
+
+// ─── Customization Orders ─────────────────────────────────
+
+export interface CreateCustomizationRequest {
+  productId: number;
+  customerId?: number;
+  selectedVariants: Record<string, string>;
+  selectedSize: string;
+  selectedBodyType?: string;
+  selectedFootType?: string;
+  measurements: Record<string, string>;
+  notes?: string;
+  rushOrder: boolean;
+}
+
+export interface CustomizationOrder {
+  id: number;
+  productId: number;
+  customerId: number;
+  selectedVariants: Record<string, string>;
+  selectedSize: string;
+  selectedBodyType?: string;
+  selectedFootType?: string;
+  measurements: Record<string, string>;
+  notes?: string;
+  basePrice: number;
+  variantModifierTotal: number;
+  customizationFee: number;
+  finalPrice: number;
+  rushOrder: boolean;
+  rushOrderCost: number;
+  estimatedDeliveryDays: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const customizationService = {
+  create: (data: CreateCustomizationRequest) => apiPost<CustomizationOrder>("/customization-orders", data),
+  getById: (id: number) => apiGet<CustomizationOrder>(`/customization-orders/${id}`),
+};
+
+// ─── Custom Order Requests ────────────────────────────────
+
+export interface CustomOrderRequest {
+  providerId: number;
+  productId?: number;
+  description: string;
+  material?: string;
+  color?: string;
+  fittingStyle?: string;
+  measurements?: Record<string, string>;
+  additionalNotes?: string;
+  referenceImageUrl?: string;
+}
+
+export const customOrderService = {
+  create: (data: CustomOrderRequest) => apiPost<{ id: number; status: string }>("/orders/custom-requests", data),
+};
+
+// ─── Payments ─────────────────────────────────────────────
+
+export interface PaymentInitRequest {
+  orderId: string;
+  amount: number;
+  currency: string;
+  email: string;
+  callbackUrl: string;
+  gateway: "paystack" | "flutterwave";
+  metadata?: Record<string, unknown>;
+}
+
+export interface PaymentInitResponse {
+  paymentUrl: string;
+  reference: string;
+  accessCode?: string;
+  txRef?: string;
+}
+
+export interface PaymentVerifyResponse {
+  reference: string;
+  status: "success" | "failed" | "pending";
+  amount: number;
+  currency: string;
+  paidAt?: string;
+  orderId: string;
+}
+
+export const paymentsService = {
+  initialize: (data: PaymentInitRequest) => apiPost<PaymentInitResponse>("/payments/initialize", data),
+  verify: (data: { reference: string; gateway: "paystack" | "flutterwave" }) =>
+    apiPost<PaymentVerifyResponse>("/payments/verify", data),
+};
+
+// ─── Messaging ────────────────────────────────────────────
+
+export interface Conversation {
+  id: number;
+  customerId: number;
+  providerId: number;
+  providerName: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+}
+
+export interface Message {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  senderType: "customer" | "provider";
+  content: string;
+  sentAt: string;
+  readAt?: string;
+}
+
+export const messagingService = {
+  listConversations: (params?: { page?: number; pageSize?: number }) =>
+    apiGet<PaginatedResponse<Conversation>>("/conversations", params as Record<string, unknown>),
+  getMessages: (conversationId: number, params?: { page?: number; pageSize?: number }) =>
+    apiGet<PaginatedResponse<Message>>(`/conversations/${conversationId}/messages`, params as Record<string, unknown>),
+  sendMessage: (conversationId: number, content: string) =>
+    apiPost<Message>(`/conversations/${conversationId}/messages`, { content }),
+  startConversation: (providerId: number, initialMessage: string) =>
+    apiPost<Conversation>("/conversations", { providerId, initialMessage }),
+  markRead: (conversationId: number) => apiPatch<void>(`/conversations/${conversationId}/read`),
+};
+
+// ─── Wishlist (API sync for logged-in users) ──────────────
+
+export interface WishlistItemApi {
+  id: number;
+  customerId: number;
+  productId: number;
+  productName: string;
+  providerId: number;
+  providerName: string;
+  priceMin: number;
+  priceMax: number;
+  currency: string;
+  category: string;
+  imageUrl: string;
+  styleTags: string[];
+  addedAt: string;
+}
+
+export const wishlistService = {
+  list: () => apiGet<PaginatedResponse<WishlistItemApi>>("/customers/me/wishlist"),
+  add: (productId: number) => apiPost<WishlistItemApi>("/customers/me/wishlist", { productId }),
+  remove: (productId: number) => apiDelete(`/customers/me/wishlist/${productId}`),
+};
+
+// ─── Cart (API sync for logged-in users) ──────────────────
+
+export interface CartItemApi {
+  id: string;
+  productId: number;
+  productName: string;
+  providerId: number;
+  providerName: string;
+  basePrice: number;
+  finalPrice: number;
+  category: string;
+  selectedSize: string;
+  selectedBodyType?: string;
+  selectedVariants: Record<string, string>;
+  measurements: Record<string, string>;
+  notes?: string;
+  quantity: number;
+}
+
+export const cartService = {
+  list: () => apiGet<PaginatedResponse<CartItemApi>>("/customers/me/cart"),
+  add: (item: Omit<CartItemApi, "id">) => apiPost<CartItemApi>("/customers/me/cart", item),
+  update: (id: string, item: Partial<CartItemApi>) => apiPatch<CartItemApi>(`/customers/me/cart/${id}`, item),
+  remove: (id: string) => apiDelete(`/customers/me/cart/${id}`),
+  clear: () => apiDelete("/customers/me/cart"),
+};
+
+// ─── Notifications ────────────────────────────────────────
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type: "order_update" | "message" | "promotion" | "system";
+  title: string;
+  body: string;
+  read: boolean;
+  link?: string;
+  createdAt: string;
+}
+
+export const notificationsService = {
+  list: () => apiGet<PaginatedResponse<Notification>>("/notifications"),
+  markRead: (id: number) => apiPatch<void>(`/notifications/${id}/read`),
+  markAllRead: () => apiPatch<void>("/notifications/read-all"),
+};
+
+// ─── Support Tickets ──────────────────────────────────────
+
+export interface SupportTicket {
+  id: number;
+  customerId?: number;
+  type: "contact" | "order_issue" | "report" | "return_request";
+  orderId?: string;
+  subject: string;
+  description: string;
+  email: string;
+  status: "open" | "in_review" | "resolved" | "closed";
+  createdAt: string;
+}
+
+export const supportService = {
+  create: (data: Omit<SupportTicket, "id" | "status" | "createdAt">) =>
+    apiPost<SupportTicket>("/support/tickets", data),
+  list: () => apiGet<PaginatedResponse<SupportTicket>>("/support/tickets"),
+};
+
+// ─── Product Variants ─────────────────────────────────────
+
+export interface ProductVariant {
+  id: string;
+  productId: number;
+  name: string;
+  type: "color" | "material" | "design" | "sole" | "heel";
+  value: string;
+  priceModifier: number;
+  imageUrl?: string;
+}
+
+export const variantsService = {
+  getByProduct: async (productId: number): Promise<ProductVariant[]> => {
+    try {
+      return await apiGet<ProductVariant[]>(`/products/${productId}/variants`);
+    } catch {
+      return [];
+    }
+  },
+};
+
+// ─── Search ───────────────────────────────────────────────
+
+export interface SearchResponse {
+  products: Product[];
+  providers: Provider[];
+  categories: { id: string; name: string }[];
+}
+
+export const searchService = {
+  search: async (q: string, type = "all"): Promise<SearchResponse> => {
+    try {
+      return await apiGet<SearchResponse>("/search", { q, type });
+    } catch {
+      // Fallback to mock search
+      const lq = q.toLowerCase();
+      return {
+        products: mockProducts.filter(
+          (p) =>
+            p.name.toLowerCase().includes(lq) ||
+            p.tags.some((t) => t.toLowerCase().includes(lq))
+        ),
+        providers: mockProviders.filter(
+          (p) =>
+            p.brandName.toLowerCase().includes(lq) ||
+            p.category.toLowerCase().includes(lq)
+        ),
+        categories: [],
+      };
+    }
+  },
+};
