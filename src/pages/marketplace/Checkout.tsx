@@ -163,12 +163,14 @@ const Checkout = () => {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {cartItems.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.name}</span>
-                    <span className="font-medium">₦{item.price.toLocaleString()}</span>
+                {cartItems.length > 0 ? cartItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{item.productName} ×{item.quantity}</span>
+                    <span className="font-medium">₦{(item.finalPrice * item.quantity).toLocaleString()}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground">Your cart is empty</p>
+                )}
                 
                 <Separator />
                 
