@@ -1343,4 +1343,51 @@ All list endpoints returning more than one item must support the `page` and `pag
 
 ---
 
+## 6. Frontend API Integration Status
+
+**Updated: 2026-03-26**
+
+The following table tracks which pages/components have been migrated from mock data to API calls via `src/lib/apiServices.ts`. All integrations gracefully fall back to mock data when the backend is unreachable.
+
+| Page / Component | Status | API Endpoints Used |
+|---|---|---|
+| Home | ✅ Migrated | `GET /products`, `GET /service-providers/public-info` |
+| AllProducts | ✅ Migrated | `GET /products` with filters |
+| AllArtisans | ✅ Migrated | `GET /service-providers/public-info` |
+| CategoryProducts | ✅ Migrated | `GET /products?category=...` |
+| CategoryProviders | ✅ Migrated | `GET /service-providers/public-info?category=...` |
+| ProductDetail | ✅ Migrated | `GET /products/{id}`, `GET /service-providers/{id}/public-info` |
+| ProviderDetail | ✅ Migrated | `GET /service-providers/{id}/public-info`, `GET /service-providers/{id}/products` |
+| FeaturedProducts | ✅ Migrated | `GET /products` |
+| FeaturedArtisans | ✅ Props-driven | Receives data from parent |
+| CompleteYourLook | ✅ Migrated | `GET /products` |
+| ProductCard | ✅ Props-driven | Receives Product prop |
+| ProviderCard | ✅ Props-driven | Receives Provider prop |
+| SearchResults | ✅ Migrated (prior) | `GET /search?q=...&type=all` |
+| Orders | ✅ Migrated | `GET /orders` |
+| Checkout | ✅ Migrated | Uses CartContext + `POST /orders`, `POST /payments/initialize` |
+| Messages | ✅ Migrated | `GET /conversations` |
+| CustomOrderModal | ✅ Migrated | `POST /orders/custom-requests` |
+| CustomizationFormModal | ✅ Migrated (prior) | `GET /products/{id}/variants` |
+| TrackOrder | ✅ Migrated (prior) | `GET /orders/{id}` |
+| NotificationContext | ✅ Migrated (prior) | Pending auth completion |
+| Cart | ⚠️ Local only | `localStorage` (API sync pending auth) |
+| Wishlist | ⚠️ Local only | `localStorage` (API sync pending auth) |
+
+### Remaining Work (Requires Auth)
+
+The following integrations are blocked until authentication (login/signup) is implemented:
+
+1. **Cart API sync** — `GET/POST/DELETE /customers/me/cart` for logged-in users
+2. **Wishlist API sync** — `GET/POST/DELETE /customers/me/wishlist` for logged-in users
+3. **Preferences sync** — `GET/PUT /customers/me/preferences`
+4. **Notifications polling** — `GET /notifications`
+5. **Profile management** — `GET/PATCH /customers/me`
+
+### API Service Layer
+
+All API calls are centralized in `src/lib/apiServices.ts` which wraps the low-level `src/lib/moeApi.ts` client. Each service provides typed methods with automatic fallback to mock data from `src/data/mockData.ts`.
+
+---
+
 *End of API Documentation Addendum – Frontend Integration Update*

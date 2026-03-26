@@ -1,21 +1,33 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package, Watch, Briefcase, Sparkle, Home } from "lucide-react";
-import { products } from "@/data/mockData";
+import { products as mockProducts } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
+import type { Product } from "@/data/mockData";
 
 const CategoryProducts = () => {
   const { category } = useParams<{ category: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
   
   const subcategory = searchParams.get('subcategory');
-  const featured = searchParams.get('featured');
 
-  // Get all products for this category
-  const categoryProducts = products.filter((p) => p.category === category);
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await productsService.list({ category });
+        setCategoryProducts(res.data);
+      } catch {
+        setCategoryProducts(mockProducts.filter((p) => p.category === category));
+      }
+    };
+    loadProducts();
+  }, [category]);
 
   const categoryIcons: Record<string, any> = {
     tailoring: Shirt,

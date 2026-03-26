@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,9 @@ import {
 } from "@/components/ui/carousel";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
-import { products, getProviderById } from "@/data/mockData";
+import { products as mockProducts, getProviderById } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
+import type { Product } from "@/data/mockData";
 
 interface FeaturedProduct {
   id: number;
@@ -127,8 +130,16 @@ const ProductSection = ({ title, icon, products }: ProductSectionProps) => {
 };
 
 const FeaturedProducts = () => {
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+
+  useEffect(() => {
+    productsService.list().then((res) => {
+      if (res.data.length > 0) setProducts(res.data);
+    });
+  }, []);
+
   // Transform products into FeaturedProduct format
-  const transformProduct = (p: typeof products[0]): FeaturedProduct => {
+  const transformProduct = (p: Product): FeaturedProduct => {
     const provider = getProviderById(p.providerId);
     return {
       id: p.id,

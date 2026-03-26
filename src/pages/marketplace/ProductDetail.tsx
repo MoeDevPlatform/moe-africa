@@ -10,7 +10,9 @@ import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, Shield, Clock, Heart, CheckCircle, ArrowLeft, ShoppingCart, Sliders } from "lucide-react";
-import { getProductById, getProviderById } from "@/data/mockData";
+import { getProductById as mockGetProductById, getProviderById as mockGetProviderById } from "@/data/mockData";
+import { productsService, providersService } from "@/lib/apiServices";
+import type { Product, Provider } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -29,8 +31,23 @@ const ProductDetail = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
-  const product = getProductById(Number(id));
-  const provider = product ? getProviderById(product.providerId) : null;
+  const [product, setProduct] = useState<Product | undefined>(mockGetProductById(Number(id)));
+  const [provider, setProvider] = useState<Provider | undefined>(
+    product ? mockGetProviderById(product.providerId) : undefined
+  );
+
+  useEffect(() => {
+    const loadData = async () => {
+      const productId = Number(id);
+      const p = await productsService.getById(productId);
+      if (p) {
+        setProduct(p);
+        const prov = await providersService.getById(p.providerId);
+        if (prov) setProvider(prov);
+      }
+    };
+    loadData();
+  }, [id]);
 
   const inWishlist = product ? isInWishlist(product.id) : false;
 

@@ -3,6 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, CheckCircle } from "lucide-react";
 import { Product, getProviderById } from "@/data/mockData";
+// Note: ProductCard receives a Product prop – provider is resolved locally for display.
+// When the API returns products with embedded provider info, getProviderById won't be needed.
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

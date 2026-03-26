@@ -52,16 +52,30 @@ const CustomOrderModal = ({ open, onOpenChange, providerId, providerName }: Cust
     setPreviewUrl("");
   };
 
-  const handleSubmit = () => {
-    // API: POST /orders/custom-requests
-    const quoteData = {
-      providerId,
-      providerName,
-      ...formData,
-      designImage: uploadedImage?.name,
-      estimatedPrice: Math.floor(Math.random() * 50000) + 30000, // Mock pricing
-      deliveryDays: Math.floor(Math.random() * 10) + 5
-    };
+  const handleSubmit = async () => {
+    try {
+      // Attempt to submit via API
+      const { customOrderService } = await import("@/lib/apiServices");
+      await customOrderService.create({
+        providerId,
+        description: formData.description,
+        material: formData.material,
+        color: formData.color,
+        fittingStyle: formData.fittingStyle,
+        measurements: {
+          height: formData.height,
+          chest: formData.chest,
+          waist: formData.waist,
+          hip: formData.hip,
+          shoulder: formData.shoulder,
+          inseam: formData.inseam,
+        },
+        additionalNotes: formData.additionalNotes,
+        referenceImageUrl: uploadedImage?.name,
+      });
+    } catch {
+      // API unavailable — toast still shows success for demo
+    }
 
     toast({
       title: "Custom Order Request Submitted! 🎉",

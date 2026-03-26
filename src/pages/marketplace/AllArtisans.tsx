@@ -1,26 +1,50 @@
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
-import { providers } from "@/data/mockData";
+import { providers as mockProviders } from "@/data/mockData";
+import { providersService } from "@/lib/apiServices";
+import type { Provider } from "@/data/mockData";
 
 const AllArtisans = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [displayProviders, setDisplayProviders] = useState<Provider[]>([]);
+  const [title, setTitle] = useState("All Artisans");
+  const [description, setDescription] = useState("Discover talented artisans from across Africa");
   
   const featured = searchParams.get("featured");
 
-  // Get filtered providers based on query params
-  let displayProviders = [...providers];
-  let title = "All Artisans";
-  let description = "Discover talented artisans from across Africa";
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const filters: Record<string, unknown> = {};
+        let newTitle = "All Artisans";
+        let newDescription = "Discover talented artisans from across Africa";
 
-  if (featured === "true") {
-    displayProviders = providers.filter(p => p.featured);
-    title = "Featured Artisans";
-    description = "Our most acclaimed artisans with exceptional craftsmanship";
-  }
+        if (featured === "true") {
+          filters.featured = true;
+          newTitle = "Featured Artisans";
+          newDescription = "Our most acclaimed artisans with exceptional craftsmanship";
+        }
+
+        const res = await providersService.list(filters);
+        setDisplayProviders(res.data);
+        setTitle(newTitle);
+        setDescription(newDescription);
+      } catch {
+        let fallback = [...mockProviders];
+        if (featured === "true") {
+          fallback = mockProviders.filter(p => p.featured);
+        }
+        setDisplayProviders(fallback);
+      }
+    };
+
+    loadProviders();
+  }, [featured]);
 
   return (
     <div className="min-h-screen bg-background">

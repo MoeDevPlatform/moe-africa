@@ -9,10 +9,17 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
+import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/hooks/use-toast";
+import { ordersService, paymentsService } from "@/lib/apiServices";
 
 const Checkout = () => {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedState, setSelectedState] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { items: cartItems, getTotalPrice, clearCart } = useCart();
+  const { toast } = useToast();
 
   const states = useMemo(() => {
     return selectedCountry ? getStatesByCountry(selectedCountry) : [];
@@ -20,15 +27,10 @@ const Checkout = () => {
 
   const handleCountryChange = (value: string) => {
     setSelectedCountry(value);
-    setSelectedState(""); // Reset state when country changes
+    setSelectedState("");
   };
 
-  const cartItems = [
-    { name: "Custom Ankara Jacket", price: 28000 },
-    { name: "Leather Brogues", price: 35000 },
-  ];
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+  const subtotal = getTotalPrice();
   const deliveryFee = 2500;
   const total = subtotal + deliveryFee;
 
@@ -118,7 +120,7 @@ const Checkout = () => {
                 <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent>
-                <RadioGroup defaultValue="card" aria-label="Payment method options">
+                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} aria-label="Payment method options">
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
                     <RadioGroupItem value="card" id="card" />
                     <Label htmlFor="card" className="flex-1 cursor-pointer">
@@ -138,13 +140,13 @@ const Checkout = () => {
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="transfer" id="transfer" />
+                    <RadioGroupItem value="bank_transfer" id="transfer" />
                     <Label htmlFor="transfer" className="flex-1 cursor-pointer">
                       Bank Transfer
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="delivery" id="delivery" />
+                    <RadioGroupItem value="pay_on_delivery" id="delivery" />
                     <Label htmlFor="delivery" className="flex-1 cursor-pointer">
                       Pay on Delivery
                     </Label>
@@ -161,12 +163,14 @@ const Checkout = () => {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {cartItems.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.name}</span>
-                    <span className="font-medium">₦{item.price.toLocaleString()}</span>
+                {cartItems.length > 0 ? cartItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{item.productName} ×{item.quantity}</span>
+                    <span className="font-medium">₦{(item.finalPrice * item.quantity).toLocaleString()}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground">Your cart is empty</p>
+                )}
                 
                 <Separator />
                 

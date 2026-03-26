@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
@@ -5,13 +6,27 @@ import ProviderCard from "@/components/marketplace/ProviderCard";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
-import { getProvidersByCategory } from "@/data/mockData";
+import { getProvidersByCategory as mockGetProvidersByCategory } from "@/data/mockData";
+import { providersService } from "@/lib/apiServices";
+import type { Provider } from "@/data/mockData";
 
 const CategoryProviders = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
-  
-  const providers = category ? getProvidersByCategory(category) : [];
+  const [providers, setProviders] = useState<Provider[]>([]);
+
+  useEffect(() => {
+    const loadProviders = async () => {
+      if (!category) return;
+      try {
+        const data = await providersService.getByCategory(category);
+        setProviders(data);
+      } catch {
+        setProviders(mockGetProvidersByCategory(category));
+      }
+    };
+    loadProviders();
+  }, [category]);
 
   const categoryIcons: Record<string, any> = {
     tailoring: Shirt,

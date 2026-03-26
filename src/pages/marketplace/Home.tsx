@@ -10,8 +10,10 @@ import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
-import { providers as allProviders, products as allProducts, getProvidersByCategory, getProviderById } from "@/data/mockData";
+import { providers as allProvidersMock, products as allProductsMock, getProvidersByCategory } from "@/data/mockData";
 import { usePreferences } from "@/contexts/PreferencesContext";
+import { productsService, providersService } from "@/lib/apiServices";
+import type { Product, Provider } from "@/data/mockData";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
@@ -25,6 +27,20 @@ const MarketplaceHome = () => {
   });
   const { preferences, hasPreferences } = usePreferences();
 
+  // API-driven data with fallback
+  const [allProviders, setAllProviders] = useState<Provider[]>(allProvidersMock);
+  const [allProducts, setAllProducts] = useState<Product[]>(allProductsMock);
+
+  useEffect(() => {
+    // Attempt to load from API, fallback to mock
+    productsService.list().then((res) => {
+      if (res.data.length > 0) setAllProducts(res.data);
+    });
+    providersService.list().then((res) => {
+      if (res.data.length > 0) setAllProviders(res.data);
+    });
+  }, []);
+
   const categories = [
     { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
     { id: "shoemaking", name: "Shoemaking", icon: Footprints, count: 89 },
@@ -37,26 +53,19 @@ const MarketplaceHome = () => {
   // Apply filters to products
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
-      // Price filter
       if (product.priceRange.min < filters.priceRange[0] || product.priceRange.max > filters.priceRange[1]) {
         return false;
       }
-      
-      // Materials filter
       if (filters.materials.length > 0) {
         const productMaterials = product.materials.toLowerCase();
         const hasMatchingMaterial = filters.materials.some(m => productMaterials.includes(m));
         if (!hasMatchingMaterial) return false;
       }
-      
-      // Style tags filter
       if (filters.styleTags.length > 0) {
         const productTags = product.tags.map(t => t.toLowerCase());
         const hasMatchingTag = filters.styleTags.some(t => productTags.includes(t));
         if (!hasMatchingTag) return false;
       }
-      
-      // Delivery estimate filter
       if (filters.deliveryEstimate) {
         const maxDays = filters.deliveryEstimate === "fastest" ? 3 
           : filters.deliveryEstimate === "3-5" ? 5 
@@ -64,26 +73,19 @@ const MarketplaceHome = () => {
           : 14;
         if (product.estimatedDeliveryDays > maxDays) return false;
       }
-      
-      // User preferences (if available)
       if (hasPreferences && preferences.categories.length > 0) {
-        const categoryMatch = preferences.categories.some(c => 
-          product.category.toLowerCase().includes(c.toLowerCase())
-        );
         // Boost preferred categories but don't exclude others
       }
-      
       return true;
     });
-  }, [filters, preferences, hasPreferences]);
+  }, [allProducts, filters, preferences, hasPreferences]);
 
   // Filter providers based on filters and preferences
   const filteredProviders = useMemo(() => {
     let providers = selectedCategory 
-      ? getProvidersByCategory(selectedCategory)
+      ? allProviders.filter(p => p.category === selectedCategory)
       : allProviders;
     
-    // Apply style tag filters to providers
     if (filters.styleTags.length > 0) {
       providers = providers.filter(p => {
         const providerTags = p.styleTags.map(t => t.toLowerCase());
@@ -91,7 +93,6 @@ const MarketplaceHome = () => {
       });
     }
     
-    // Apply preference-based sorting
     if (hasPreferences && preferences.categories.length > 0) {
       providers = [...providers].sort((a, b) => {
         const aMatch = preferences.categories.some(c => 
@@ -107,9 +108,9 @@ const MarketplaceHome = () => {
     }
     
     return providers;
-  }, [selectedCategory, filters, preferences, hasPreferences]);
+  }, [selectedCategory, allProviders, filters, preferences, hasPreferences]);
 
-  // Deal products filtered — use real product IDs from mockData
+  // Deal products filtered
   const dealProducts = useMemo(() => {
     const baseDeals = [
       { id: 103, name: "Women's Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28, tags: ["Modern", "Afrocentric"] },
@@ -129,7 +130,7 @@ const MarketplaceHome = () => {
     });
   }, [filters]);
 
-  // Style products filtered — use real product IDs from mockData
+  // Style products filtered
   const styleProducts = useMemo(() => {
     const baseStyles = [
       { id: 102, name: "Traditional Agbada Set", price: 45000, imageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", providerId: 1, tag: "Traditional" },

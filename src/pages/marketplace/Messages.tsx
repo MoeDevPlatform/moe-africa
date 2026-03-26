@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare } from "lucide-react";
+import { messagingService } from "@/lib/apiServices";
 
 interface Conversation {
   providerId: number;
@@ -22,13 +23,28 @@ const Messages = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Load conversations from localStorage
-    const saved = localStorage.getItem("conversations");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setConversations(parsed);
-    }
-  }, [selectedProvider]); // Reload when modal closes
+    const loadConversations = async () => {
+      try {
+        const res = await messagingService.listConversations();
+        setConversations(
+          res.data.map((c) => ({
+            providerId: c.providerId,
+            providerName: c.providerName,
+            lastMessage: c.lastMessage,
+            lastMessageTime: c.lastMessageTime,
+            unread: c.unreadCount > 0,
+          }))
+        );
+      } catch {
+        // Fallback to localStorage
+        const saved = localStorage.getItem("conversations");
+        if (saved) {
+          setConversations(JSON.parse(saved));
+        }
+      }
+    };
+    loadConversations();
+  }, [selectedProvider]);
 
   const handleOpenConversation = (providerId: number, providerName: string) => {
     setSelectedProvider({ id: providerId, name: providerName });

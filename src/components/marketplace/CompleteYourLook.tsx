@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
-import { Product, getProviderById, products } from "@/data/mockData";
+import { Product, getProviderById, products as mockProducts } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
 
 interface CompleteYourLookProps {
   currentProduct: Product;
@@ -11,6 +13,13 @@ interface CompleteYourLookProps {
 
 const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
   const navigate = useNavigate();
+  const [allProducts, setAllProducts] = useState<Product[]>(mockProducts);
+
+  useEffect(() => {
+    productsService.list().then((res) => {
+      if (res.data.length > 0) setAllProducts(res.data);
+    });
+  }, []);
 
   const handleProductClick = (productId: number) => {
     navigate(`/marketplace/product/${productId}`);
@@ -22,7 +31,7 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
     const currentTags = currentProduct.tags.map(t => t.toLowerCase());
     
     // Get products from different categories that share style tags
-    const suggestions = products.filter(p => {
+    const suggestions = allProducts.filter(p => {
       // Exclude current product
       if (p.id === currentProduct.id) return false;
       // Prefer different categories for variety
