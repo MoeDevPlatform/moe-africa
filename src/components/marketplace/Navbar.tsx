@@ -31,12 +31,14 @@ const supportLinks = [
 ];
 
 const MarketplaceNavbar = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { getItemCount } = useCart();
   const { getItemCount: getWishlistCount } = useWishlist();
+  const { user, isAuthenticated, isArtisan, logout } = useAuth();
   
   // Hover delay timer for mega menu stability
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
