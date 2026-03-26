@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
-import { getProviderById, getProductsByProviderId } from "@/data/mockData";
+import { getProviderById as mockGetProviderById, getProductsByProviderId as mockGetProductsByProviderId } from "@/data/mockData";
+import { productsService, providersService } from "@/lib/apiServices";
+import type { Product, Provider } from "@/data/mockData";
 
 // Mock reviews with images
 const mockReviews: Review[] = [
