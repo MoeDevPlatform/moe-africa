@@ -186,6 +186,27 @@ const PaymentModal = ({ open, payment, onClose, onSave }: PaymentModalProps) => 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, updateUser } = useAuth();
+
+  // Account form state seeded from auth user
+  const [accountForm, setAccountForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      const parts = (user.name || "").split(" ");
+      setAccountForm({
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" ") || "",
+        email: user.email || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
 
   // Notifications
   const [notificationSettings, setNotificationSettings] = useState({
