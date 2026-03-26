@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, Clock, CheckCircle, XCircle, CreditCard, Paintbrush, ChevronRight } from "lucide-react";
+import { ordersService } from "@/lib/apiServices";
 
 interface Order {
   id: string;
