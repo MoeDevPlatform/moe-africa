@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://api.moe-africa.com";
+const DEFAULT_BASE_URL = "http://localhost:3000";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
