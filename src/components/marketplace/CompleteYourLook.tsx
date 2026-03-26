@@ -31,7 +31,7 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
     const currentTags = currentProduct.tags.map(t => t.toLowerCase());
     
     // Get products from different categories that share style tags
-    const suggestions = products.filter(p => {
+    const suggestions = allProducts.filter(p => {
       // Exclude current product
       if (p.id === currentProduct.id) return false;
       // Prefer different categories for variety
