@@ -31,8 +31,23 @@ const ProductDetail = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
-  const product = getProductById(Number(id));
-  const provider = product ? getProviderById(product.providerId) : null;
+  const [product, setProduct] = useState<Product | undefined>(mockGetProductById(Number(id)));
+  const [provider, setProvider] = useState<Provider | undefined>(
+    product ? mockGetProviderById(product.providerId) : undefined
+  );
+
+  useEffect(() => {
+    const loadData = async () => {
+      const productId = Number(id);
+      const p = await productsService.getById(productId);
+      if (p) {
+        setProduct(p);
+        const prov = await providersService.getById(p.providerId);
+        if (prov) setProvider(prov);
+      }
+    };
+    loadData();
+  }, [id]);
 
   const inWishlist = product ? isInWishlist(product.id) : false;
 
