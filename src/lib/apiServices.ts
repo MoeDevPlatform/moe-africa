@@ -599,7 +599,7 @@ export interface CartItemApi {
   basePrice: number;
   finalPrice: number;
   category: string;
-  selectedSize: string;
+  selectedSize?: string;
   selectedBodyType?: string;
   selectedVariants: Record<string, string>;
   measurements: Record<string, string>;
