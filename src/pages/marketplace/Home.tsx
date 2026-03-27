@@ -85,7 +85,7 @@ const MarketplaceHome = () => {
 
     if (filters.styleTags.length > 0) {
       providers = providers.filter((p) => {
-        const pt = p.styleTags.map((t) => t.toLowerCase());
+        const pt = (p.styleTags || []).map((t) => t.toLowerCase());
         return filters.styleTags.some((t) => pt.includes(t));
       });
     }
