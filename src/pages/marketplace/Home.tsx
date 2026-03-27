@@ -52,7 +52,7 @@ const MarketplaceHome = () => {
     return defs.map((d) => ({
       ...d,
       count: allProviders.filter(
-        (p) => p.category.toLowerCase() === d.id.toLowerCase()
+        (p) => (p.category || "").toLowerCase() === d.id.toLowerCase()
       ).length,
     }));
   }, [allProviders]);
@@ -80,20 +80,20 @@ const MarketplaceHome = () => {
   // Filter providers
   const filteredProviders = useMemo(() => {
     let providers = selectedCategory
-      ? allProviders.filter((p) => p.category === selectedCategory)
+      ? allProviders.filter((p) => (p.category || "") === selectedCategory)
       : allProviders;
 
     if (filters.styleTags.length > 0) {
       providers = providers.filter((p) => {
-        const pt = p.styleTags.map((t) => t.toLowerCase());
+        const pt = (p.styleTags || []).map((t) => t.toLowerCase());
         return filters.styleTags.some((t) => pt.includes(t));
       });
     }
 
     if (hasPreferences && preferences.categories.length > 0) {
       providers = [...providers].sort((a, b) => {
-        const aM = preferences.categories.some((c) => a.category.toLowerCase().includes(c.toLowerCase()));
-        const bM = preferences.categories.some((c) => b.category.toLowerCase().includes(c.toLowerCase()));
+        const aM = preferences.categories.some((c) => (a.category || "").toLowerCase().includes(c.toLowerCase()));
+        const bM = preferences.categories.some((c) => (b.category || "").toLowerCase().includes(c.toLowerCase()));
         if (aM && !bM) return -1;
         if (!aM && bM) return 1;
         return 0;
