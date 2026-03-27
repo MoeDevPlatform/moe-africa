@@ -52,7 +52,7 @@ const MarketplaceHome = () => {
     return defs.map((d) => ({
       ...d,
       count: allProviders.filter(
-        (p) => p.category.toLowerCase() === d.id.toLowerCase()
+        (p) => (p.category || "").toLowerCase() === d.id.toLowerCase()
       ).length,
     }));
   }, [allProviders]);
