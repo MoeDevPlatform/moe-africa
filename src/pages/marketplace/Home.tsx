@@ -92,8 +92,8 @@ const MarketplaceHome = () => {
 
     if (hasPreferences && preferences.categories.length > 0) {
       providers = [...providers].sort((a, b) => {
-        const aM = preferences.categories.some((c) => a.category.toLowerCase().includes(c.toLowerCase()));
-        const bM = preferences.categories.some((c) => b.category.toLowerCase().includes(c.toLowerCase()));
+        const aM = preferences.categories.some((c) => (a.category || "").toLowerCase().includes(c.toLowerCase()));
+        const bM = preferences.categories.some((c) => (b.category || "").toLowerCase().includes(c.toLowerCase()));
         if (aM && !bM) return -1;
         if (!aM && bM) return 1;
         return 0;
