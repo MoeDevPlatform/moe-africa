@@ -80,7 +80,7 @@ const MarketplaceHome = () => {
   // Filter providers
   const filteredProviders = useMemo(() => {
     let providers = selectedCategory
-      ? allProviders.filter((p) => p.category === selectedCategory)
+      ? allProviders.filter((p) => (p.category || "") === selectedCategory)
       : allProviders;
 
     if (filters.styleTags.length > 0) {
