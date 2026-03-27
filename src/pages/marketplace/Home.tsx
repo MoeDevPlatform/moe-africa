@@ -7,10 +7,10 @@ import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
 import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer";
+import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
-import { providers as allProvidersMock, products as allProductsMock, getProvidersByCategory } from "@/data/mockData";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
 import type { Product, Provider } from "@/data/mockData";
@@ -27,131 +27,120 @@ const MarketplaceHome = () => {
   });
   const { preferences, hasPreferences } = usePreferences();
 
-  // API-driven data with fallback
-  const [allProviders, setAllProviders] = useState<Provider[]>(allProvidersMock);
-  const [allProducts, setAllProducts] = useState<Product[]>(allProductsMock);
+  // API-driven data — empty until loaded
+  const [allProviders, setAllProviders] = useState<Provider[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Attempt to load from API, fallback to mock
-    productsService.list().then((res) => {
-      if (res.data.length > 0) setAllProducts(res.data);
-    });
-    providersService.list().then((res) => {
-      if (res.data.length > 0) setAllProviders(res.data);
-    });
+    Promise.allSettled([
+      productsService.list().then((res) => setAllProducts(res.data)),
+      providersService.list().then((res) => setAllProviders(res.data)),
+    ]).finally(() => setIsLoading(false));
   }, []);
 
-  const categories = [
-    { id: "tailoring", name: "Tailoring", icon: Shirt, count: 156 },
-    { id: "shoemaking", name: "Shoemaking", icon: Footprints, count: 89 },
-    { id: "accessories", name: "Accessories", icon: Gem, count: 234 },
-    { id: "canvas", name: "Canvas & Painting", icon: Palette, count: 38 },
-    { id: "furniture", name: "Home & Decor", icon: Sofa, count: 67 },
-    { id: "art", name: "Art & Crafts", icon: Package, count: 145 },
-  ];
+  // Dynamic category counts from actual provider data
+  const categories = useMemo(() => {
+    const defs = [
+      { id: "tailoring", name: "Tailoring", icon: Shirt },
+      { id: "shoemaking", name: "Shoemaking", icon: Footprints },
+      { id: "accessories", name: "Accessories", icon: Gem },
+      { id: "canvas", name: "Canvas & Painting", icon: Palette },
+      { id: "furniture", name: "Home & Decor", icon: Sofa },
+      { id: "art", name: "Art & Crafts", icon: Package },
+    ];
+    return defs.map((d) => ({
+      ...d,
+      count: allProviders.filter(
+        (p) => p.category.toLowerCase() === d.id.toLowerCase()
+      ).length,
+    }));
+  }, [allProviders]);
 
   // Apply filters to products
   const filteredProducts = useMemo(() => {
-    return allProducts.filter(product => {
-      if (product.priceRange.min < filters.priceRange[0] || product.priceRange.max > filters.priceRange[1]) {
-        return false;
-      }
+    return allProducts.filter((product) => {
+      if (product.priceRange.min < filters.priceRange[0] || product.priceRange.max > filters.priceRange[1]) return false;
       if (filters.materials.length > 0) {
-        const productMaterials = product.materials.toLowerCase();
-        const hasMatchingMaterial = filters.materials.some(m => productMaterials.includes(m));
-        if (!hasMatchingMaterial) return false;
+        const pm = product.materials.toLowerCase();
+        if (!filters.materials.some((m) => pm.includes(m))) return false;
       }
       if (filters.styleTags.length > 0) {
-        const productTags = product.tags.map(t => t.toLowerCase());
-        const hasMatchingTag = filters.styleTags.some(t => productTags.includes(t));
-        if (!hasMatchingTag) return false;
+        const pt = product.tags.map((t) => t.toLowerCase());
+        if (!filters.styleTags.some((t) => pt.includes(t))) return false;
       }
       if (filters.deliveryEstimate) {
-        const maxDays = filters.deliveryEstimate === "fastest" ? 3 
-          : filters.deliveryEstimate === "3-5" ? 5 
-          : filters.deliveryEstimate === "1-week" ? 7 
-          : 14;
+        const maxDays = filters.deliveryEstimate === "fastest" ? 3 : filters.deliveryEstimate === "3-5" ? 5 : filters.deliveryEstimate === "1-week" ? 7 : 14;
         if (product.estimatedDeliveryDays > maxDays) return false;
-      }
-      if (hasPreferences && preferences.categories.length > 0) {
-        // Boost preferred categories but don't exclude others
       }
       return true;
     });
-  }, [allProducts, filters, preferences, hasPreferences]);
+  }, [allProducts, filters]);
 
-  // Filter providers based on filters and preferences
+  // Filter providers
   const filteredProviders = useMemo(() => {
-    let providers = selectedCategory 
-      ? allProviders.filter(p => p.category === selectedCategory)
+    let providers = selectedCategory
+      ? allProviders.filter((p) => p.category === selectedCategory)
       : allProviders;
-    
+
     if (filters.styleTags.length > 0) {
-      providers = providers.filter(p => {
-        const providerTags = p.styleTags.map(t => t.toLowerCase());
-        return filters.styleTags.some(t => providerTags.includes(t));
+      providers = providers.filter((p) => {
+        const pt = p.styleTags.map((t) => t.toLowerCase());
+        return filters.styleTags.some((t) => pt.includes(t));
       });
     }
-    
+
     if (hasPreferences && preferences.categories.length > 0) {
       providers = [...providers].sort((a, b) => {
-        const aMatch = preferences.categories.some(c => 
-          a.category.toLowerCase().includes(c.toLowerCase())
-        );
-        const bMatch = preferences.categories.some(c => 
-          b.category.toLowerCase().includes(c.toLowerCase())
-        );
-        if (aMatch && !bMatch) return -1;
-        if (!aMatch && bMatch) return 1;
+        const aM = preferences.categories.some((c) => a.category.toLowerCase().includes(c.toLowerCase()));
+        const bM = preferences.categories.some((c) => b.category.toLowerCase().includes(c.toLowerCase()));
+        if (aM && !bM) return -1;
+        if (!aM && bM) return 1;
         return 0;
       });
     }
-    
+
     return providers;
   }, [selectedCategory, allProviders, filters, preferences, hasPreferences]);
 
-  // Deal products filtered
+  // Deal products from actual data
   const dealProducts = useMemo(() => {
-    const baseDeals = [
-      { id: 103, name: "Women's Ankara Dress", price: 18000, originalPrice: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, discount: 28, tags: ["Modern", "Afrocentric"] },
-      { id: 401, name: "Leather Oxford Shoes", price: 22000, originalPrice: 28000, imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400", providerId: 4, discount: 21, tags: ["Classic", "Premium"] },
-      { id: 301, name: "Handmade Craft Item", price: 8000, originalPrice: 12000, imageUrl: "https://images.unsplash.com/photo-1590736969955-71cc94901144?w=400", providerId: 3, discount: 33, tags: ["Traditional", "Handmade"] },
-    ];
-    
-    return baseDeals.filter(deal => {
-      if (filters.priceRange[0] > deal.price || filters.priceRange[1] < deal.price) return false;
-      if (filters.styleTags.length > 0) {
-        const hasMatch = filters.styleTags.some(t => 
-          deal.tags.map(tag => tag.toLowerCase()).includes(t)
-        );
-        if (!hasMatch) return false;
-      }
-      return true;
-    });
-  }, [filters]);
+    return filteredProducts
+      .filter((p) => p.priceRange.min < p.priceRange.max)
+      .slice(0, 3)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.priceRange.min,
+        originalPrice: p.priceRange.max,
+        imageUrl: p.images[0] || "/placeholder.svg",
+        providerId: p.providerId,
+        discount: Math.round(((p.priceRange.max - p.priceRange.min) / p.priceRange.max) * 100),
+        tags: p.tags,
+      }));
+  }, [filteredProducts]);
 
-  // Style products filtered
+  // Style products from actual data
   const styleProducts = useMemo(() => {
-    const baseStyles = [
-      { id: 102, name: "Traditional Agbada Set", price: 45000, imageUrl: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", providerId: 1, tag: "Traditional" },
-      { id: 101, name: "Custom Ankara Jacket", price: 25000, imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400", providerId: 1, tag: "Afrocentric" },
-    ];
-    
-    return baseStyles.filter(style => {
-      if (filters.priceRange[0] > style.price || filters.priceRange[1] < style.price) return false;
-      if (filters.styleTags.length > 0) {
-        if (!filters.styleTags.includes(style.tag.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [filters]);
+    return filteredProducts
+      .filter((p) => p.tags.some((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)))
+      .slice(0, 4)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.priceRange.min,
+        imageUrl: p.images[0] || "/placeholder.svg",
+        providerId: p.providerId,
+        tag: p.tags.find((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)) || p.tags[0] || "",
+      }));
+  }, [filteredProducts]);
 
   useEffect(() => {
     const viewed = localStorage.getItem("recentlyViewed");
     if (viewed) setRecentlyViewed(JSON.parse(viewed));
   }, []);
 
-  const recommendedProviders = filteredProviders.filter(p => !p.featured).slice(0, 6);
+  const recommendedProviders = filteredProviders.filter((p) => !p.featured).slice(0, 6);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -178,7 +167,9 @@ const MarketplaceHome = () => {
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
                   <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
-                  <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">{category.count} artisans</p>
+                  <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
+                    {category.count} {category.count === 1 ? "artisan" : "artisans"}
+                  </p>
                 </button>
               );
             })}
@@ -189,21 +180,19 @@ const MarketplaceHome = () => {
         <section className="mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center justify-between">
             <FilterDrawer filters={filters} onFiltersChange={setFilters} />
-
-            {/* Active Style Tags - Quick Access */}
             <div className="flex gap-2 flex-wrap flex-1">
               {["Modern", "Afrocentric", "Traditional"].map((tag) => (
-                <Badge 
+                <Badge
                   key={tag}
-                  variant={filters.styleTags.includes(tag.toLowerCase()) ? "default" : "outline"} 
+                  variant={filters.styleTags.includes(tag.toLowerCase()) ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
                   onClick={() => {
                     const lowTag = tag.toLowerCase();
-                    setFilters(prev => ({
+                    setFilters((prev) => ({
                       ...prev,
-                      styleTags: prev.styleTags.includes(lowTag) 
-                        ? prev.styleTags.filter(t => t !== lowTag)
-                        : [...prev.styleTags, lowTag]
+                      styleTags: prev.styleTags.includes(lowTag)
+                        ? prev.styleTags.filter((t) => t !== lowTag)
+                        : [...prev.styleTags, lowTag],
                     }));
                   }}
                   role="checkbox"
@@ -213,11 +202,11 @@ const MarketplaceHome = () => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       const lowTag = tag.toLowerCase();
-                      setFilters(prev => ({
+                      setFilters((prev) => ({
                         ...prev,
-                        styleTags: prev.styleTags.includes(lowTag) 
-                          ? prev.styleTags.filter(t => t !== lowTag)
-                          : [...prev.styleTags, lowTag]
+                        styleTags: prev.styleTags.includes(lowTag)
+                          ? prev.styleTags.filter((t) => t !== lowTag)
+                          : [...prev.styleTags, lowTag],
                       }));
                     }
                   }}
@@ -229,10 +218,16 @@ const MarketplaceHome = () => {
           </div>
         </section>
 
-        {/* Featured Artisans Section */}
-        <FeaturedArtisans providers={filteredProviders} />
+        {/* Featured Artisans */}
+        {filteredProviders.some((p) => p.featured) ? (
+          <FeaturedArtisans providers={filteredProviders} />
+        ) : !isLoading ? (
+          <section className="mb-12 md:mb-16">
+            <EmptySection title="No featured artisans yet" description="Featured artisans will appear here as they are added to the platform." />
+          </section>
+        ) : null}
 
-        {/* Featured Products Section */}
+        {/* Featured Products */}
         <FeaturedProducts />
 
         {/* Recommended Providers */}
@@ -252,26 +247,32 @@ const MarketplaceHome = () => {
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-            {recommendedProviders.map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} />
-            ))}
-          </div>
+
+          {recommendedProviders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+              {recommendedProviders.map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} />
+              ))}
+            </div>
+          ) : !isLoading ? (
+            <EmptySection title="No artisans to recommend yet" description="Artisans will show up here once they join the platform." />
+          ) : null}
         </section>
 
         {/* Services For You */}
-        <section className="mb-12 md:mb-16">
-          <div className="flex items-center gap-2 mb-4 md:mb-6">
-            <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-            {filteredProviders.slice(0, 3).map((provider) => (
-              <ProviderCard key={provider.id} provider={provider} />
-            ))}
-          </div>
-        </section>
+        {filteredProviders.length > 0 && (
+          <section className="mb-12 md:mb-16">
+            <div className="flex items-center gap-2 mb-4 md:mb-6">
+              <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+              {filteredProviders.slice(0, 3).map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Deals For You */}
         {dealProducts.length > 0 && (
@@ -284,7 +285,12 @@ const MarketplaceHome = () => {
               {dealProducts.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
-                    <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                    />
                     <Badge className="absolute top-3 right-3 bg-accent text-accent-foreground">
                       {product.discount}% OFF
                     </Badge>
@@ -311,7 +317,12 @@ const MarketplaceHome = () => {
               {styleProducts.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
-                    <img src={product.imageUrl} alt={product.name} className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                    />
                     <Badge className="absolute bottom-3 left-3" variant="secondary">
                       {product.tag}
                     </Badge>
@@ -325,16 +336,19 @@ const MarketplaceHome = () => {
         )}
 
         {/* Recently Viewed */}
-        {recentlyViewed.length > 0 && (
+        {recentlyViewed.length > 0 && filteredProviders.filter((p) => recentlyViewed.includes(p.id)).length > 0 && (
           <section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {filteredProviders.filter(p => recentlyViewed.includes(p.id)).slice(0, 3).map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
-              ))}
+              {filteredProviders
+                .filter((p) => recentlyViewed.includes(p.id))
+                .slice(0, 3)
+                .map((provider) => (
+                  <ProviderCard key={provider.id} provider={provider} />
+                ))}
             </div>
           </section>
         )}
