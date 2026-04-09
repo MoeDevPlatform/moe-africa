@@ -67,12 +67,25 @@ const ArtisanDashboard = () => {
 
   const handleSaveProfile = async () => {
     try {
-      const updated = await artisanService.updateProfile(businessForm);
+      // Only send fields that actually changed vs original profile
+      const delta: Record<string, string> = {};
+      if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
+      if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
+      if (businessForm.category !== (artisanProfile?.category ?? "")) delta.category = businessForm.category;
+      if (businessForm.location !== (artisanProfile?.location ?? "")) delta.location = businessForm.location;
+
+      if (Object.keys(delta).length === 0) {
+        setEditingProfile(false);
+        return;
+      }
+
+      const updated = await artisanService.updateProfile(delta);
       setArtisanProfile(updated);
       setEditingProfile(false);
       toast.success("Business profile updated");
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update profile";
+      toast.error(msg);
     }
   };
 

@@ -1,0 +1,69 @@
+// ============================================================
+// Prisma Schema Additions for MOE Marketplace
+// ============================================================
+// Copy these model blocks into your backend's prisma/schema.prisma.
+// Place them after your existing User model.
+// Then run:
+//   npx prisma migrate dev --name add_marketplace_models
+//   npx prisma generate
+// ============================================================
+
+// --- Add these fields to your EXISTING User model ---
+// model User {
+//   id           String           @id @default(cuid())
+//   email        String           @unique
+//   password     String
+//   name         String
+//   role         String           @default("CUSTOMER")
+//   phone        String?
+//   avatarUrl    String?
+//   addressLine1 String?
+//   city         String?
+//   state        String?
+//   country      String?
+//   postalCode   String?
+//   artisanProfile ArtisanProfile?
+//   createdAt    DateTime         @default(now())
+//   updatedAt    DateTime         @updatedAt
+// }
+
+// --- Add this model ---
+model ArtisanProfile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName String
+  description  String?
+  category     String?
+  location     String?
+  images       String[]
+  rating       Float     @default(0)
+  verified     Boolean   @default(false)
+  featured     Boolean   @default(false)
+  products     Product[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// --- Add this model ---
+model Product {
+  id                    String   @id @default(cuid())
+  name                  String
+  description           String
+  category              String
+  priceMin              Float
+  priceMax              Float
+  currency              String   @default("NGN")
+  materials             String?
+  estimatedDeliveryDays Int?
+  images                String[]
+  tags                  String[]
+  status                String   @default("ACTIVE")
+  artisanId             String
+  artisan               ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([artisanId])
+  @@index([category])
+}

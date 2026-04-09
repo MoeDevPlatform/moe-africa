@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   User, Shield, Bell, Settings as SettingsIcon, MapPin, CreditCard,
-  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check
+  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -182,6 +182,117 @@ const PaymentModal = ({ open, payment, onClose, onSave }: PaymentModalProps) => 
   );
 };
 
+// ─── Security Tab (fully wired) ──────────────────────────────────────────────
+const SecurityTabContent = () => {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChangePassword = async () => {
+    setError("");
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError("All fields are required.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("New password and confirmation do not match.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await authService.changePassword({ currentPassword, newPassword });
+      toast({ title: "Password updated", description: "Your password has been changed successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update password";
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <CardContent className="space-y-6">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="currentPassword">Current Password</Label>
+          <div className="relative">
+            <Input
+              id="currentPassword"
+              type={showCurrent ? "text" : "password"}
+              placeholder="••••••••"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowCurrent(!showCurrent)}>
+              {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="newPassword">New Password</Label>
+          <div className="relative">
+            <Input
+              id="newPassword"
+              type={showNew ? "text" : "password"}
+              placeholder="••••••••"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNew(!showNew)}>
+              {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowConfirm(!showConfirm)}>
+              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+      <Separator />
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-medium">Two-Factor Authentication</p>
+          <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+        </div>
+        <Switch />
+      </div>
+      <Button className="w-full sm:w-auto" onClick={handleChangePassword} disabled={isSubmitting}>
+        {isSubmitting ? "Updating…" : "Update Password"}
+      </Button>
+    </CardContent>
+  );
+};
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 const Settings = () => {
   const navigate = useNavigate();
@@ -346,17 +457,27 @@ const Settings = () => {
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input id="phone" type="tel" value={accountForm.phone} onChange={e => setAccountForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
-                <Button className="w-full sm:w-auto" onClick={async () => {
+              <Button className="w-full sm:w-auto" onClick={async () => {
                   try {
                     const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
-                    await authService.updateProfile({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    const originalName = user?.name || "";
+                    const originalEmail = user?.email || "";
+                    const originalPhone = user?.phone || "";
+                    // Only send changed fields
+                    const delta: Record<string, string> = {};
+                    if (fullName !== originalName) delta.name = fullName;
+                    if (accountForm.email !== originalEmail) delta.email = accountForm.email;
+                    if (accountForm.phone !== originalPhone) delta.phone = accountForm.phone;
+                    if (Object.keys(delta).length === 0) {
+                      toast({ title: "No changes", description: "Nothing to update." });
+                      return;
+                    }
+                    await authService.updateProfile(delta);
                     updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
                     toast({ title: "Changes saved", description: "Your account information has been updated." });
-                  } catch {
-                    // Offline fallback — update local state only
-                    const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
-                    updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
-                    toast({ title: "Saved locally", description: "Changes will sync when online." });
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : "Failed to save changes";
+                    toast({ title: "Error", description: msg, variant: "destructive" });
                   }
                 }}>Save Changes</Button>
               </CardContent>
@@ -370,31 +491,7 @@ const Settings = () => {
                 <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Security Settings</CardTitle>
                 <CardDescription>Manage your password and security preferences</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input id="currentPassword" type="password" placeholder="••••••••" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input id="newPassword" type="password" placeholder="••••••••" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input id="confirmPassword" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Two-Factor Authentication</p>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                  </div>
-                  <Switch />
-                </div>
-                <Button className="w-full sm:w-auto" onClick={() => toast({ title: "Password updated", description: "Your password has been changed successfully." })}>Update Password</Button>
-              </CardContent>
+              <SecurityTabContent />
             </Card>
           </TabsContent>
 
