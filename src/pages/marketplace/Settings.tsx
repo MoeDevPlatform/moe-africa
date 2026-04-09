@@ -346,17 +346,27 @@ const Settings = () => {
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input id="phone" type="tel" value={accountForm.phone} onChange={e => setAccountForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
-                <Button className="w-full sm:w-auto" onClick={async () => {
+              <Button className="w-full sm:w-auto" onClick={async () => {
                   try {
                     const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
-                    await authService.updateProfile({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    const originalName = user?.name || "";
+                    const originalEmail = user?.email || "";
+                    const originalPhone = user?.phone || "";
+                    // Only send changed fields
+                    const delta: Record<string, string> = {};
+                    if (fullName !== originalName) delta.name = fullName;
+                    if (accountForm.email !== originalEmail) delta.email = accountForm.email;
+                    if (accountForm.phone !== originalPhone) delta.phone = accountForm.phone;
+                    if (Object.keys(delta).length === 0) {
+                      toast({ title: "No changes", description: "Nothing to update." });
+                      return;
+                    }
+                    await authService.updateProfile(delta);
                     updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
                     toast({ title: "Changes saved", description: "Your account information has been updated." });
-                  } catch {
-                    // Offline fallback — update local state only
-                    const fullName = `${accountForm.firstName} ${accountForm.lastName}`.trim();
-                    updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
-                    toast({ title: "Saved locally", description: "Changes will sync when online." });
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : "Failed to save changes";
+                    toast({ title: "Error", description: msg, variant: "destructive" });
                   }
                 }}>Save Changes</Button>
               </CardContent>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ImagePlus, X, Loader2 } from "lucide-react";
+import { ImagePlus, X, Loader2, Upload, AlertCircle } from "lucide-react";
 import { artisanService } from "@/lib/apiServices";
 import { toast } from "sonner";
 
@@ -32,6 +32,10 @@ const STYLE_SUGGESTIONS = [
   "Formal", "Elegant", "Handmade", "Custom Fit", "Wedding", "Corporate",
 ];
 
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGES = 5;
+
 const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -46,7 +50,10 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
     tags: [] as string[],
   });
   const [tagInput, setTagInput] = useState("");
-  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [submitError, setSubmitError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateForm = (field: string, value: string | string[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -62,30 +69,63 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
   const removeTag = (tag: string) =>
     updateForm("tags", form.tags.filter((t) => t !== tag));
 
-  const addImageUrl = () => {
-    const url = imageUrlInput.trim();
-    if (url && !form.images.includes(url)) {
-      updateForm("images", [...form.images, url]);
-    }
-    setImageUrlInput("");
-  };
-
   const removeImage = (url: string) =>
     updateForm("images", form.images.filter((i) => i !== url));
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError("");
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = MAX_IMAGES - form.images.length;
+    if (remaining <= 0) {
+      setUploadError(`Maximum ${MAX_IMAGES} images allowed.`);
+      return;
+    }
+
+    const toUpload = files.slice(0, remaining);
+
+    for (const file of toUpload) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setUploadError(`"${file.name}" is not a valid image. Use JPEG, PNG, or WebP.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError(`"${file.name}" exceeds 5MB limit.`);
+        continue;
+      }
+
+      setUploadingCount((c) => c + 1);
+      try {
+        const result = await artisanService.uploadProductImage(file);
+        setForm((prev) => ({
+          ...prev,
+          images: [...prev.images, result.url],
+        }));
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setUploadError(`Failed to upload "${file.name}": ${msg}`);
+      } finally {
+        setUploadingCount((c) => c - 1);
+      }
+    }
+
+    // Reset file input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Only name, description, category, priceMin, priceMax are required
   const isValid =
     form.name.trim() &&
     form.description.trim() &&
     form.category &&
     form.priceMin &&
-    form.priceMax &&
-    form.materials.trim() &&
-    form.estimatedDeliveryDays &&
-    form.images.length > 0;
+    form.priceMax;
 
   const handleSubmit = async () => {
     if (!isValid) return;
     setIsSubmitting(true);
+    setSubmitError("");
     try {
       await artisanService.createProduct({
         name: form.name.trim(),
@@ -96,21 +136,23 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
           max: Number(form.priceMax),
         },
         currency: "NGN",
-        materials: form.materials.trim(),
-        estimatedDeliveryDays: Number(form.estimatedDeliveryDays),
-        images: form.images,
-        tags: form.tags,
+        materials: form.materials.trim() || undefined,
+        estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
+        images: form.images.length > 0 ? form.images : [],
+        tags: form.tags.length > 0 ? form.tags : [],
       });
       toast.success("Product added successfully!");
       onProductAdded();
       onOpenChange(false);
-      // Reset form
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
         materials: "", estimatedDeliveryDays: "", images: [], tags: [],
       });
-    } catch {
-      toast.error("Failed to add product. Please try again.");
+      setSubmitError("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to add product. Please try again.";
+      setSubmitError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -122,7 +164,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
-            Fill in the product details below. All fields are required for a complete marketplace listing.
+            Fill in the product details below. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,9 +233,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             </div>
           </div>
 
-          {/* Materials */}
+          {/* Materials (optional) */}
           <div className="space-y-2">
-            <Label htmlFor="materials">Materials *</Label>
+            <Label htmlFor="materials">Materials</Label>
             <Input
               id="materials"
               placeholder="e.g. 100% Cotton Ankara Fabric"
@@ -202,9 +244,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             />
           </div>
 
-          {/* Delivery Estimate */}
+          {/* Delivery Estimate (optional) */}
           <div className="space-y-2">
-            <Label htmlFor="delivery">Estimated Delivery (days) *</Label>
+            <Label htmlFor="delivery">Estimated Delivery (days)</Label>
             <Input
               id="delivery"
               type="number"
@@ -254,22 +296,44 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             )}
           </div>
 
-          {/* Images */}
+          {/* Images — File Upload */}
           <div className="space-y-2">
-            <Label>Product Images * (at least 1)</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Paste image URL..."
-                value={imageUrlInput}
-                onChange={(e) => setImageUrlInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); addImageUrl(); }
-                }}
+            <Label>Product Images (max {MAX_IMAGES})</Label>
+            <div
+              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
               />
-              <Button type="button" variant="outline" size="sm" onClick={addImageUrl}>
-                <ImagePlus className="h-4 w-4" />
-              </Button>
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Click to upload images (JPEG, PNG, WebP — max 5MB each)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {form.images.length}/{MAX_IMAGES} uploaded
+              </p>
             </div>
+
+            {uploadingCount > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading {uploadingCount} file{uploadingCount > 1 ? "s" : ""}…
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {uploadError}
+              </div>
+            )}
+
             {form.images.length > 0 && (
               <div className="flex gap-2 flex-wrap mt-2">
                 {form.images.map((url, i) => (
@@ -292,6 +356,13 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             )}
           </div>
         </div>
+
+        {submitError && (
+          <div className="flex items-center gap-2 text-sm text-destructive px-1">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {submitError}
+          </div>
+        )}
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

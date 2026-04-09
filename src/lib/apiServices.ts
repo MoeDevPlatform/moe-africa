@@ -131,6 +131,22 @@ export const artisanService = {
   updateProduct: (id: number, data: Record<string, unknown>) =>
     apiPatch<Product>(`/artisans/me/products/${id}`, data),
   deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
+  uploadProductImage: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ?? import.meta.env?.VITE_MOE_API_BASE_URL ?? "http://localhost:3000") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/artisans/me/products/upload-image`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Image upload failed", res.status);
+    }
+    return (await res.json()) as { url: string };
+  },
 };
 
 // ─── Customer Profile ─────────────────────────────────────
