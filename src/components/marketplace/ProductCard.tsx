@@ -122,10 +122,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
         
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Starting from</p>
-            <p className="text-xl font-bold text-primary">
-              {product.currency === "NGN" ? "₦" : "$"}{product.priceRange.min.toLocaleString()}
-            </p>
+            {product.priceRange?.min != null ? (
+              <>
+                <p className="text-xs text-muted-foreground">Starting from</p>
+                <p className="text-xl font-bold text-primary">
+                  {product.currency === "NGN" ? "₦" : "$"}{product.priceRange.min.toLocaleString()}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Price on request</p>
+            )}
           </div>
           
           <Button 
