@@ -60,13 +60,13 @@ const MarketplaceHome = () => {
   // Apply filters to products
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
-      if (product.priceRange.min < filters.priceRange[0] || product.priceRange.max > filters.priceRange[1]) return false;
+      if ((product.priceRange?.min ?? 0) < filters.priceRange[0] || (product.priceRange?.max ?? Infinity) > filters.priceRange[1]) return false;
       if (filters.materials.length > 0) {
-        const pm = product.materials.toLowerCase();
+        const pm = (product.materials ?? "").toLowerCase();
         if (!filters.materials.some((m) => pm.includes(m))) return false;
       }
       if (filters.styleTags.length > 0) {
-        const pt = product.tags.map((t) => t.toLowerCase());
+        const pt = (product.tags ?? []).map((t) => t.toLowerCase());
         if (!filters.styleTags.some((t) => pt.includes(t))) return false;
       }
       if (filters.deliveryEstimate) {
@@ -106,32 +106,32 @@ const MarketplaceHome = () => {
   // Deal products from actual data
   const dealProducts = useMemo(() => {
     return filteredProducts
-      .filter((p) => p.priceRange.min < p.priceRange.max)
+      .filter((p) => (p.priceRange?.min ?? 0) < (p.priceRange?.max ?? 0))
       .slice(0, 3)
       .map((p) => ({
         id: p.id,
         name: p.name,
-        price: p.priceRange.min,
-        originalPrice: p.priceRange.max,
-        imageUrl: p.images[0] || "/placeholder.svg",
+        price: p.priceRange?.min ?? 0,
+        originalPrice: p.priceRange?.max ?? 0,
+        imageUrl: p.images?.[0] || "/placeholder.svg",
         providerId: p.providerId,
-        discount: Math.round(((p.priceRange.max - p.priceRange.min) / p.priceRange.max) * 100),
-        tags: p.tags,
+        discount: (p.priceRange?.max ?? 0) > 0 ? Math.round((((p.priceRange?.max ?? 0) - (p.priceRange?.min ?? 0)) / (p.priceRange?.max ?? 1)) * 100) : 0,
+        tags: p.tags ?? [],
       }));
   }, [filteredProducts]);
 
   // Style products from actual data
   const styleProducts = useMemo(() => {
     return filteredProducts
-      .filter((p) => p.tags.some((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)))
+      .filter((p) => (p.tags ?? []).some((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)))
       .slice(0, 4)
       .map((p) => ({
         id: p.id,
         name: p.name,
-        price: p.priceRange.min,
-        imageUrl: p.images[0] || "/placeholder.svg",
+        price: p.priceRange?.min ?? 0,
+        imageUrl: p.images?.[0] || "/placeholder.svg",
         providerId: p.providerId,
-        tag: p.tags.find((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)) || p.tags[0] || "",
+        tag: (p.tags ?? []).find((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)) || (p.tags ?? [])[0] || "",
       }));
   }, [filteredProducts]);
 

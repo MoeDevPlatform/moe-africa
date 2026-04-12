@@ -692,6 +692,35 @@ export const variantsService = {
   },
 };
 
+// ─── Addresses ────────────────────────────────────────────
+
+export interface AddressApi {
+  id: string;
+  label: string;
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  isDefault: boolean;
+}
+
+export const addressesService = {
+  list: async (): Promise<AddressApi[]> => {
+    try {
+      const res = await apiGet<{ data: AddressApi[] }>("/customers/me/addresses");
+      return res.data ?? [];
+    } catch {
+      return [];
+    }
+  },
+  create: (data: Omit<AddressApi, "id" | "isDefault">) =>
+    apiPost<AddressApi>("/customers/me/addresses", data),
+  update: (id: string, data: Partial<Omit<AddressApi, "id">>) =>
+    apiPatch<AddressApi>(`/customers/me/addresses/${id}`, data),
+  remove: (id: string) => apiDelete(`/customers/me/addresses/${id}`),
+  setDefault: (id: string) => apiPatch<AddressApi>(`/customers/me/addresses/${id}/default`),
+};
+
 // ─── Search ───────────────────────────────────────────────
 
 export interface SearchResponse {

@@ -10,18 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   User, Shield, Bell, Settings as SettingsIcon, MapPin, CreditCard,
-  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle
+  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { authService } from "@/lib/apiServices";
+import { authService, addressesService, artisanService, type AddressApi } from "@/lib/apiServices";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
-  id: number;
+  id: string;
   label: string;
   street: string;
   city: string;
@@ -39,11 +42,6 @@ interface PaymentMethod {
 }
 
 // ─── Initial state ───────────────────────────────────────────────────────────
-const initialAddresses: Address[] = [
-  { id: 1, label: "Home", street: "15 Marina Road, Victoria Island", city: "Lagos", state: "Lagos", country: "Nigeria", isDefault: true },
-  { id: 2, label: "Office", street: "45 Broad Street, Lagos Island", city: "Lagos", state: "Lagos", country: "Nigeria", isDefault: false },
-];
-
 const initialPayments: PaymentMethod[] = [
   { id: 1, type: "VISA", last4: "4242", expiry: "12/25", isDefault: true },
 ];
@@ -54,9 +52,10 @@ interface AddressModalProps {
   address?: Address | null;
   onClose: () => void;
   onSave: (data: Omit<Address, "id" | "isDefault">) => void;
+  isSaving?: boolean;
 }
 
-const AddressModal = ({ open, address, onClose, onSave }: AddressModalProps) => {
+const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModalProps) => {
   const [form, setForm] = useState({
     label: address?.label ?? "",
     street: address?.street ?? "",
@@ -66,7 +65,7 @@ const AddressModal = ({ open, address, onClose, onSave }: AddressModalProps) => 
   });
 
   // sync when address changes (edit vs add)
-  useState(() => {
+  useEffect(() => {
     setForm({
       label: address?.label ?? "",
       street: address?.street ?? "",
@@ -74,12 +73,11 @@ const AddressModal = ({ open, address, onClose, onSave }: AddressModalProps) => 
       state: address?.state ?? "",
       country: address?.country ?? "Nigeria",
     });
-  });
+  }, [address]);
 
   const handleSave = () => {
     if (!form.label || !form.street || !form.city) return;
     onSave(form);
-    onClose();
   };
 
   return (
@@ -114,7 +112,9 @@ const AddressModal = ({ open, address, onClose, onSave }: AddressModalProps) => 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!form.label || !form.street || !form.city}>Save Address</Button>
+          <Button onClick={handleSave} disabled={!form.label || !form.street || !form.city || isSaving}>
+            {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Address"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -293,6 +293,145 @@ const SecurityTabContent = () => {
   );
 };
 
+// ─── Payment Terms Section (artisan-only) ─────────────────────────────────────
+const PaymentTermsSection = () => {
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [form, setForm] = useState({
+    paymentSchedule: "full_upfront",
+    depositPercentage: "50",
+    refundPolicy: "",
+    acceptedPaymentMethods: ["bank_transfer"] as string[],
+    installmentEnabled: false,
+    installmentDetails: "",
+  });
+
+  const togglePaymentMethod = (method: string) => {
+    setForm(prev => ({
+      ...prev,
+      acceptedPaymentMethods: prev.acceptedPaymentMethods.includes(method)
+        ? prev.acceptedPaymentMethods.filter(m => m !== method)
+        : [...prev.acceptedPaymentMethods, method],
+    }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await artisanService.updateProfile({
+        paymentSchedule: form.paymentSchedule,
+        depositPercentage: Number(form.depositPercentage),
+        refundPolicy: form.refundPolicy,
+        acceptedPaymentMethods: form.acceptedPaymentMethods,
+        installmentEnabled: form.installmentEnabled,
+        installmentDetails: form.installmentDetails,
+      } as Record<string, unknown>);
+      toast({ title: "Payment terms saved", description: "Your payment policies have been updated." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save payment terms";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-primary" /> Payment Terms & Policies
+        </CardTitle>
+        <CardDescription>Define your payment requirements for customers</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label>Payment Schedule</Label>
+          <Select value={form.paymentSchedule} onValueChange={v => setForm(f => ({ ...f, paymentSchedule: v }))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="full_upfront">Full payment upfront</SelectItem>
+              <SelectItem value="deposit_balance">Deposit + balance on delivery</SelectItem>
+              <SelectItem value="milestone">Milestone-based payments</SelectItem>
+              <SelectItem value="on_delivery">Pay on delivery</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.paymentSchedule === "deposit_balance" && (
+          <div className="space-y-2">
+            <Label>Deposit Percentage (%)</Label>
+            <Input
+              type="number"
+              min={10}
+              max={90}
+              value={form.depositPercentage}
+              onChange={e => setForm(f => ({ ...f, depositPercentage: e.target.value }))}
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label>Refund Policy</Label>
+          <Textarea
+            value={form.refundPolicy}
+            onChange={e => setForm(f => ({ ...f, refundPolicy: e.target.value }))}
+            placeholder="Describe your refund/cancellation policy…"
+            rows={3}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label>Accepted Payment Methods</Label>
+          {[
+            { value: "bank_transfer", label: "Bank Transfer" },
+            { value: "card", label: "Debit/Credit Card" },
+            { value: "cash", label: "Cash" },
+            { value: "mobile_money", label: "Mobile Money" },
+          ].map(({ value, label }) => (
+            <div key={value} className="flex items-center gap-2">
+              <Checkbox
+                id={`pm-${value}`}
+                checked={form.acceptedPaymentMethods.includes(value)}
+                onCheckedChange={() => togglePaymentMethod(value)}
+              />
+              <Label htmlFor={`pm-${value}`} className="font-normal cursor-pointer">{label}</Label>
+            </div>
+          ))}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Installment Options</p>
+              <p className="text-xs text-muted-foreground">Allow customers to pay in installments</p>
+            </div>
+            <Switch
+              checked={form.installmentEnabled}
+              onCheckedChange={v => setForm(f => ({ ...f, installmentEnabled: v }))}
+            />
+          </div>
+          {form.installmentEnabled && (
+            <Textarea
+              value={form.installmentDetails}
+              onChange={e => setForm(f => ({ ...f, installmentDetails: e.target.value }))}
+              placeholder="e.g. 3 monthly payments, no interest…"
+              rows={2}
+            />
+          )}
+        </div>
+
+        <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
+          {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Payment Terms"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 const Settings = () => {
   const navigate = useNavigate();
@@ -328,38 +467,78 @@ const Settings = () => {
     setNotificationSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Addresses
-  const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
+  // Addresses — API-backed
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [addressSaving, setAddressSaving] = useState(false);
   const [addressModal, setAddressModal] = useState<{ open: boolean; address?: Address | null }>({ open: false });
+
+  useEffect(() => {
+    addressesService.list().then((data) => {
+      setAddresses(data.map((a: AddressApi) => ({
+        id: a.id,
+        label: a.label,
+        street: a.street,
+        city: a.city,
+        state: a.state,
+        country: a.country,
+        isDefault: a.isDefault,
+      })));
+    }).catch(() => {
+      // fallback: empty
+    }).finally(() => setAddressesLoading(false));
+  }, []);
 
   const openAddAddress = () => setAddressModal({ open: true, address: null });
   const openEditAddress = (a: Address) => setAddressModal({ open: true, address: a });
 
-  const handleSaveAddress = (data: Omit<Address, "id" | "isDefault">) => {
-    if (addressModal.address) {
-      setAddresses(prev => prev.map(a => a.id === addressModal.address!.id ? { ...a, ...data } : a));
-      toast({ title: "Address updated", description: "Your address has been updated." });
-    } else {
-      const newAddr: Address = { id: Date.now(), ...data, isDefault: addresses.length === 0 };
-      setAddresses(prev => [...prev, newAddr]);
-      toast({ title: "Address added", description: "New address saved successfully." });
+  const handleSaveAddress = async (data: Omit<Address, "id" | "isDefault">) => {
+    setAddressSaving(true);
+    try {
+      if (addressModal.address) {
+        const updated = await addressesService.update(addressModal.address.id, data);
+        setAddresses(prev => prev.map(a => a.id === addressModal.address!.id ? { ...a, ...updated } : a));
+        toast({ title: "Address updated", description: "Your address has been updated." });
+      } else {
+        const created = await addressesService.create(data);
+        setAddresses(prev => [...prev, { ...created, isDefault: prev.length === 0 }]);
+        toast({ title: "Address added", description: "New address saved successfully." });
+      }
+      setAddressModal({ open: false });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save address";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setAddressSaving(false);
     }
   };
 
-  const handleDeleteAddress = (id: number) => {
-    setAddresses(prev => {
-      const updated = prev.filter(a => a.id !== id);
-      if (updated.length > 0 && !updated.some(a => a.isDefault)) {
-        updated[0].isDefault = true;
-      }
-      return updated;
-    });
-    toast({ title: "Address removed", description: "The address has been deleted." });
+  const handleDeleteAddress = async (id: string) => {
+    try {
+      await addressesService.remove(id);
+      setAddresses(prev => {
+        const updated = prev.filter(a => a.id !== id);
+        if (updated.length > 0 && !updated.some(a => a.isDefault)) {
+          updated[0].isDefault = true;
+        }
+        return updated;
+      });
+      toast({ title: "Address removed", description: "The address has been deleted." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete address";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
   };
 
-  const handleSetDefaultAddress = (id: number) => {
-    setAddresses(prev => prev.map(a => ({ ...a, isDefault: a.id === id })));
-    toast({ title: "Default updated", description: "Default address has been changed." });
+  const handleSetDefaultAddress = async (id: string) => {
+    try {
+      await addressesService.setDefault(id);
+      setAddresses(prev => prev.map(a => ({ ...a, isDefault: a.id === id })));
+      toast({ title: "Default updated", description: "Default address has been changed." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update default address";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
   };
 
   // Payment Methods
@@ -395,6 +574,8 @@ const Settings = () => {
     setPayments(prev => prev.map(p => ({ ...p, isDefault: p.id === id })));
     toast({ title: "Default payment updated" });
   };
+
+  const isArtisan = user?.role === "artisan";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -573,7 +754,7 @@ const Settings = () => {
             </div>
           </TabsContent>
 
-          {/* Addresses — full CRUD */}
+          {/* Addresses — API-backed CRUD */}
           <TabsContent value="addresses">
             <Card>
               <CardHeader>
@@ -588,49 +769,54 @@ const Settings = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {addresses.length === 0 && (
+                {addressesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : addresses.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">No addresses saved yet. Add one to get started.</p>
-                )}
-                {addresses.map((address) => (
-                  <div key={address.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="font-medium">{address.label}</p>
-                          {address.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
+                ) : (
+                  addresses.map((address) => (
+                    <div key={address.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <p className="font-medium">{address.label}</p>
+                            {address.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {address.street}<br />
+                            {address.city}, {address.state}, {address.country}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {address.street}<br />
-                          {address.city}, {address.state}, {address.country}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {!address.isDefault && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!address.isDefault && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-muted-foreground"
+                              onClick={() => handleSetDefaultAddress(address.id)}
+                              title="Set as default"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" /> Default
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditAddress(address)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-xs text-muted-foreground"
-                            onClick={() => handleSetDefaultAddress(address.id)}
-                            title="Set as default"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteAddress(address.id)}
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" /> Default
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditAddress(address)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteAddress(address.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
                 <Button variant="outline" className="w-full gap-2" onClick={openAddAddress}>
                   <Plus className="h-4 w-4" /> Add New Address
                 </Button>
@@ -638,7 +824,7 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {/* Payment Methods — full CRUD */}
+          {/* Payment Methods — full CRUD + Payment Terms for artisans */}
           <TabsContent value="payment">
             <Card>
               <CardHeader>
@@ -703,6 +889,9 @@ const Settings = () => {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Payment Terms — artisan only */}
+            {isArtisan && <PaymentTermsSection />}
           </TabsContent>
         </Tabs>
       </main>
@@ -715,6 +904,7 @@ const Settings = () => {
         address={addressModal.address}
         onClose={() => setAddressModal({ open: false })}
         onSave={handleSaveAddress}
+        isSaving={addressSaving}
       />
       <PaymentModal
         open={paymentModal.open}
