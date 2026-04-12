@@ -195,7 +195,11 @@ const ArtisanDashboard = () => {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{product.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            ₦{product.priceRange.min.toLocaleString()} – ₦{product.priceRange.max.toLocaleString()}
+                            {product.priceRange?.min != null ? (
+                              <>₦{product.priceRange.min.toLocaleString()} – ₦{(product.priceRange.max ?? product.priceRange.min).toLocaleString()}</>
+                            ) : (
+                              <span className="italic">Price on request</span>
+                            )}
                           </p>
                         </div>
                         <div className="flex gap-1">
