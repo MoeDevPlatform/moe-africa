@@ -64,7 +64,7 @@ const CustomizationFormModal = ({
   }>>([]);
   const [isLoadingVariants, setIsLoadingVariants] = useState(false);
 
-  const isShoemaking = category.toLowerCase().includes("shoe");
+  const isShoemaking = (category ?? "").toLowerCase().includes("shoe");
   const totalSteps = 5;
 
   // Load variants from API
@@ -135,7 +135,7 @@ const CustomizationFormModal = ({
       providerName,
       basePrice,
       finalPrice: basePrice + variantModifiers + customizationFee,
-      category: category as "tailoring" | "shoemaking",
+      category: (category ?? "tailoring") as "tailoring" | "shoemaking",
       selectedSize,
       selectedBodyType: isShoemaking ? selectedFootType : selectedBodyType,
       selectedVariants,
