@@ -1,47 +1,30 @@
 
 
-## Fix: ProductCard Null Safety with Better UX
+## Fix: CustomizationFormModal Null Safety for category
 
-### Changes to `src/components/marketplace/ProductCard.tsx`
+### Problem
+Line 67 crashes when `category` is null: `category.toLowerCase()` throws `TypeError: can't access property "toLowerCase", category is null`
 
-**Lines 123-129** - Replace the entire price block with null-safe version:
+### Solution
+Add null-safe fallbacks on lines 67 and 138:
 
+**Line 67** - Guard the isShoemaking check:
 ```tsx
-<div className="flex items-center justify-between">
-  <div>
-    {product.priceRange?.min != null ? (
-      <>
-        <p className="text-xs text-muted-foreground">Starting from</p>
-        <p className="text-xl font-bold text-primary">
-          {product.currency === "NGN" ? "₦" : "$"}{product.priceRange.min.toLocaleString()}
-        </p>
-      </>
-    ) : (
-      <p className="text-sm text-muted-foreground italic">Price on request</p>
-    )}
-  </div>
-  
-  <Button 
-    size="sm" 
-    variant="outline" 
-    className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-    onClick={(e) => {
-      e.stopPropagation();
-      navigate(`/marketplace/product/${product.id}`);
-    }}
-  >
-    View Details
-  </Button>
-</div>
+const isShoemaking = (category ?? "").toLowerCase().includes("shoe");
+```
+
+**Line 138** - Ensure category has a valid value for the cart item:
+```tsx
+category: (category ?? "tailoring") as "tailoring" | "shoemaking",
 ```
 
 ### Rationale
+1. **Default to tailoring flow** - When category is null/undefined, `(category ?? "")` becomes `""`, which doesn't contain "shoe", so `isShoemaking` is false. This safely defaults to the tailoring (non-shoe) customization flow.
 
-1. **No priceRange.max in render** - The component only displays `min`, not `max`. The `priceRange` object is passed to the wishlist (line 40) but that's just data passing, not display formatting.
+2. **Cart item safety** - The cart item needs a valid category string. Using `"tailoring"` as the fallback ensures type safety and sensible defaults.
 
-2. **Better UX for missing price** - When `min` is null, hide the "Starting from" label entirely and show "Price on request" instead. This avoids the awkward "Starting from —" combo.
+3. **No other changes needed** - All other usages (stepTitles, canProceed, conditional rendering, ReviewStep props) derive from `isShoemaking`, which is now safely false when category is null.
 
-3. **Currency symbol guard** - Moved inside the conditional so it only renders when a price exists.
-
-4. **Line count** - Single edit of lines 123-129, preserving all existing styling and button logic.
+### File Modified
+- `src/components/marketplace/CustomizationFormModal.tsx` (lines 67, 138)
 
