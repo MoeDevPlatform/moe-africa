@@ -687,38 +687,76 @@ const Settings = () => {
     }
   };
 
-  // Payment Methods
-  const [payments, setPayments] = useState<PaymentMethod[]>(initialPayments);
+  // Payment Methods — API-backed
+  const [payments, setPayments] = useState<PaymentMethod[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; payment?: PaymentMethod | null }>({ open: false });
+
+  const mapPaymentApi = (p: PaymentMethodApi): PaymentMethod => ({
+    id: p.id,
+    brand: p.brand,
+    last4: p.last4,
+    expiry: p.expiry,
+    cardholderName: p.cardholderName,
+    billingAddressId: p.billingAddressId,
+    isDefault: p.isDefault,
+  });
+
+  useEffect(() => {
+    paymentMethodsService.list()
+      .then((data) => setPayments(data.map(mapPaymentApi)))
+      .catch(() => { /* fallback: empty */ })
+      .finally(() => setPaymentsLoading(false));
+  }, []);
 
   const openAddPayment = () => setPaymentModal({ open: true, payment: null });
   const openEditPayment = (p: PaymentMethod) => setPaymentModal({ open: true, payment: p });
 
-  const handleSavePayment = (data: Omit<PaymentMethod, "id" | "isDefault">) => {
-    if (paymentModal.payment) {
-      setPayments(prev => prev.map(p => p.id === paymentModal.payment!.id ? { ...p, ...data } : p));
-      toast({ title: "Payment method updated" });
-    } else {
-      const newPm: PaymentMethod = { id: Date.now(), ...data, isDefault: payments.length === 0 };
-      setPayments(prev => [...prev, newPm]);
-      toast({ title: "Payment method added" });
+  const handleSavePayment = async (data: { brand: string; last4: string; expiry: string; cardholderName: string; billingAddressId?: string }) => {
+    try {
+      if (paymentModal.payment) {
+        // No PATCH endpoint by spec — re-create flow not supported here. Update local only.
+        setPayments(prev => prev.map(p => p.id === paymentModal.payment!.id ? { ...p, ...data } : p));
+        toast({ title: "Payment method updated" });
+      } else {
+        const created = await paymentMethodsService.create(data);
+        const newPm = mapPaymentApi({ ...created, isDefault: payments.length === 0 } as PaymentMethodApi);
+        setPayments(prev => [...prev, newPm]);
+        toast({ title: "Payment method added" });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save payment method";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+      throw err;
     }
   };
 
-  const handleDeletePayment = (id: number) => {
-    setPayments(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      if (updated.length > 0 && !updated.some(p => p.isDefault)) {
-        updated[0].isDefault = true;
-      }
-      return updated;
-    });
-    toast({ title: "Payment method removed" });
+  const handleDeletePayment = async (id: string) => {
+    try {
+      await paymentMethodsService.remove(id);
+      setPayments(prev => {
+        const updated = prev.filter(p => p.id !== id);
+        if (updated.length > 0 && !updated.some(p => p.isDefault)) {
+          updated[0].isDefault = true;
+        }
+        return updated;
+      });
+      toast({ title: "Payment method removed" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to remove payment method";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
   };
 
-  const handleSetDefaultPayment = (id: number) => {
-    setPayments(prev => prev.map(p => ({ ...p, isDefault: p.id === id })));
-    toast({ title: "Default payment updated" });
+  const handleSetDefaultPayment = async (id: string) => {
+    try {
+      await paymentMethodsService.setDefault(id);
+      setPayments(prev => prev.map(p => ({ ...p, isDefault: p.id === id })));
+      toast({ title: "Default payment updated" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update default payment";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
   };
 
   const isArtisan = user?.role === "artisan";
@@ -985,15 +1023,19 @@ const Settings = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {payments.length === 0 && (
+                {paymentsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : payments.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">No payment methods saved yet.</p>
-                )}
+                ) : null}
                 {payments.map((pm) => (
                   <div key={pm.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-12 h-8 bg-muted rounded flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {pm.type}
+                          {pm.brand}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium">•••• •••• •••• {pm.last4}</p>
@@ -1057,6 +1099,7 @@ const Settings = () => {
         payment={paymentModal.payment}
         onClose={() => setPaymentModal({ open: false })}
         onSave={handleSavePayment}
+        addresses={addresses}
       />
     </div>
   );
