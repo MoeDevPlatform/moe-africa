@@ -197,11 +197,16 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         payload.images = imageUrls;
       }
 
-      await artisanService.createProduct(payload);
-      toast.success("Product added successfully!");
+      if (isEdit && editProduct) {
+        await artisanService.updateProduct(editProduct.id, payload);
+        toast.success("Product updated successfully!");
+      } else {
+        await artisanService.createProduct(payload);
+        toast.success("Product added successfully!");
+      }
       onProductAdded();
       onOpenChange(false);
-      images.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl));
+      images.forEach((i) => i.previewUrl && i.previewUrl.startsWith("blob:") && URL.revokeObjectURL(i.previewUrl));
       setImages([]);
       setForm({
         name: "", description: "", category: "", price: "",
@@ -209,7 +214,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       });
       setSubmitError("");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to add product. Please try again.";
+      const msg = err instanceof Error ? err.message : `Failed to ${isEdit ? "update" : "add"} product. Please try again.`;
       setSubmitError(msg);
       toast.error(msg);
     } finally {
