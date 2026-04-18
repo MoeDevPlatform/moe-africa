@@ -52,7 +52,7 @@ interface AddressModalProps {
   open: boolean;
   address?: Address | null;
   onClose: () => void;
-  onSave: (data: Omit<Address, "id" | "isDefault">) => void;
+  onSave: (data: Omit<Address, "id" | "isDefault">) => Promise<void>;
   isSaving?: boolean;
 }
 
