@@ -644,8 +644,6 @@ const ArtisanDashboard = () => {
                     </div>
                     {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
                       <div>
-                    {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
-                      <div>
                         <p className="text-sm text-muted-foreground mb-2">Store Image</p>
                         <img
                           src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
