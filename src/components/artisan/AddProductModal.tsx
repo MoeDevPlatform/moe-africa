@@ -72,7 +72,12 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: editProduct.name ?? "",
         description: editProduct.description ?? "",
         category: editProduct.category ?? "",
-        price: editProduct.priceRange?.min != null ? String(editProduct.priceRange.min) : "",
+        price:
+          editProduct.priceRange?.min && editProduct.priceRange.min > 0
+            ? String(editProduct.priceRange.min)
+            : editProduct.priceRange?.max && editProduct.priceRange.max > 0
+            ? String(editProduct.priceRange.max)
+            : "",
         materials: (editProduct as unknown as { materials?: string }).materials ?? "",
         estimatedDeliveryDays:
           (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
