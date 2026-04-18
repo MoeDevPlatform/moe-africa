@@ -892,24 +892,67 @@ export interface AddressApi {
   isDefault: boolean;
 }
 
+// Backend DTO uses `addressLine1` and rejects `label` / `street`.
+// Translate at the service boundary so the rest of the app keeps the
+// friendlier { label, street } shape. Label is stashed in addressLine2
+// as `[label]` prefix so it survives a roundtrip until backend supports it.
+interface BackendAddress {
+  id: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  country: string;
+  isDefault: boolean;
+  label?: string;
+}
+
+const toApi = (a: BackendAddress): AddressApi => ({
+  id: a.id,
+  label: a.label ?? (a.addressLine2?.match(/^\[(.+?)\]/)?.[1] ?? "Address"),
+  street: a.addressLine1,
+  city: a.city,
+  state: a.state,
+  country: a.country,
+  isDefault: a.isDefault,
+});
+
+const toBackend = (data: Partial<Omit<AddressApi, "id">>) => {
+  const out: Record<string, unknown> = {};
+  if (data.street !== undefined) out.addressLine1 = data.street;
+  if (data.label !== undefined) out.addressLine2 = `[${data.label}]`;
+  if (data.city !== undefined) out.city = data.city;
+  if (data.state !== undefined) out.state = data.state;
+  if (data.country !== undefined) out.country = data.country;
+  if (data.isDefault !== undefined) out.isDefault = data.isDefault;
+  return out;
+};
+
 export const addressesService = {
   list: async (): Promise<AddressApi[]> => {
     try {
-      const res = await apiGet<{ data: AddressApi[] }>(
+      const res = await apiGet<{ data: BackendAddress[] } | BackendAddress[]>(
         "/customers/me/addresses",
       );
-      return res.data ?? [];
+      const arr = Array.isArray(res) ? res : (res?.data ?? []);
+      return arr.map(toApi);
     } catch {
       return [];
     }
   },
-  create: (data: Omit<AddressApi, "id" | "isDefault">) =>
-    apiPost<AddressApi>("/customers/me/addresses", data),
-  update: (id: string, data: Partial<Omit<AddressApi, "id">>) =>
-    apiPatch<AddressApi>(`/customers/me/addresses/${id}`, data),
+  create: async (data: Omit<AddressApi, "id" | "isDefault">) => {
+    const created = await apiPost<BackendAddress>("/customers/me/addresses", toBackend(data));
+    return toApi(created);
+  },
+  update: async (id: string, data: Partial<Omit<AddressApi, "id">>) => {
+    const updated = await apiPatch<BackendAddress>(`/customers/me/addresses/${id}`, toBackend(data));
+    return toApi(updated);
+  },
   remove: (id: string) => apiDelete(`/customers/me/addresses/${id}`),
-  setDefault: (id: string) =>
-    apiPatch<AddressApi>(`/customers/me/addresses/${id}/default`),
+  setDefault: async (id: string) => {
+    const updated = await apiPatch<BackendAddress>(`/customers/me/addresses/${id}/default`);
+    return toApi(updated);
+  },
 };
 
 // ─── Search ───────────────────────────────────────────────
