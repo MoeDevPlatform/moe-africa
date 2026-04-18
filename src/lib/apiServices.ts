@@ -708,8 +708,11 @@ export interface WishlistItemApi {
   productName: string;
   providerId: number;
   providerName: string;
-  priceMin: number;
-  priceMax: number;
+  // Preferred single price; legacy priceMin/priceMax kept for backward-compat with older backend payloads.
+  price?: number;
+  priceMin?: number;
+  priceMax?: number;
+  priceRange?: { min: number; max: number };
   currency: string;
   category: string;
   imageUrl: string;
