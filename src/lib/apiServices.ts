@@ -156,6 +156,11 @@ export const artisanService = {
       const stashed = localStorage.getItem("moe_artisan_cover_url");
       if (stashed) p.coverImageUrl = stashed;
     }
+    // Stash own userId so normalizeProvider can recognize the artisan
+    // viewing their own public storefront and hydrate cover/store from cache.
+    if (p?.userId != null) {
+      localStorage.setItem("moe_self_user_id", String(p.userId));
+    }
     return p;
   },
   updateProfile: async (
@@ -450,23 +455,50 @@ async function fallbackProviders(
 // Backend may return businessName/description/storeImageUrl instead of
 // the canonical brandName/about/heroImage. Keep all tolerance here so
 // every consumer (cards, lists, detail page) renders consistently.
-const normalizeProvider = (raw: Record<string, any>): Provider => ({
-  ...(raw as Provider),
-  brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
-  about: raw.about ?? raw.description ?? raw.bio ?? "",
-  heroImage:
-    raw.coverImageUrl ??
-    raw.heroImage ??
-    raw.storeImageUrl ??
-    (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
-    "",
-  city: raw.city ?? "",
-  state: raw.state ?? "",
-  category: raw.category ?? "",
-  styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
-  rating: typeof raw.rating === "number" ? raw.rating : 0,
-  reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
-});
+//
+// Self-view fallback: if this record belongs to the currently signed-in
+// artisan AND the backend hasn't returned cover/store image yet, hydrate
+// from the locally-stashed values so the artisan can at least preview
+// their own storefront. Other visitors require the backend to actually
+// return these fields (see backend_MoeV1.md).
+const getSelfArtisanFallback = (raw: Record<string, any>) => {
+  try {
+    const selfId = localStorage.getItem("moe_self_user_id");
+    if (!selfId) return null;
+    const rawUserId = raw.userId ?? raw.user?.id;
+    if (rawUserId == null) return null;
+    if (String(selfId) !== String(rawUserId)) return null;
+    return {
+      coverImageUrl: localStorage.getItem("moe_artisan_cover_url") || "",
+      storeImageUrl: localStorage.getItem("moe_artisan_store_url") || "",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const normalizeProvider = (raw: Record<string, any>): Provider => {
+  const selfFallback = getSelfArtisanFallback(raw);
+  return {
+    ...(raw as Provider),
+    brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
+    about: raw.about ?? raw.description ?? raw.bio ?? "",
+    heroImage:
+      raw.coverImageUrl ??
+      raw.heroImage ??
+      raw.storeImageUrl ??
+      (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
+      selfFallback?.coverImageUrl ??
+      selfFallback?.storeImageUrl ??
+      "",
+    city: raw.city ?? "",
+    state: raw.state ?? "",
+    category: raw.category ?? "",
+    styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
+    rating: typeof raw.rating === "number" ? raw.rating : 0,
+    reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+  };
+};
 
 export const providersService = {
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {

@@ -178,6 +178,9 @@ const ArtisanDashboard = () => {
         try {
           const result = await artisanService.uploadStoreImage(storeImageFile);
           storeImageUrl = result.url;
+          // Stash so the artisan's own provider card/page can hydrate even
+          // if the public endpoint doesn't echo storeImageUrl yet.
+          localStorage.setItem("moe_artisan_store_url", storeImageUrl);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Store image upload failed";
           setStoreImageError(msg);
