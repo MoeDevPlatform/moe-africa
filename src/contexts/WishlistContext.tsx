@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { wishlistService } from "@/lib/apiServices";
+import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
 
 export interface WishlistItem {
   productId: number;
   productName: string;
   providerId: number;
   providerName: string;
-  priceRange: { min: number; max: number };
+  /** Unified single price. Null when backend has not yet returned a price. */
+  price: number | null;
   currency: string;
   category: string;
   imageUrl: string;
@@ -31,7 +32,21 @@ const STORAGE_KEY = "wishlist";
 function readLocal(): WishlistItem[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    const parsed = JSON.parse(saved) as Array<Partial<WishlistItem> & { priceRange?: { min: number } }>;
+    // Backwards-compat: legacy localStorage items had `priceRange.min` — promote to `price`.
+    return parsed.map((it) => ({
+      productId: Number(it.productId ?? 0),
+      productName: String(it.productName ?? ""),
+      providerId: Number(it.providerId ?? 0),
+      providerName: String(it.providerName ?? ""),
+      price: it.price ?? it.priceRange?.min ?? null,
+      currency: String(it.currency ?? "NGN"),
+      category: String(it.category ?? ""),
+      imageUrl: String(it.imageUrl ?? "/placeholder.svg"),
+      styleTags: Array.isArray(it.styleTags) ? it.styleTags : [],
+      addedAt: it.addedAt ? new Date(it.addedAt as unknown as string) : new Date(),
+    }));
   } catch {
     return [];
   }
@@ -45,12 +60,44 @@ function isAuthenticated() {
   return !!localStorage.getItem("moe_access_token");
 }
 
+/**
+ * COMPAT SHIM: backend may still return `priceRange` or `priceMin/priceMax`
+ * instead of the agreed `price` field. Map all shapes safely so the rest of
+ * the app only ever reads `item.price`. Logged in backend_MoeV1.md.
+ */
+function mapApiItem(i: WishlistItemApi): WishlistItem {
+  const price =
+    typeof i.price === "number"
+      ? i.price
+      : typeof i.priceMin === "number"
+      ? i.priceMin
+      : i.priceRange?.min ?? null;
+
+  return {
+    productId: i.productId,
+    productName: i.productName,
+    providerId: i.providerId,
+    providerName: i.providerName,
+    price,
+    currency: i.currency,
+    category: i.category,
+    imageUrl: i.imageUrl,
+    styleTags: i.styleTags || [],
+    addedAt: new Date(i.addedAt),
+  };
+}
+
 export const WishlistProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<WishlistItem[]>(readLocal);
+  // For unauthenticated users we hydrate from localStorage; for authenticated
+  // users the API is the source of truth and we wait for it.
+  const [items, setItems] = useState<WishlistItem[]>(() =>
+    isAuthenticated() ? [] : readLocal(),
+  );
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    writeLocal(items);
+    // Only persist locally for guests; authed users persist via the API.
+    if (!isAuthenticated()) writeLocal(items);
   }, [items]);
 
   // Sync from backend on mount if authenticated
@@ -60,23 +107,13 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     wishlistService
       .list()
       .then((res) => {
-        if (res.data && res.data.length > 0) {
-          const mapped: WishlistItem[] = res.data.map((i) => ({
-            productId: i.productId,
-            productName: i.productName,
-            providerId: i.providerId,
-            providerName: i.providerName,
-            priceRange: { min: i.priceMin, max: i.priceMax },
-            currency: i.currency,
-            category: i.category,
-            imageUrl: i.imageUrl,
-            styleTags: i.styleTags || [],
-            addedAt: new Date(i.addedAt),
-          }));
-          setItems(mapped);
+        if (res?.data) {
+          setItems(res.data.map(mapApiItem));
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Silent — user just sees an empty wishlist if the API is down.
+      })
       .finally(() => setIsSyncing(false));
   }, []);
 
@@ -95,7 +132,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
   const isInWishlist = useCallback(
     (productId: number) => items.some((item) => item.productId === productId),
-    [items]
+    [items],
   );
 
   const clearWishlist = useCallback(() => {

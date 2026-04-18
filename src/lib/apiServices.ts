@@ -119,7 +119,13 @@ export interface ArtisanProfile {
   businessName: string;
   description: string;
   category: string;
-  location: string;
+  // Structured location (preferred). `location` kept for backward-compat reads only.
+  country?: string;
+  state?: string;
+  city?: string;
+  address?: string;
+  location?: string;
+  storeImageUrl?: string;
   images: string[];
   rating: number;
   verified: boolean;
@@ -127,9 +133,23 @@ export interface ArtisanProfile {
   createdAt: string;
 }
 
+async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const base = (import.meta.env?.VITE_API_BASE_URL ??
+    import.meta.env?.VITE_MOE_API_BASE_URL ??
+    "http://localhost:3000") as string;
+  const token = localStorage.getItem("moe_access_token");
+  return fetch(`${base}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+}
+
 export const artisanService = {
   getMyProfile: () => apiGet<ArtisanProfile>("/artisans/me"),
-  updateProfile: (data: Partial<ArtisanProfile>) =>
+  updateProfile: (data: Partial<ArtisanProfile> & Record<string, unknown>) =>
     apiPatch<ArtisanProfile>("/artisans/me", data),
   getMyProducts: (page = 1, pageSize = 20) =>
     apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
@@ -142,20 +162,18 @@ export const artisanService = {
     apiPatch<Product>(`/artisans/me/products/${id}`, data),
   deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
   uploadProductImage: async (file: File): Promise<{ url: string }> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const base = (import.meta.env?.VITE_API_BASE_URL ??
-      import.meta.env?.VITE_MOE_API_BASE_URL ??
-      "http://localhost:3000") as string;
-    const token = localStorage.getItem("moe_access_token");
-    const res = await fetch(`${base}/artisans/me/products/upload-image`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    const res = await uploadFileWithAuth("/artisans/me/products/upload-image", file);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Image upload failed", res.status);
+    }
+    return (await res.json()) as { url: string };
+  },
+  uploadStoreImage: async (file: File): Promise<{ url: string }> => {
+    const res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Store image upload failed", res.status);
     }
     return (await res.json()) as { url: string };
   },
@@ -510,20 +528,71 @@ export interface CreateOrderRequest {
   currency: string;
 }
 
+/**
+ * Service-layer mapper: normalises any backend Order shape mismatch into our
+ * canonical `Order` interface. Keep all defensive normalisation here so UI
+ * components never have to.
+ *
+ * Known/expected backend shape variations (logged in backend_MoeV1.md):
+ *   - `productName` may arrive as `product.name`
+ *   - `providerName` may arrive as `provider.name` or `provider.businessName`
+ *   - `productImage` may arrive as `product.images[0]`
+ *   - `price` may arrive as `totalAmount` or `finalPrice`
+ */
+function normalizeOrder(raw: Record<string, unknown>): Order {
+  const r = raw as Record<string, unknown> & {
+    product?: { name?: string; images?: string[] };
+    provider?: { name?: string; businessName?: string };
+  };
+  return {
+    id: String(r.id ?? ""),
+    customerId: Number(r.customerId ?? 0),
+    productId: Number(r.productId ?? 0),
+    productName: (r.productName as string) ?? r.product?.name ?? "Unknown product",
+    productImage:
+      (r.productImage as string) ?? r.product?.images?.[0] ?? "/placeholder.svg",
+    providerId: Number(r.providerId ?? 0),
+    providerName:
+      (r.providerName as string) ??
+      r.provider?.name ??
+      r.provider?.businessName ??
+      "Unknown artisan",
+    customizationId: r.customizationId as number | undefined,
+    isCustomOrder: Boolean(r.isCustomOrder ?? false),
+    status: (r.status as Order["status"]) ?? "pending",
+    price: Number(r.price ?? r.totalAmount ?? r.finalPrice ?? 0),
+    currency: (r.currency as string) ?? "NGN",
+    shippingAddress: (r.shippingAddress as ShippingAddress) ?? {
+      firstName: "", lastName: "", phone: "",
+      addressLine1: "", city: "", state: "", country: "",
+    },
+    paymentMethod: (r.paymentMethod as Order["paymentMethod"]) ?? "bank_transfer",
+    paymentReference: r.paymentReference as string | undefined,
+    paymentStatus: (r.paymentStatus as Order["paymentStatus"]) ?? "unpaid",
+    createdAt: (r.createdAt as string) ?? new Date().toISOString(),
+    updatedAt: (r.updatedAt as string) ?? new Date().toISOString(),
+  };
+}
+
 export const ordersService = {
   list: async (params?: {
     status?: string;
     isCustomOrder?: boolean;
     page?: number;
     pageSize?: number;
-  }) => {
-    return apiGet<PaginatedResponse<Order>>(
+  }): Promise<PaginatedResponse<Order>> => {
+    const res = await apiGet<PaginatedResponse<Record<string, unknown>>>(
       "/orders",
       params as Record<string, unknown>,
     );
+    return {
+      ...res,
+      data: (res.data ?? []).map(normalizeOrder),
+    };
   },
-  getById: async (id: string) => {
-    return apiGet<Order>(`/orders/${id}`);
+  getById: async (id: string): Promise<Order> => {
+    const raw = await apiGet<Record<string, unknown>>(`/orders/${id}`);
+    return normalizeOrder(raw);
   },
   create: async (data: CreateOrderRequest) => {
     return apiPost<Order>("/orders", data);
@@ -690,8 +759,11 @@ export interface WishlistItemApi {
   productName: string;
   providerId: number;
   providerName: string;
-  priceMin: number;
-  priceMax: number;
+  // Preferred single price; legacy priceMin/priceMax kept for backward-compat with older backend payloads.
+  price?: number;
+  priceMin?: number;
+  priceMax?: number;
+  priceRange?: { min: number; max: number };
   currency: string;
   category: string;
   imageUrl: string;
@@ -860,4 +932,46 @@ export const searchService = {
       };
     }
   },
+};
+
+// ─── Payment Methods ──────────────────────────────────────
+//
+// IMPORTANT: never POST raw card numbers (PAN) or CVV to the backend. Frontend
+// stores only tokenised/safe metadata. In production, integrate Paystack or
+// Stripe tokenisation and forward only the resulting token + safe metadata.
+
+export interface PaymentMethodApi {
+  id: string;
+  brand: string; // "VISA" | "Mastercard" | etc.
+  last4: string;
+  expiry: string; // "MM/YY"
+  cardholderName: string;
+  billingAddressId?: string;
+  isDefault: boolean;
+  createdAt?: string;
+}
+
+export const paymentMethodsService = {
+  list: async (): Promise<PaymentMethodApi[]> => {
+    try {
+      const res = await apiGet<{ data: PaymentMethodApi[] }>(
+        "/customers/me/payment-methods",
+      );
+      return res.data ?? [];
+    } catch {
+      return [];
+    }
+  },
+  create: (data: Omit<PaymentMethodApi, "id" | "isDefault" | "createdAt">) =>
+    apiPost<PaymentMethodApi>("/customers/me/payment-methods", data),
+  // Single-resource delete by ID. NEVER call this without a specific ID — there
+  // is no blanket-collection delete endpoint by design.
+  remove: (id: string) => {
+    if (!id) {
+      throw new Error("paymentMethodsService.remove requires an ID");
+    }
+    return apiDelete(`/customers/me/payment-methods/${id}`);
+  },
+  setDefault: (id: string) =>
+    apiPatch<PaymentMethodApi>(`/customers/me/payment-methods/${id}/default`),
 };

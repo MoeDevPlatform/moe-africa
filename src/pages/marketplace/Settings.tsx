@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { authService, addressesService, artisanService, type AddressApi } from "@/lib/apiServices";
+import { authService, addressesService, artisanService, paymentMethodsService, type AddressApi, type PaymentMethodApi } from "@/lib/apiServices";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -34,17 +35,14 @@ interface Address {
 }
 
 interface PaymentMethod {
-  id: number;
-  type: string;
+  id: string;
+  brand: string;
   last4: string;
   expiry: string;
+  cardholderName: string;
+  billingAddressId?: string;
   isDefault: boolean;
 }
-
-// ─── Initial state ───────────────────────────────────────────────────────────
-const initialPayments: PaymentMethod[] = [
-  { id: 1, type: "VISA", last4: "4242", expiry: "12/25", isDefault: true },
-];
 
 // ─── Address Modal ────────────────────────────────────────────────────────────
 interface AddressModalProps {
@@ -58,25 +56,37 @@ interface AddressModalProps {
 const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModalProps) => {
   const [form, setForm] = useState({
     label: address?.label ?? "",
-    street: address?.street ?? "",
-    city: address?.city ?? "",
+    country: address?.country ?? "",
     state: address?.state ?? "",
-    country: address?.country ?? "Nigeria",
+    city: address?.city ?? "",
+    street: address?.street ?? "",
   });
+  const [error, setError] = useState("");
 
-  // sync when address changes (edit vs add)
   useEffect(() => {
     setForm({
       label: address?.label ?? "",
-      street: address?.street ?? "",
-      city: address?.city ?? "",
+      country: address?.country ?? "",
       state: address?.state ?? "",
-      country: address?.country ?? "Nigeria",
+      city: address?.city ?? "",
+      street: address?.street ?? "",
     });
-  }, [address]);
+    setError("");
+  }, [address, open]);
+
+  const availableStates = (() => {
+    if (!form.country) return [];
+    const c = countries.find((x) => x.name === form.country);
+    return c ? getStatesByCountry(c.code) : [];
+  })();
 
   const handleSave = () => {
-    if (!form.label || !form.street || !form.city) return;
+    setError("");
+    if (!form.label.trim()) return setError("Label is required.");
+    if (!form.country) return setError("Country is required.");
+    if (!form.state) return setError("State is required.");
+    if (!form.city.trim()) return setError("City is required.");
+    if (!form.street.trim()) return setError("Street address is required.");
     onSave(form);
   };
 
@@ -91,28 +101,58 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
             <Label>Label (e.g. Home, Office)</Label>
             <Input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Home" />
           </div>
+
+          {/* Country → State → City → Street (cascading resets) */}
+          <div className="space-y-2">
+            <Label>Country</Label>
+            <Select
+              value={form.country}
+              onValueChange={(v) => setForm(f => ({ ...f, country: v, state: "", city: "" }))}
+            >
+              <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+              <SelectContent className="bg-card">
+                {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>State</Label>
+            <Select
+              value={form.state}
+              onValueChange={(v) => setForm(f => ({ ...f, state: v, city: "" }))}
+              disabled={!form.country}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={form.country ? "Select state" : "Select country first"} />
+              </SelectTrigger>
+              <SelectContent className="bg-card">
+                {availableStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>City</Label>
+            <Input
+              value={form.city}
+              onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+              placeholder="Lagos"
+              disabled={!form.state}
+            />
+          </div>
           <div className="space-y-2">
             <Label>Street Address</Label>
             <Input value={form.street} onChange={e => setForm(f => ({ ...f, street: e.target.value }))} placeholder="123 Main St" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>City</Label>
-              <Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Lagos" />
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
             </div>
-            <div className="space-y-2">
-              <Label>State</Label>
-              <Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} placeholder="Lagos" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Country</Label>
-            <Input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
-          </div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!form.label || !form.street || !form.city || isSaving}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Address"}
           </Button>
         </DialogFooter>
@@ -126,56 +166,162 @@ interface PaymentModalProps {
   open: boolean;
   payment?: PaymentMethod | null;
   onClose: () => void;
-  onSave: (data: Omit<PaymentMethod, "id" | "isDefault">) => void;
+  onSave: (data: { brand: string; last4: string; expiry: string; cardholderName: string; billingAddressId?: string }) => Promise<void>;
+  addresses: Address[];
 }
 
-const PaymentModal = ({ open, payment, onClose, onSave }: PaymentModalProps) => {
-  const [form, setForm] = useState({
-    type: payment?.type ?? "VISA",
-    last4: payment?.last4 ?? "",
-    expiry: payment?.expiry ?? "",
-  });
+// Detect card brand from PAN prefix (lightweight — for display only).
+const detectBrand = (pan: string): string => {
+  const d = pan.replace(/\D/g, "");
+  if (/^4/.test(d)) return "VISA";
+  if (/^(5[1-5]|2[2-7])/.test(d)) return "Mastercard";
+  if (/^(34|37)/.test(d)) return "AMEX";
+  if (/^6/.test(d)) return "Discover";
+  return "CARD";
+};
 
-  const handleSave = () => {
-    if (!form.last4 || !form.expiry) return;
-    onSave(form);
-    onClose();
+const formatCardNumber = (raw: string) =>
+  raw.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
+
+const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModalProps) => {
+  const [cardholderName, setCardholderName] = useState(payment?.cardholderName ?? "");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardFocused, setCardFocused] = useState(false);
+  const [expiry, setExpiry] = useState(payment?.expiry ?? "");
+  const [cvv, setCvv] = useState("");
+  const [billingAddressId, setBillingAddressId] = useState<string>(
+    payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? "")
+  );
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setCardholderName(payment?.cardholderName ?? "");
+      setCardNumber(payment ? `•••• •••• •••• ${payment.last4}` : "");
+      setExpiry(payment?.expiry ?? "");
+      setCvv("");
+      setBillingAddressId(payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? ""));
+      setError("");
+      setCardFocused(false);
+    }
+  }, [open, payment, addresses]);
+
+  const digits = cardNumber.replace(/\D/g, "");
+  const last4 = digits.slice(-4);
+  const brand = detectBrand(digits);
+
+  const validateExpiry = (mmYY: string): boolean => {
+    const m = mmYY.match(/^(\d{2})\/(\d{2})$/);
+    if (!m) return false;
+    const month = Number(m[1]); const year = 2000 + Number(m[2]);
+    if (month < 1 || month > 12) return false;
+    const lastDay = new Date(year, month, 0);
+    return lastDay >= new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  };
+
+  const handleSave = async () => {
+    setError("");
+    if (!cardholderName.trim()) return setError("Cardholder name is required.");
+    if (digits.length !== 16) return setError("Card number must be 16 digits.");
+    if (!validateExpiry(expiry)) return setError("Expiry must be MM/YY and in the future.");
+    if (cvv.length < 3 || cvv.length > 4) return setError("CVV must be 3 or 4 digits.");
+
+    setIsSaving(true);
+    try {
+      // SECURITY: never send raw PAN/CVV. Forward only safe metadata.
+      // Production: swap this for Paystack/Stripe tokenisation first.
+      await onSave({ brand, last4, expiry, cardholderName: cardholderName.trim(), billingAddressId: billingAddressId || undefined });
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save payment method");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => !isSaving && !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{payment ? "Edit Payment Method" : "Add Payment Method"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Card Type</Label>
-            <Input value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="VISA / Mastercard" />
+            <Label>Cardholder Name</Label>
+            <Input value={cardholderName} onChange={e => setCardholderName(e.target.value)} placeholder="Jane Doe" />
           </div>
           <div className="space-y-2">
-            <Label>Last 4 Digits</Label>
+            <Label>Card Number</Label>
             <Input
-              value={form.last4}
-              onChange={e => setForm(f => ({ ...f, last4: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
-              placeholder="4242"
-              maxLength={4}
+              value={cardFocused ? formatCardNumber(digits) : (digits.length >= 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
+              onFocus={() => setCardFocused(true)}
+              onBlur={() => setCardFocused(false)}
+              onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+              placeholder="1234 5678 9012 3456"
+              inputMode="numeric"
+              autoComplete="cc-number"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Expiry (MM/YY)</Label>
+              <Input
+                value={expiry}
+                onChange={e => {
+                  let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  if (v.length > 2) v = `${v.slice(0,2)}/${v.slice(2)}`;
+                  setExpiry(v);
+                }}
+                placeholder="12/26"
+                maxLength={5}
+                inputMode="numeric"
+                autoComplete="cc-exp"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CVV</Label>
+              <Input
+                type="password"
+                value={cvv}
+                onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="•••"
+                maxLength={4}
+                inputMode="numeric"
+                autoComplete="cc-csc"
+              />
+            </div>
           </div>
           <div className="space-y-2">
-            <Label>Expiry (MM/YY)</Label>
-            <Input
-              value={form.expiry}
-              onChange={e => setForm(f => ({ ...f, expiry: e.target.value }))}
-              placeholder="12/26"
-              maxLength={5}
-            />
+            <Label>Billing Address</Label>
+            <Select value={billingAddressId} onValueChange={setBillingAddressId} disabled={addresses.length === 0}>
+              <SelectTrigger>
+                <SelectValue placeholder={addresses.length ? "Select billing address" : "Add an address first"} />
+              </SelectTrigger>
+              <SelectContent className="bg-card">
+                {addresses.map(a => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.label} — {a.city}, {a.country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
+            </div>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground px-1">Your payment information is securely stored and encrypted.</p>
+        <p className="text-xs text-muted-foreground px-1">
+          Your card details are tokenised and never stored on our servers in raw form.
+        </p>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={form.last4.length !== 4 || !form.expiry}>Save Card</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Card"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

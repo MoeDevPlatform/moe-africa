@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
@@ -12,12 +12,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
+
+const CATEGORIES = [
+  { value: "tailoring", label: "Tailoring" },
+  { value: "shoemaking", label: "Shoemaking" },
+  { value: "canvas", label: "Canvas & Painting" },
+  { value: "leatherwork", label: "Leatherwork" },
+  { value: "beauty", label: "Beauty" },
+  { value: "crafts", label: "Art & Crafts" },
+];
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
@@ -29,9 +43,30 @@ const ArtisanDashboard = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   const [editingProfile, setEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [businessForm, setBusinessForm] = useState({
-    businessName: "", description: "", category: "", location: "",
+    businessName: "",
+    description: "",
+    category: "",
+    country: "",
+    state: "",
+    city: "",
+    address: "",
   });
+
+  // Store image upload
+  const [storeImageFile, setStoreImageFile] = useState<File | null>(null);
+  const [storeImagePreview, setStoreImagePreview] = useState<string>("");
+  const [storeImageError, setStoreImageError] = useState("");
+  const [storeImageUploading, setStoreImageUploading] = useState(false);
+  const storeImageInputRef = useRef<HTMLInputElement>(null);
+
+  const availableStates = useMemo(() => {
+    if (!businessForm.country) return [];
+    const c = countries.find((x) => x.name === businessForm.country);
+    return c ? getStatesByCountry(c.code) : [];
+  }, [businessForm.country]);
 
   const loadProducts = () => {
     setIsLoadingProducts(true);
@@ -47,17 +82,28 @@ const ArtisanDashboard = () => {
       .getMyProfile()
       .then((p) => {
         setArtisanProfile(p);
-        setBusinessForm({ businessName: p.businessName, description: p.description, category: p.category, location: p.location });
+        setBusinessForm({
+          businessName: p.businessName ?? "",
+          description: p.description ?? "",
+          category: p.category ?? "",
+          country: p.country ?? "",
+          state: p.state ?? "",
+          city: p.city ?? "",
+          address: p.address ?? "",
+        });
       })
       .catch(() => {
         if (user) {
           const fallback: ArtisanProfile = {
             id: 0, userId: user.id, businessName: user.name + "'s Store",
-            description: "", category: "", location: "", images: [],
+            description: "", category: "", images: [],
             rating: 0, verified: false, featured: false, createdAt: new Date().toISOString(),
           };
           setArtisanProfile(fallback);
-          setBusinessForm({ businessName: fallback.businessName, description: "", category: "", location: "" });
+          setBusinessForm({
+            businessName: fallback.businessName,
+            description: "", category: "", country: "", state: "", city: "", address: "",
+          });
         }
       })
       .finally(() => setIsLoadingProfile(false));
@@ -65,14 +111,65 @@ const ArtisanDashboard = () => {
     loadProducts();
   }, [user]);
 
+  const handleStoreImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStoreImageError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setStoreImageError("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setStoreImageError("Image must be 5MB or smaller.");
+      return;
+    }
+    setStoreImageFile(file);
+    setStoreImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSaveProfile = async () => {
+    setProfileError("");
+
+    // Client-side validation BEFORE any API call
+    if (!businessForm.businessName.trim()) {
+      setProfileError("Business name is required.");
+      return;
+    }
+    if (!businessForm.category) {
+      setProfileError("Please select a category.");
+      return;
+    }
+
+    setIsSavingProfile(true);
     try {
-      // Only send fields that actually changed vs original profile
-      const delta: Record<string, string> = {};
+      // Upload store image first if a new one was selected
+      let storeImageUrl: string | undefined;
+      if (storeImageFile) {
+        setStoreImageUploading(true);
+        try {
+          const result = await artisanService.uploadStoreImage(storeImageFile);
+          storeImageUrl = result.url;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Store image upload failed";
+          setStoreImageError(msg);
+          setProfileError(msg);
+          return;
+        } finally {
+          setStoreImageUploading(false);
+        }
+      }
+
+      // Send STRUCTURED location fields separately — never concatenated.
+      // Backend gap: see backend_MoeV1.md for required DTO update.
+      const delta: Record<string, unknown> = {};
       if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
       if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
       if (businessForm.category !== (artisanProfile?.category ?? "")) delta.category = businessForm.category;
-      if (businessForm.location !== (artisanProfile?.location ?? "")) delta.location = businessForm.location;
+      if (businessForm.country !== (artisanProfile?.country ?? "")) delta.country = businessForm.country;
+      if (businessForm.state !== (artisanProfile?.state ?? "")) delta.state = businessForm.state;
+      if (businessForm.city !== (artisanProfile?.city ?? "")) delta.city = businessForm.city;
+      if (businessForm.address !== (artisanProfile?.address ?? "")) delta.address = businessForm.address;
+      if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
 
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
@@ -81,11 +178,16 @@ const ArtisanDashboard = () => {
 
       const updated = await artisanService.updateProfile(delta);
       setArtisanProfile(updated);
+      setStoreImageFile(null);
+      setStoreImagePreview("");
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update profile";
+      setProfileError(msg);
       toast.error(msg);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -249,35 +351,155 @@ const ArtisanDashboard = () => {
                 ) : editingProfile ? (
                   <>
                     <div className="space-y-2">
-                      <Label>Business Name</Label>
-                      <Input value={businessForm.businessName} onChange={(e) => setBusinessForm((p) => ({ ...p, businessName: e.target.value }))} />
+                      <Label>Business Name *</Label>
+                      <Input
+                        value={businessForm.businessName}
+                        onChange={(e) => setBusinessForm((p) => ({ ...p, businessName: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
-                      <Textarea value={businessForm.description} onChange={(e) => setBusinessForm((p) => ({ ...p, description: e.target.value }))} rows={4} />
+                      <Textarea
+                        value={businessForm.description}
+                        onChange={(e) => setBusinessForm((p) => ({ ...p, description: e.target.value }))}
+                        rows={4}
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Input value={businessForm.category} onChange={(e) => setBusinessForm((p) => ({ ...p, category: e.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Location</Label>
-                        <Input value={businessForm.location} onChange={(e) => setBusinessForm((p) => ({ ...p, location: e.target.value }))} />
-                      </div>
-                    </div>
+
+                    {/* Category — dropdown */}
                     <div className="space-y-2">
-                      <Label>Store Images</Label>
-                      <div className="flex gap-2 flex-wrap">
-                        {artisanProfile?.images?.map((img, i) => (
-                          <img key={i} src={img} alt={`Store image ${i + 1}`} className="h-20 w-20 object-cover rounded-lg border" />
-                        ))}
-                        <button className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary transition-colors">
-                          <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                        </button>
+                      <Label>Category *</Label>
+                      <Select
+                        value={businessForm.category}
+                        onValueChange={(v) => setBusinessForm((p) => ({ ...p, category: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your craft category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card">
+                          {CATEGORIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Structured location: Country → State → City → Address */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Country</Label>
+                        <Select
+                          value={businessForm.country}
+                          onValueChange={(v) =>
+                            // Cascading reset: clear State + City when Country changes
+                            setBusinessForm((p) => ({ ...p, country: v, state: "", city: "" }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card">
+                            {countries.map((c) => (
+                              <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>State</Label>
+                        <Select
+                          value={businessForm.state}
+                          onValueChange={(v) =>
+                            // Cascading reset: clear City when State changes
+                            setBusinessForm((p) => ({ ...p, state: v, city: "" }))
+                          }
+                          disabled={!businessForm.country}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={businessForm.country ? "Select state" : "Select country first"} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card">
+                            {availableStates.map((s) => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>City</Label>
+                        <Input
+                          value={businessForm.city}
+                          onChange={(e) => setBusinessForm((p) => ({ ...p, city: e.target.value }))}
+                          placeholder="e.g. Ikeja"
+                          disabled={!businessForm.state}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Street Address</Label>
+                        <Input
+                          value={businessForm.address}
+                          onChange={(e) => setBusinessForm((p) => ({ ...p, address: e.target.value }))}
+                          placeholder="123 Workshop Road"
+                        />
                       </div>
                     </div>
-                    <Button onClick={handleSaveProfile}>Save Changes</Button>
+
+                    {/* Store Image upload */}
+                    <div className="space-y-2">
+                      <Label>Store Image</Label>
+                      <input
+                        ref={storeImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleStoreImageSelect}
+                      />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {(storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]) && (
+                          <img
+                            src={storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]}
+                            alt="Store preview"
+                            className="h-20 w-20 object-cover rounded-lg border"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => storeImageInputRef.current?.click()}
+                          disabled={storeImageUploading}
+                        >
+                          {storeImageUploading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                          ) : (
+                            <><Upload className="h-4 w-4" /> {storeImagePreview ? "Change image" : "Upload image"}</>
+                          )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP — max 5MB</p>
+                      </div>
+                      {storeImageError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                          {storeImageError}
+                        </div>
+                      )}
+                    </div>
+
+                    {profileError && (
+                      <div className="flex items-center gap-2 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        {profileError}
+                      </div>
+                    )}
+
+                    <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+                      {isSavingProfile ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
                   </>
                 ) : (
                   <div className="space-y-4">
@@ -289,24 +511,31 @@ const ArtisanDashboard = () => {
                       <p className="text-sm text-muted-foreground">Description</p>
                       <p>{artisanProfile?.description || "No description"}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-medium">{artisanProfile?.category || "—"}</p>
+                        <p className="font-medium">
+                          {CATEGORIES.find((c) => c.value === artisanProfile?.category)?.label
+                            || artisanProfile?.category || "—"}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Location</p>
-                        <p className="font-medium">{artisanProfile?.location || "—"}</p>
+                        <p className="font-medium">
+                          {[artisanProfile?.address, artisanProfile?.city, artisanProfile?.state, artisanProfile?.country]
+                            .filter(Boolean).join(", ") || artisanProfile?.location || "—"}
+                        </p>
                       </div>
                     </div>
-                    {artisanProfile?.images && artisanProfile.images.length > 0 && (
+                    {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
                       <div>
-                        <p className="text-sm text-muted-foreground mb-2">Store Images</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {artisanProfile.images.map((img, i) => (
-                            <img key={i} src={img} alt={`Store image ${i + 1}`} className="h-20 w-20 object-cover rounded-lg border" />
-                          ))}
-                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">Store Image</p>
+                        <img
+                          src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
+                          alt="Store"
+                          className="h-24 w-24 object-cover rounded-lg border"
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                        />
                       </div>
                     )}
                   </div>

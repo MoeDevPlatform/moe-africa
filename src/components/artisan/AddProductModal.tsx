@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ImagePlus, X, Loader2, Upload, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ImagePlus, X, Loader2, AlertCircle, Lock } from "lucide-react";
 import { artisanService } from "@/lib/apiServices";
 import { toast } from "sonner";
 
@@ -32,28 +33,20 @@ const STYLE_SUGGESTIONS = [
   "Formal", "Elegant", "Handmade", "Custom Fit", "Wedding", "Corporate",
 ];
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_IMAGES = 5;
-
 const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
     category: "",
-    priceMin: "",
-    priceMax: "",
+    price: "",
     materials: "",
     estimatedDeliveryDays: "",
-    images: [] as string[],
     tags: [] as string[],
   });
   const [tagInput, setTagInput] = useState("");
-  const [uploadError, setUploadError] = useState("");
-  const [uploadingCount, setUploadingCount] = useState(0);
   const [submitError, setSubmitError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [validationError, setValidationError] = useState("");
 
   const updateForm = (field: string, value: string | string[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -69,84 +62,48 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
   const removeTag = (tag: string) =>
     updateForm("tags", form.tags.filter((t) => t !== tag));
 
-  const removeImage = (url: string) =>
-    updateForm("images", form.images.filter((i) => i !== url));
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadError("");
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const remaining = MAX_IMAGES - form.images.length;
-    if (remaining <= 0) {
-      setUploadError(`Maximum ${MAX_IMAGES} images allowed.`);
-      return;
-    }
-
-    const toUpload = files.slice(0, remaining);
-
-    for (const file of toUpload) {
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setUploadError(`"${file.name}" is not a valid image. Use JPEG, PNG, or WebP.`);
-        continue;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        setUploadError(`"${file.name}" exceeds 5MB limit.`);
-        continue;
-      }
-
-      setUploadingCount((c) => c + 1);
-      try {
-        const result = await artisanService.uploadProductImage(file);
-        setForm((prev) => ({
-          ...prev,
-          images: [...prev.images, result.url],
-        }));
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        setUploadError(`Failed to upload "${file.name}": ${msg}`);
-      } finally {
-        setUploadingCount((c) => c - 1);
-      }
-    }
-
-    // Reset file input so same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const validate = (): string => {
+    if (!form.name.trim()) return "Product name is required.";
+    if (!form.description.trim()) return "Description is required.";
+    if (!form.category) return "Please select a category.";
+    if (!form.price || Number(form.price) <= 0) return "Price must be greater than zero.";
+    return "";
   };
 
-  // Only name, description, category, priceMin, priceMax are required
-  const isValid =
-    form.name.trim() &&
-    form.description.trim() &&
-    form.category &&
-    form.priceMin &&
-    form.priceMax;
+  const isValid = !validate();
 
   const handleSubmit = async () => {
-    if (!isValid) return;
-    setIsSubmitting(true);
     setSubmitError("");
+    const v = validate();
+    if (v) {
+      setValidationError(v);
+      return;
+    }
+    setValidationError("");
+    setIsSubmitting(true);
+
+    // NOTE: `images` is intentionally STRIPPED from the payload until the
+    // backend accepts an `images` array. Keeping it would cause "property
+    // images should not exist" rejections. See backend_MoeV1.md.
     try {
       await artisanService.createProduct({
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        priceRange: {
-          min: Number(form.priceMin),
-          max: Number(form.priceMax),
-        },
+        price: Number(form.price),
         currency: "NGN",
         materials: form.materials.trim() || undefined,
         estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
-        images: form.images.length > 0 ? form.images : [],
-        tags: form.tags.length > 0 ? form.tags : [],
+        // Tags as comma-separated string for current backend.
+        // Backend gap: should accept string[]. See backend_MoeV1.md.
+        tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       });
       toast.success("Product added successfully!");
       onProductAdded();
       onOpenChange(false);
       setForm({
-        name: "", description: "", category: "", priceMin: "", priceMax: "",
-        materials: "", estimatedDeliveryDays: "", images: [], tags: [],
+        name: "", description: "", category: "", price: "",
+        materials: "", estimatedDeliveryDays: "", tags: [],
       });
       setSubmitError("");
     } catch (err: unknown) {
@@ -209,28 +166,17 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             </Select>
           </div>
 
-          {/* Price Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price-min">Min Price (₦) *</Label>
-              <Input
-                id="price-min"
-                type="number"
-                placeholder="e.g. 25000"
-                value={form.priceMin}
-                onChange={(e) => updateForm("priceMin", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price-max">Max Price (₦) *</Label>
-              <Input
-                id="price-max"
-                type="number"
-                placeholder="e.g. 45000"
-                value={form.priceMax}
-                onChange={(e) => updateForm("priceMax", e.target.value)}
-              />
-            </div>
+          {/* Price (single field) */}
+          <div className="space-y-2">
+            <Label htmlFor="price">Price (₦) *</Label>
+            <Input
+              id="price"
+              type="number"
+              min={1}
+              placeholder="e.g. 25000"
+              value={form.price}
+              onChange={(e) => updateForm("price", e.target.value)}
+            />
           </div>
 
           {/* Materials (optional) */}
@@ -296,66 +242,47 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             )}
           </div>
 
-          {/* Images — File Upload */}
+          {/* Images — DISABLED until backend accepts an `images` array.
+              Showing a clearly disabled control with a tooltip prevents users
+              from selecting files that would be silently dropped at submit.
+              See backend_MoeV1.md. */}
           <div className="space-y-2">
-            <Label>Product Images (max {MAX_IMAGES})</Label>
-            <div
-              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Click to upload images (JPEG, PNG, WebP — max 5MB each)
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {form.images.length}/{MAX_IMAGES} uploaded
-              </p>
-            </div>
-
-            {uploadingCount > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Uploading {uploadingCount} file{uploadingCount > 1 ? "s" : ""}…
-              </div>
-            )}
-
-            {uploadError && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {uploadError}
-              </div>
-            )}
-
-            {form.images.length > 0 && (
-              <div className="flex gap-2 flex-wrap mt-2">
-                {form.images.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={url}
-                      alt={`Product image ${i + 1}`}
-                      className="h-20 w-20 object-cover rounded-lg border"
-                      onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
-                    />
-                    <button
-                      onClick={() => removeImage(url)}
-                      className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+            <Label className="flex items-center gap-2">
+              Product Images
+              <Badge variant="secondary" className="text-xs gap-1">
+                <Lock className="h-3 w-3" /> Coming soon
+              </Badge>
+            </Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    aria-disabled="true"
+                    className="border-2 border-dashed rounded-lg p-4 text-center opacity-60 cursor-not-allowed select-none"
+                  >
+                    <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Image uploads will be available soon.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Save your product now and add images once support is enabled.
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Image upload is temporarily disabled while the backend is finalised.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
+
+        {validationError && (
+          <div className="flex items-center gap-2 text-sm text-destructive px-1">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {validationError}
+          </div>
+        )}
 
         {submitError && (
           <div className="flex items-center gap-2 text-sm text-destructive px-1">
