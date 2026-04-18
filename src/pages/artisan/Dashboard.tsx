@@ -328,7 +328,10 @@ const ArtisanDashboard = () => {
                           </p>
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Edit">
+                          <Button
+                            variant="ghost" size="icon" title="Edit"
+                            onClick={() => setEditingProduct(product)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
