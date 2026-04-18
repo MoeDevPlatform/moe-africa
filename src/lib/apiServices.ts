@@ -528,20 +528,71 @@ export interface CreateOrderRequest {
   currency: string;
 }
 
+/**
+ * Service-layer mapper: normalises any backend Order shape mismatch into our
+ * canonical `Order` interface. Keep all defensive normalisation here so UI
+ * components never have to.
+ *
+ * Known/expected backend shape variations (logged in backend_MoeV1.md):
+ *   - `productName` may arrive as `product.name`
+ *   - `providerName` may arrive as `provider.name` or `provider.businessName`
+ *   - `productImage` may arrive as `product.images[0]`
+ *   - `price` may arrive as `totalAmount` or `finalPrice`
+ */
+function normalizeOrder(raw: Record<string, unknown>): Order {
+  const r = raw as Record<string, unknown> & {
+    product?: { name?: string; images?: string[] };
+    provider?: { name?: string; businessName?: string };
+  };
+  return {
+    id: String(r.id ?? ""),
+    customerId: Number(r.customerId ?? 0),
+    productId: Number(r.productId ?? 0),
+    productName: (r.productName as string) ?? r.product?.name ?? "Unknown product",
+    productImage:
+      (r.productImage as string) ?? r.product?.images?.[0] ?? "/placeholder.svg",
+    providerId: Number(r.providerId ?? 0),
+    providerName:
+      (r.providerName as string) ??
+      r.provider?.name ??
+      r.provider?.businessName ??
+      "Unknown artisan",
+    customizationId: r.customizationId as number | undefined,
+    isCustomOrder: Boolean(r.isCustomOrder ?? false),
+    status: (r.status as Order["status"]) ?? "pending",
+    price: Number(r.price ?? r.totalAmount ?? r.finalPrice ?? 0),
+    currency: (r.currency as string) ?? "NGN",
+    shippingAddress: (r.shippingAddress as ShippingAddress) ?? {
+      firstName: "", lastName: "", phone: "",
+      addressLine1: "", city: "", state: "", country: "",
+    },
+    paymentMethod: (r.paymentMethod as Order["paymentMethod"]) ?? "bank_transfer",
+    paymentReference: r.paymentReference as string | undefined,
+    paymentStatus: (r.paymentStatus as Order["paymentStatus"]) ?? "unpaid",
+    createdAt: (r.createdAt as string) ?? new Date().toISOString(),
+    updatedAt: (r.updatedAt as string) ?? new Date().toISOString(),
+  };
+}
+
 export const ordersService = {
   list: async (params?: {
     status?: string;
     isCustomOrder?: boolean;
     page?: number;
     pageSize?: number;
-  }) => {
-    return apiGet<PaginatedResponse<Order>>(
+  }): Promise<PaginatedResponse<Order>> => {
+    const res = await apiGet<PaginatedResponse<Record<string, unknown>>>(
       "/orders",
       params as Record<string, unknown>,
     );
+    return {
+      ...res,
+      data: (res.data ?? []).map(normalizeOrder),
+    };
   },
-  getById: async (id: string) => {
-    return apiGet<Order>(`/orders/${id}`);
+  getById: async (id: string): Promise<Order> => {
+    const raw = await apiGet<Record<string, unknown>>(`/orders/${id}`);
+    return normalizeOrder(raw);
   },
   create: async (data: CreateOrderRequest) => {
     return apiPost<Order>("/orders", data);
