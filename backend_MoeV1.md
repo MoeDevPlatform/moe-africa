@@ -33,6 +33,8 @@ painful to migrate, filter, and search later.
 
 ## 2. Store Image Upload
 
+> 🔴 **STILL BROKEN** — confirmed not implemented. Frontend `POST /artisans/me/upload-image` returns `Cannot POST /artisans/me/upload-image`.
+
 **Endpoint:** `POST /artisans/me/upload-image` (multipart/form-data, field `file`)
 
 **Returns:** `{ "url": "https://..." }`
@@ -42,6 +44,8 @@ painful to migrate, filter, and search later.
 ---
 
 ## 3. Product DTO
+
+> ⚠️ **TEST IMMEDIATELY** — frontend now sends `images: string[]` ONLY when at least one image was uploaded. If empty, the field is **omitted entirely** from the payload (not sent as `[]`). Confirm `POST /artisans/me/products` accepts a payload with `images` omitted, otherwise text-only product submissions will fail when the upload endpoint is down.
 
 **Endpoint:** `POST /artisans/me/products` and `PATCH /artisans/me/products/:id`
 
@@ -61,6 +65,8 @@ painful to migrate, filter, and search later.
 ---
 
 ## 4. Wishlist
+
+> 🔴 **STILL BROKEN** — items do not persist across page refresh. The frontend correctly calls `GET/POST/DELETE /customers/me/wishlist`, but the backend appears to be using an in-memory store (Map) that is wiped on every request. **Remove the in-memory fallback and wire these endpoints to the database.**
 
 **Endpoints:**
 - `GET /customers/me/wishlist`
@@ -86,6 +92,8 @@ can be removed.
 
 ## 5. Addresses
 
+> 🔴 **POSSIBLY BROKEN** — user reports `Cannot POST /customers/me/address` (note: **singular**). The frontend uses the **correct plural** `/customers/me/addresses` (verified in `src/lib/apiServices.ts`). If the backend logs show a singular `/address` route, the **backend route is registered incorrectly** — fix the backend route to be plural.
+
 **Endpoints (all require auth):**
 - `GET /customers/me/addresses` → `{ data: AddressApi[] }`
 - `POST /customers/me/addresses`
@@ -102,6 +110,8 @@ can be removed.
 ---
 
 ## 6. Payment Methods
+
+> 🔴 **STILL BROKEN** — `POST /customers/me/payment-methods` returns `Cannot POST /customers/me/payment-methods`. The full payment-methods module needs to be implemented per the spec below.
 
 **Endpoints (all require auth):**
 - `GET /customers/me/payment-methods` → `{ data: PaymentMethodApi[] }`
