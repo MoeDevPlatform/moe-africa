@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -10,12 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ImagePlus, X, Loader2, AlertCircle } from "lucide-react";
 import { artisanService } from "@/lib/apiServices";
+import { Product } from "@/data/mockData";
 import { toast } from "sonner";
 
 interface AddProductModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProductAdded: () => void;
+  /** When provided, the modal opens in edit mode and PATCHes this product on submit. */
+  editProduct?: Product | null;
 }
 
 const CATEGORIES = [
@@ -42,7 +45,8 @@ interface UploadedImage {
   previewUrl: string;
 }
 
-const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModalProps) => {
+const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: AddProductModalProps) => {
+  const isEdit = !!editProduct;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +63,34 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  // Hydrate form when opening in edit mode (or reset when switching back to add).
+  useEffect(() => {
+    if (!open) return;
+    if (editProduct) {
+      setForm({
+        name: editProduct.name ?? "",
+        description: editProduct.description ?? "",
+        category: editProduct.category ?? "",
+        price: editProduct.priceRange?.min != null ? String(editProduct.priceRange.min) : "",
+        materials: (editProduct as unknown as { materials?: string }).materials ?? "",
+        estimatedDeliveryDays:
+          (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
+            ? String((editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays)
+            : "",
+        tags: Array.isArray(editProduct.tags) ? editProduct.tags : [],
+      });
+      setImages(
+        (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
+      );
+    } else {
+      setForm({ name: "", description: "", category: "", price: "", materials: "", estimatedDeliveryDays: "", tags: [] });
+      setImages([]);
+    }
+    setSubmitError("");
+    setValidationError("");
+    setImageError("");
+  }, [open, editProduct]);
 
   const updateForm = (field: string, value: string | string[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -165,11 +197,16 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
         payload.images = imageUrls;
       }
 
-      await artisanService.createProduct(payload);
-      toast.success("Product added successfully!");
+      if (isEdit && editProduct) {
+        await artisanService.updateProduct(editProduct.id, payload);
+        toast.success("Product updated successfully!");
+      } else {
+        await artisanService.createProduct(payload);
+        toast.success("Product added successfully!");
+      }
       onProductAdded();
       onOpenChange(false);
-      images.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl));
+      images.forEach((i) => i.previewUrl && i.previewUrl.startsWith("blob:") && URL.revokeObjectURL(i.previewUrl));
       setImages([]);
       setForm({
         name: "", description: "", category: "", price: "",
@@ -177,7 +214,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
       });
       setSubmitError("");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to add product. Please try again.";
+      const msg = err instanceof Error ? err.message : `Failed to ${isEdit ? "update" : "add"} product. Please try again.`;
       setSubmitError(msg);
       toast.error(msg);
     } finally {
@@ -189,9 +226,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
-            Fill in the product details below. Fields marked with * are required.
+            {isEdit ? "Update the product details below." : "Fill in the product details below."} Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -390,9 +427,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || isSubmitting || isUploading}>
             {isSubmitting ? (
-              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Adding...</>
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEdit ? "Saving..." : "Adding..."}</>
             ) : (
-              "Add Product"
+              isEdit ? "Save Changes" : "Add Product"
             )}
           </Button>
         </DialogFooter>

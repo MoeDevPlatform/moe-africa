@@ -394,13 +394,38 @@ async function fallbackProviders(
   };
 }
 
+// Normalize backend field aliases on a single provider record.
+// Backend may return businessName/description/storeImageUrl instead of
+// the canonical brandName/about/heroImage. Keep all tolerance here so
+// every consumer (cards, lists, detail page) renders consistently.
+const normalizeProvider = (raw: Record<string, any>): Provider => ({
+  ...(raw as Provider),
+  brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
+  about: raw.about ?? raw.description ?? raw.bio ?? "",
+  heroImage:
+    raw.heroImage ??
+    raw.storeImageUrl ??
+    (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
+    "",
+  city: raw.city ?? "",
+  state: raw.state ?? "",
+  category: raw.category ?? "",
+  styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
+  rating: typeof raw.rating === "number" ? raw.rating : 0,
+  reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+});
+
 export const providersService = {
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/service-providers/public-info",
         filters as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProviders(filters);
     }
@@ -410,22 +435,7 @@ export const providersService = {
     try {
       const raw = await apiGet<Record<string, any>>(`/service-providers/${id}/public-info`);
       if (!raw) return mockGetProviderById(id);
-      // Normalize backend field aliases — backend may return businessName/description/storeImageUrl
-      // instead of the canonical brandName/about/heroImage. Keep all tolerance here.
-      const normalized: Provider = {
-        ...(raw as Provider),
-        brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
-        about: raw.about ?? raw.description ?? raw.bio ?? "",
-        heroImage:
-          raw.heroImage ??
-          raw.storeImageUrl ??
-          (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
-          "",
-        city: raw.city ?? "",
-        state: raw.state ?? "",
-        category: raw.category ?? "",
-      };
-      return normalized;
+      return normalizeProvider(raw);
     } catch {
       return mockGetProviderById(id);
     }
@@ -433,11 +443,11 @@ export const providersService = {
 
   getByCategory: async (category: string): Promise<Provider[]> => {
     try {
-      const res = await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[] }>(
         "/service-providers/public-info",
         { category },
       );
-      return res.data;
+      return Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [];
     } catch {
       return mockGetProvidersByCategory(category);
     }
@@ -449,10 +459,14 @@ export const providersService = {
     budget?: number;
   }): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/service-providers/recommendations",
         params as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProviders();
     }
@@ -909,24 +923,34 @@ export interface AddressApi {
   isDefault: boolean;
 }
 
-// Backend DTO uses `addressLine1` and rejects `label` / `street`.
-// Translate at the service boundary so the rest of the app keeps the
-// friendlier { label, street } shape. Label is stashed in addressLine2
-// as `[label]` prefix so it survives a roundtrip until backend supports it.
+// Backend DTO accepts only `addressLine1`, `city`, `state`, `country`, `isDefault`.
+// It REJECTS `label`, `street`, and `addressLine2` ("property X should not exist").
+// We translate at the service boundary and stash the user's label client-side only
+// (in a localStorage map keyed by address id) so the friendlier { label, street }
+// shape survives until the backend supports it.
 interface BackendAddress {
   id: string;
   addressLine1: string;
-  addressLine2?: string;
   city: string;
   state: string;
   country: string;
   isDefault: boolean;
-  label?: string;
 }
 
-const toApi = (a: BackendAddress): AddressApi => ({
+const ADDRESS_LABELS_KEY = "moe_address_labels";
+const readLabels = (): Record<string, string> => {
+  try { return JSON.parse(localStorage.getItem(ADDRESS_LABELS_KEY) || "{}"); }
+  catch { return {}; }
+};
+const writeLabel = (id: string, label: string) => {
+  const all = readLabels();
+  all[id] = label;
+  try { localStorage.setItem(ADDRESS_LABELS_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+};
+
+const toApi = (a: BackendAddress, fallbackLabel?: string): AddressApi => ({
   id: a.id,
-  label: a.label ?? (a.addressLine2?.match(/^\[(.+?)\]/)?.[1] ?? "Address"),
+  label: readLabels()[a.id] ?? fallbackLabel ?? "Address",
   street: a.addressLine1,
   city: a.city,
   state: a.state,
@@ -937,11 +961,11 @@ const toApi = (a: BackendAddress): AddressApi => ({
 const toBackend = (data: Partial<Omit<AddressApi, "id">>) => {
   const out: Record<string, unknown> = {};
   if (data.street !== undefined) out.addressLine1 = data.street;
-  if (data.label !== undefined) out.addressLine2 = `[${data.label}]`;
   if (data.city !== undefined) out.city = data.city;
   if (data.state !== undefined) out.state = data.state;
   if (data.country !== undefined) out.country = data.country;
   if (data.isDefault !== undefined) out.isDefault = data.isDefault;
+  // NOTE: deliberately NOT sending `label` or `addressLine2` — backend rejects them.
   return out;
 };
 
@@ -952,18 +976,20 @@ export const addressesService = {
         "/customers/me/addresses",
       );
       const arr = Array.isArray(res) ? res : (res?.data ?? []);
-      return arr.map(toApi);
+      return arr.map((a) => toApi(a));
     } catch {
       return [];
     }
   },
   create: async (data: Omit<AddressApi, "id" | "isDefault">) => {
     const created = await apiPost<BackendAddress>("/customers/me/addresses", toBackend(data));
-    return toApi(created);
+    if (data.label) writeLabel(created.id, data.label);
+    return toApi(created, data.label);
   },
   update: async (id: string, data: Partial<Omit<AddressApi, "id">>) => {
     const updated = await apiPatch<BackendAddress>(`/customers/me/addresses/${id}`, toBackend(data));
-    return toApi(updated);
+    if (data.label) writeLabel(id, data.label);
+    return toApi(updated, data.label);
   },
   remove: (id: string) => apiDelete(`/customers/me/addresses/${id}`),
   setDefault: async (id: string) => {

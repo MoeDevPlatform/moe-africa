@@ -41,6 +41,7 @@ const ArtisanDashboard = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -327,7 +328,10 @@ const ArtisanDashboard = () => {
                           </p>
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" title="Edit">
+                          <Button
+                            variant="ghost" size="icon" title="Edit"
+                            onClick={() => setEditingProduct(product)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
@@ -574,6 +578,13 @@ const ArtisanDashboard = () => {
         open={showAddProduct}
         onOpenChange={setShowAddProduct}
         onProductAdded={loadProducts}
+      />
+
+      <AddProductModal
+        open={!!editingProduct}
+        onOpenChange={(o) => { if (!o) setEditingProduct(null); }}
+        onProductAdded={loadProducts}
+        editProduct={editingProduct}
       />
     </div>
   );
