@@ -78,7 +78,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
             ? String((editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays)
             : "",
-        tags: Array.isArray(editProduct.styleTags) ? editProduct.styleTags : [],
+        tags: Array.isArray(editProduct.tags) ? editProduct.tags : [],
       });
       setImages(
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
