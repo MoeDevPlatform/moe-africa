@@ -463,12 +463,11 @@ async function fallbackProviders(
 // return these fields (see backend_MoeV1.md).
 const getSelfArtisanFallback = (raw: Record<string, any>) => {
   try {
-    const rawUser = localStorage.getItem("moe_user");
-    if (!rawUser) return null;
-    const me = JSON.parse(rawUser) as { id?: number | string };
+    const selfId = localStorage.getItem("moe_self_user_id");
+    if (!selfId) return null;
     const rawUserId = raw.userId ?? raw.user?.id;
-    if (me?.id == null || rawUserId == null) return null;
-    if (String(me.id) !== String(rawUserId)) return null;
+    if (rawUserId == null) return null;
+    if (String(selfId) !== String(rawUserId)) return null;
     return {
       coverImageUrl: localStorage.getItem("moe_artisan_cover_url") || "",
       storeImageUrl: localStorage.getItem("moe_artisan_store_url") || "",
