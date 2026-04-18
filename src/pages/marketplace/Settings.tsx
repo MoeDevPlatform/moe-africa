@@ -459,7 +459,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving || !formValid}>
             {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Card"}
           </Button>
         </DialogFooter>
