@@ -644,11 +644,24 @@ const ArtisanDashboard = () => {
                     </div>
                     {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
                       <div>
+                    {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
+                      <div>
                         <p className="text-sm text-muted-foreground mb-2">Store Image</p>
                         <img
                           src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
                           alt="Store"
                           className="h-24 w-24 object-cover rounded-lg border"
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                        />
+                      </div>
+                    )}
+                    {artisanProfile?.coverImageUrl && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Cover / Banner Image</p>
+                        <img
+                          src={artisanProfile.coverImageUrl}
+                          alt="Cover"
+                          className="w-full max-w-2xl aspect-[16/5] object-cover rounded-lg border"
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
                         />
                       </div>
