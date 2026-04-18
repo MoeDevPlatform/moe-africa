@@ -56,12 +56,19 @@ const ArtisanDashboard = () => {
     address: "",
   });
 
-  // Store image upload
+  // Store image upload (small thumbnail)
   const [storeImageFile, setStoreImageFile] = useState<File | null>(null);
   const [storeImagePreview, setStoreImagePreview] = useState<string>("");
   const [storeImageError, setStoreImageError] = useState("");
   const [storeImageUploading, setStoreImageUploading] = useState(false);
   const storeImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Cover/banner image upload (provider page hero)
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string>("");
+  const [coverImageError, setCoverImageError] = useState("");
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
 
   const availableStates = useMemo(() => {
     if (!businessForm.country) return [];
