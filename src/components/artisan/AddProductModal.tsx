@@ -43,18 +43,14 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
     name: "",
     description: "",
     category: "",
-    priceMin: "",
-    priceMax: "",
+    price: "",
     materials: "",
     estimatedDeliveryDays: "",
-    images: [] as string[],
     tags: [] as string[],
   });
   const [tagInput, setTagInput] = useState("");
-  const [uploadError, setUploadError] = useState("");
-  const [uploadingCount, setUploadingCount] = useState(0);
   const [submitError, setSubmitError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [validationError, setValidationError] = useState("");
 
   const updateForm = (field: string, value: string | string[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -70,84 +66,48 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
   const removeTag = (tag: string) =>
     updateForm("tags", form.tags.filter((t) => t !== tag));
 
-  const removeImage = (url: string) =>
-    updateForm("images", form.images.filter((i) => i !== url));
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadError("");
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const remaining = MAX_IMAGES - form.images.length;
-    if (remaining <= 0) {
-      setUploadError(`Maximum ${MAX_IMAGES} images allowed.`);
-      return;
-    }
-
-    const toUpload = files.slice(0, remaining);
-
-    for (const file of toUpload) {
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setUploadError(`"${file.name}" is not a valid image. Use JPEG, PNG, or WebP.`);
-        continue;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        setUploadError(`"${file.name}" exceeds 5MB limit.`);
-        continue;
-      }
-
-      setUploadingCount((c) => c + 1);
-      try {
-        const result = await artisanService.uploadProductImage(file);
-        setForm((prev) => ({
-          ...prev,
-          images: [...prev.images, result.url],
-        }));
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        setUploadError(`Failed to upload "${file.name}": ${msg}`);
-      } finally {
-        setUploadingCount((c) => c - 1);
-      }
-    }
-
-    // Reset file input so same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const validate = (): string => {
+    if (!form.name.trim()) return "Product name is required.";
+    if (!form.description.trim()) return "Description is required.";
+    if (!form.category) return "Please select a category.";
+    if (!form.price || Number(form.price) <= 0) return "Price must be greater than zero.";
+    return "";
   };
 
-  // Only name, description, category, priceMin, priceMax are required
-  const isValid =
-    form.name.trim() &&
-    form.description.trim() &&
-    form.category &&
-    form.priceMin &&
-    form.priceMax;
+  const isValid = !validate();
 
   const handleSubmit = async () => {
-    if (!isValid) return;
-    setIsSubmitting(true);
     setSubmitError("");
+    const v = validate();
+    if (v) {
+      setValidationError(v);
+      return;
+    }
+    setValidationError("");
+    setIsSubmitting(true);
+
+    // NOTE: `images` is intentionally STRIPPED from the payload until the
+    // backend accepts an `images` array. Keeping it would cause "property
+    // images should not exist" rejections. See backend_MoeV1.md.
     try {
       await artisanService.createProduct({
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        priceRange: {
-          min: Number(form.priceMin),
-          max: Number(form.priceMax),
-        },
+        price: Number(form.price),
         currency: "NGN",
         materials: form.materials.trim() || undefined,
         estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
-        images: form.images.length > 0 ? form.images : [],
-        tags: form.tags.length > 0 ? form.tags : [],
+        // Tags as comma-separated string for current backend.
+        // Backend gap: should accept string[]. See backend_MoeV1.md.
+        tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       });
       toast.success("Product added successfully!");
       onProductAdded();
       onOpenChange(false);
       setForm({
-        name: "", description: "", category: "", priceMin: "", priceMax: "",
-        materials: "", estimatedDeliveryDays: "", images: [], tags: [],
+        name: "", description: "", category: "", price: "",
+        materials: "", estimatedDeliveryDays: "", tags: [],
       });
       setSubmitError("");
     } catch (err: unknown) {
