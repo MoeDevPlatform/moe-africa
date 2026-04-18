@@ -167,7 +167,12 @@ export const artisanService = {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Image upload failed", res.status);
     }
-    return (await res.json()) as { url: string };
+    const body = await res.json().catch(() => ({}));
+    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
+    if (typeof url !== "string" || !url) {
+      throw new MoeApiError("Image upload returned no URL", 500);
+    }
+    return { url };
   },
   uploadStoreImage: async (file: File): Promise<{ url: string }> => {
     const res = await uploadFileWithAuth("/artisans/me/upload-image", file);
@@ -175,7 +180,12 @@ export const artisanService = {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Store image upload failed", res.status);
     }
-    return (await res.json()) as { url: string };
+    const body = await res.json().catch(() => ({}));
+    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
+    if (typeof url !== "string" || !url) {
+      throw new MoeApiError("Store image upload returned no URL", 500);
+    }
+    return { url };
   },
 };
 
