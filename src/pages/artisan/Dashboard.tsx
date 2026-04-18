@@ -556,7 +556,50 @@ const ArtisanDashboard = () => {
                       )}
                     </div>
 
-                    {profileError && (
+                    {/* Cover / Banner Image upload — shows on the public provider page hero */}
+                    <div className="space-y-2">
+                      <Label>Cover / Banner Image</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Wide image displayed as the background of your public storefront page. Recommended 1600×500.
+                      </p>
+                      <input
+                        ref={coverImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleCoverImageSelect}
+                      />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {(coverImagePreview || artisanProfile?.coverImageUrl) && (
+                          <img
+                            src={coverImagePreview || artisanProfile?.coverImageUrl}
+                            alt="Cover preview"
+                            className="h-20 w-40 object-cover rounded-lg border"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => coverImageInputRef.current?.click()}
+                          disabled={coverImageUploading}
+                        >
+                          {coverImageUploading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                          ) : (
+                            <><Upload className="h-4 w-4" /> {(coverImagePreview || artisanProfile?.coverImageUrl) ? "Change cover" : "Upload cover"}</>
+                          )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP — max 5MB</p>
+                      </div>
+                      {coverImageError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                          {coverImageError}
+                        </div>
+                      )}
+                    </div>
                       <div className="flex items-center gap-2 text-sm text-destructive">
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         {profileError}
