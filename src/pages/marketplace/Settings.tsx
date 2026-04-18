@@ -252,15 +252,48 @@ interface PaymentModalProps {
   addresses: Address[];
 }
 
-// Detect card brand from PAN prefix (lightweight — for display only).
+// Detect card brand from PAN prefix.
+// IMPORTANT: order matters — specific prefixes must be checked BEFORE broader ones.
+// Order: Amex → Verve → Mastercard → Visa → Discover.
 const detectBrand = (pan: string): string => {
   const d = pan.replace(/\D/g, "");
-  if (/^4/.test(d)) return "VISA";
-  if (/^(5[1-5]|2[2-7])/.test(d)) return "Mastercard";
-  if (/^(34|37)/.test(d)) return "AMEX";
-  if (/^6/.test(d)) return "Discover";
-  return "CARD";
+  if (!d) return "";
+  // 1. Amex (15 digits): 34, 37
+  if (/^3[47]/.test(d)) return "AMEX";
+  // 2. Verve (16 digits): 5061, 6500 — must be checked before Mastercard (5x) / Discover (6x)
+  if (/^(5061|6500)/.test(d)) return "Verve";
+  // 3. Mastercard (16 digits): 51-55, 2221-2720
+  if (/^5[1-5]/.test(d)) return "Mastercard";
+  if (/^2(2(2[1-9]|[3-9]\d)|[3-6]\d{2}|7([01]\d|20))/.test(d)) return "Mastercard";
+  // 4. Visa (16 digits in our enforced range): 4
+  if (/^4/.test(d)) return "Visa";
+  // 5. Discover (16 digits): 6011, 65
+  if (/^(6011|65)/.test(d)) return "Discover";
+  return "Unknown";
 };
+
+// Luhn check (mod-10).
+const luhnCheck = (digits: string): boolean => {
+  if (!/^\d+$/.test(digits)) return false;
+  let sum = 0;
+  let alt = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = Number(digits[i]);
+    if (alt) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+};
+
+const expectedLength = (brand: string): number =>
+  brand === "AMEX" ? 15 : 16;
+
+const expectedCvvLength = (brand: string): number =>
+  brand === "AMEX" ? 4 : 3;
 
 const formatCardNumber = (raw: string) =>
   raw.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
@@ -292,6 +325,8 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const digits = cardNumber.replace(/\D/g, "");
   const last4 = digits.slice(-4);
   const brand = detectBrand(digits);
+  const targetLen = expectedLength(brand);
+  const targetCvv = expectedCvvLength(brand);
 
   const validateExpiry = (mmYY: string): boolean => {
     const m = mmYY.match(/^(\d{2})\/(\d{2})$/);
@@ -302,17 +337,27 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
     return lastDay >= new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   };
 
+  const nameValid = /^[A-Za-z\s'-]+$/.test(cardholderName.trim()) && cardholderName.trim().length > 0;
+  const lengthValid = digits.length === targetLen;
+  const luhnValid = lengthValid && luhnCheck(digits);
+  const expiryValid = validateExpiry(expiry);
+  const cvvValid = cvv.length === targetCvv;
+  const formValid = nameValid && luhnValid && expiryValid && cvvValid;
+
   const handleSave = async () => {
     setError("");
     if (!cardholderName.trim()) return setError("Cardholder name is required.");
-    if (digits.length !== 16) return setError("Card number must be 16 digits.");
-    if (!validateExpiry(expiry)) return setError("Expiry must be MM/YY and in the future.");
-    if (cvv.length < 3 || cvv.length > 4) return setError("CVV must be 3 or 4 digits.");
+    if (!nameValid) return setError("Cardholder name may contain letters, spaces, apostrophes and hyphens only.");
+    if (digits.length === 0) return setError("Card number is required.");
+    if (!lengthValid) return setError("Card number must be 15 (Amex) or 16 digits.");
+    if (!luhnValid) return setError("Invalid card number.");
+    if (!expiryValid) return setError(/^\d{2}\/\d{2}$/.test(expiry) ? "Card has expired." : "Expiry must be MM/YY.");
+    if (!cvvValid) return setError(`CVV must be ${targetCvv} digits.`);
 
     setIsSaving(true);
     try {
       // SECURITY: never send raw PAN/CVV. Forward only safe metadata.
-      // Production: swap this for Paystack/Stripe tokenisation first.
+      // Production: swap this for Paystack/Flutterwave tokenisation first.
       await onSave({ brand, last4, expiry, cardholderName: cardholderName.trim(), billingAddressId: billingAddressId || undefined });
       onClose();
     } catch (err: unknown) {
