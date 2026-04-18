@@ -177,7 +177,24 @@ const ArtisanDashboard = () => {
       }
 
       const updated = await artisanService.updateProfile(delta);
-      setArtisanProfile(updated);
+      // Merge instead of replace — backend PATCH may only echo changed fields,
+      // which would otherwise wipe storeImageUrl, images, description, etc.
+      const merged: ArtisanProfile = {
+        ...(artisanProfile as ArtisanProfile),
+        ...updated,
+        // Ensure local optimistic values survive if backend omits them
+        businessName: updated?.businessName ?? delta.businessName as string ?? artisanProfile?.businessName ?? "",
+        description: updated?.description ?? (delta.description as string | undefined) ?? artisanProfile?.description,
+        category: updated?.category ?? (delta.category as string | undefined) ?? artisanProfile?.category,
+        country: updated?.country ?? (delta.country as string | undefined) ?? artisanProfile?.country,
+        state: updated?.state ?? (delta.state as string | undefined) ?? artisanProfile?.state,
+        city: updated?.city ?? (delta.city as string | undefined) ?? artisanProfile?.city,
+        address: updated?.address ?? (delta.address as string | undefined) ?? artisanProfile?.address,
+        storeImageUrl: updated?.storeImageUrl ?? storeImageUrl ?? artisanProfile?.storeImageUrl,
+      };
+      setArtisanProfile(merged);
+      // Refetch to guarantee canonical state — non-blocking
+      artisanService.getMyProfile().then(setArtisanProfile).catch(() => {});
       setStoreImageFile(null);
       setStoreImagePreview("");
       setEditingProfile(false);
