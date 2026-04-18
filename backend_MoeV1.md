@@ -164,6 +164,34 @@ when convenient so the mapper can be simplified.
 
 ---
 
+## 8. Public Provider Endpoint — field alignment
+
+> 🔴 **STILL BROKEN** — artisan business profile edits do not appear on the public provider page (`/marketplace/provider/:id`). The frontend now normalizes aliases as a temporary shim, but the backend should align field names.
+
+**Endpoint:** `GET /service-providers/:id/public-info`
+
+**Required fields (or accept aliases):**
+
+| Canonical (frontend expects) | Accepted aliases (currently shimmed) |
+|------------------------------|--------------------------------------|
+| `brandName`                  | `businessName`, `name`               |
+| `about`                      | `description`, `bio`                 |
+| `heroImage`                  | `storeImageUrl`, `images[0]`         |
+
+**Why:** the artisan-side `PATCH /artisans/me` saves `businessName` / `description` / `storeImageUrl`, but the public endpoint returns `brandName` / `about` / `heroImage`. Without alignment (or alias acceptance), edits silently fail to render on the public page. The frontend `providersService.getById` in `src/lib/apiServices.ts` currently maps these aliases — please pick one canonical form and return it consistently so the shim can be removed.
+
+---
+
+## 9. Missing `providerId` on `/artisans/me` response
+
+> 🔴 **UX BLOCKER — high priority.** The `/artisans/me` response does not include the artisan's public `providerId`.
+
+**User-facing consequence:** an artisan **cannot navigate from their own dashboard to their public profile page** to verify how their storefront looks to customers. They have no way to preview the result of their edits — a conversion-killer for artisan onboarding, since artisans abandon profile setup when they can't see how it looks to buyers.
+
+**Fix:** add `providerId: string` (the public service-provider ID) to the `/artisans/me` response payload so the dashboard can render a "Preview my storefront" button linking to `/marketplace/provider/{providerId}`.
+
+---
+
 ## Cross-cutting reminders
 
 - **Auth:** every endpoint above requires `Authorization: Bearer <token>`.

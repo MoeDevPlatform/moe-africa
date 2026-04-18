@@ -94,11 +94,16 @@ const ProviderDetail = () => {
       <main>
         {/* Hero Banner */}
         <section className="relative h-80 bg-gradient-hero">
-          <img 
-            src={provider.heroImage} 
-            alt={provider.brandName}
-            className="w-full h-full object-cover"
-          />
+          {provider.heroImage && (
+            <img
+              src={provider.heroImage}
+              alt={provider.brandName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+              }}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
 
           {/* Back button overlay */}
@@ -181,7 +186,13 @@ const ProviderDetail = () => {
                 <TabsContent value="about" className="mt-6">
                   <div className="bg-card rounded-xl border p-6">
                     <h2 className="text-2xl font-display font-bold mb-4">About {provider.brandName}</h2>
-                    <p className="text-muted-foreground leading-relaxed">{provider.about}</p>
+                    {provider.about ? (
+                      <p className="text-muted-foreground leading-relaxed">{provider.about}</p>
+                    ) : (
+                      <p className="text-muted-foreground italic leading-relaxed">
+                        This artisan hasn't added a description yet.
+                      </p>
+                    )}
                   </div>
                 </TabsContent>
 

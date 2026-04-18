@@ -408,7 +408,24 @@ export const providersService = {
 
   getById: async (id: number): Promise<Provider | undefined> => {
     try {
-      return await apiGet<Provider>(`/service-providers/${id}/public-info`);
+      const raw = await apiGet<Record<string, any>>(`/service-providers/${id}/public-info`);
+      if (!raw) return mockGetProviderById(id);
+      // Normalize backend field aliases — backend may return businessName/description/storeImageUrl
+      // instead of the canonical brandName/about/heroImage. Keep all tolerance here.
+      const normalized: Provider = {
+        ...(raw as Provider),
+        brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
+        about: raw.about ?? raw.description ?? raw.bio ?? "",
+        heroImage:
+          raw.heroImage ??
+          raw.storeImageUrl ??
+          (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
+          "",
+        city: raw.city ?? "",
+        state: raw.state ?? "",
+        category: raw.category ?? "",
+      };
+      return normalized;
     } catch {
       return mockGetProviderById(id);
     }
