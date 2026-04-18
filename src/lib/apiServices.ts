@@ -933,3 +933,45 @@ export const searchService = {
     }
   },
 };
+
+// ─── Payment Methods ──────────────────────────────────────
+//
+// IMPORTANT: never POST raw card numbers (PAN) or CVV to the backend. Frontend
+// stores only tokenised/safe metadata. In production, integrate Paystack or
+// Stripe tokenisation and forward only the resulting token + safe metadata.
+
+export interface PaymentMethodApi {
+  id: string;
+  brand: string; // "VISA" | "Mastercard" | etc.
+  last4: string;
+  expiry: string; // "MM/YY"
+  cardholderName: string;
+  billingAddressId?: string;
+  isDefault: boolean;
+  createdAt?: string;
+}
+
+export const paymentMethodsService = {
+  list: async (): Promise<PaymentMethodApi[]> => {
+    try {
+      const res = await apiGet<{ data: PaymentMethodApi[] }>(
+        "/customers/me/payment-methods",
+      );
+      return res.data ?? [];
+    } catch {
+      return [];
+    }
+  },
+  create: (data: Omit<PaymentMethodApi, "id" | "isDefault" | "createdAt">) =>
+    apiPost<PaymentMethodApi>("/customers/me/payment-methods", data),
+  // Single-resource delete by ID. NEVER call this without a specific ID — there
+  // is no blanket-collection delete endpoint by design.
+  remove: (id: string) => {
+    if (!id) {
+      throw new Error("paymentMethodsService.remove requires an ID");
+    }
+    return apiDelete(`/customers/me/payment-methods/${id}`);
+  },
+  setDefault: (id: string) =>
+    apiPatch<PaymentMethodApi>(`/customers/me/payment-methods/${id}/default`),
+};
