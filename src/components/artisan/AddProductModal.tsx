@@ -246,66 +246,47 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             )}
           </div>
 
-          {/* Images — File Upload */}
+          {/* Images — DISABLED until backend accepts an `images` array.
+              Showing a clearly disabled control with a tooltip prevents users
+              from selecting files that would be silently dropped at submit.
+              See backend_MoeV1.md. */}
           <div className="space-y-2">
-            <Label>Product Images (max {MAX_IMAGES})</Label>
-            <div
-              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Click to upload images (JPEG, PNG, WebP — max 5MB each)
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {form.images.length}/{MAX_IMAGES} uploaded
-              </p>
-            </div>
-
-            {uploadingCount > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Uploading {uploadingCount} file{uploadingCount > 1 ? "s" : ""}…
-              </div>
-            )}
-
-            {uploadError && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {uploadError}
-              </div>
-            )}
-
-            {form.images.length > 0 && (
-              <div className="flex gap-2 flex-wrap mt-2">
-                {form.images.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={url}
-                      alt={`Product image ${i + 1}`}
-                      className="h-20 w-20 object-cover rounded-lg border"
-                      onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
-                    />
-                    <button
-                      onClick={() => removeImage(url)}
-                      className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+            <Label className="flex items-center gap-2">
+              Product Images
+              <Badge variant="secondary" className="text-xs gap-1">
+                <Lock className="h-3 w-3" /> Coming soon
+              </Badge>
+            </Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    aria-disabled="true"
+                    className="border-2 border-dashed rounded-lg p-4 text-center opacity-60 cursor-not-allowed select-none"
+                  >
+                    <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Image uploads will be available soon.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Save your product now and add images once support is enabled.
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Image upload is temporarily disabled while the backend is finalised.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
+
+        {validationError && (
+          <div className="flex items-center gap-2 text-sm text-destructive px-1">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {validationError}
+          </div>
+        )}
 
         {submitError && (
           <div className="flex items-center gap-2 text-sm text-destructive px-1">
