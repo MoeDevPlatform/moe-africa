@@ -1023,9 +1023,13 @@ const Settings = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {payments.length === 0 && (
+                {paymentsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : payments.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">No payment methods saved yet.</p>
-                )}
+                ) : null}
                 {payments.map((pm) => (
                   <div key={pm.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between gap-3">
