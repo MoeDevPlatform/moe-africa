@@ -394,13 +394,38 @@ async function fallbackProviders(
   };
 }
 
+// Normalize backend field aliases on a single provider record.
+// Backend may return businessName/description/storeImageUrl instead of
+// the canonical brandName/about/heroImage. Keep all tolerance here so
+// every consumer (cards, lists, detail page) renders consistently.
+const normalizeProvider = (raw: Record<string, any>): Provider => ({
+  ...(raw as Provider),
+  brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
+  about: raw.about ?? raw.description ?? raw.bio ?? "",
+  heroImage:
+    raw.heroImage ??
+    raw.storeImageUrl ??
+    (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
+    "",
+  city: raw.city ?? "",
+  state: raw.state ?? "",
+  category: raw.category ?? "",
+  styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
+  rating: typeof raw.rating === "number" ? raw.rating : 0,
+  reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+});
+
 export const providersService = {
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/service-providers/public-info",
         filters as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProviders(filters);
     }
