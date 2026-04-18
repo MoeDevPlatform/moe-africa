@@ -14,9 +14,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import {
   User, Shield, Bell, Settings as SettingsIcon, MapPin, CreditCard,
-  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2
+  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2, ChevronsUpDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,7 +52,7 @@ interface AddressModalProps {
   open: boolean;
   address?: Address | null;
   onClose: () => void;
-  onSave: (data: Omit<Address, "id" | "isDefault">) => void;
+  onSave: (data: Omit<Address, "id" | "isDefault">) => Promise<void>;
   isSaving?: boolean;
 }
 
@@ -62,6 +65,11 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
     street: address?.street ?? "",
   });
   const [error, setError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
+  // Tracking key forces internal Command search to reset on country change.
+  const [stateResetKey, setStateResetKey] = useState(0);
 
   useEffect(() => {
     setForm({
@@ -72,6 +80,8 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
       street: address?.street ?? "",
     });
     setError("");
+    setSaveError("");
+    setStateResetKey((k) => k + 1);
   }, [address, open]);
 
   const availableStates = (() => {
@@ -80,14 +90,26 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
     return c ? getStatesByCountry(c.code) : [];
   })();
 
-  const handleSave = () => {
+  const handleCountryChange = (v: string) => {
+    setForm((f) => ({ ...f, country: v, state: "", city: "" }));
+    setCountryOpen(false);
+    // Bump key so the State Command remounts with empty internal search input.
+    setStateResetKey((k) => k + 1);
+  };
+
+  const handleSave = async () => {
     setError("");
+    setSaveError("");
     if (!form.label.trim()) return setError("Label is required.");
     if (!form.country) return setError("Country is required.");
     if (!form.state) return setError("State is required.");
     if (!form.city.trim()) return setError("City is required.");
     if (!form.street.trim()) return setError("Street address is required.");
-    onSave(form);
+    try {
+      await onSave(form);
+    } catch {
+      setSaveError("Unable to save address — please try again or contact support.");
+    }
   };
 
   return (
@@ -96,40 +118,100 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
         <DialogHeader>
           <DialogTitle>{address ? "Edit Address" : "Add New Address"}</DialogTitle>
         </DialogHeader>
+
+        {saveError && (
+          <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>{saveError}</span>
+          </div>
+        )}
+
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Label (e.g. Home, Office)</Label>
             <Input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Home" />
           </div>
 
-          {/* Country → State → City → Street (cascading resets) */}
+          {/* Country — searchable Combobox */}
           <div className="space-y-2">
             <Label>Country</Label>
-            <Select
-              value={form.country}
-              onValueChange={(v) => setForm(f => ({ ...f, country: v, state: "", city: "" }))}
-            >
-              <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
-              <SelectContent className="bg-card">
-                {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={countryOpen}
+                  className={cn("w-full justify-between font-normal", !form.country && "text-muted-foreground")}
+                >
+                  {form.country || "Select country"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover" align="start">
+                <Command>
+                  <CommandInput placeholder="Search country…" />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {countries.map((c) => (
+                        <CommandItem
+                          key={c.code}
+                          value={c.name}
+                          onSelect={() => handleCountryChange(c.name)}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", form.country === c.name ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* State — searchable Combobox, key forces search reset on country change */}
           <div className="space-y-2">
             <Label>State</Label>
-            <Select
-              value={form.state}
-              onValueChange={(v) => setForm(f => ({ ...f, state: v, city: "" }))}
-              disabled={!form.country}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={form.country ? "Select state" : "Select country first"} />
-              </SelectTrigger>
-              <SelectContent className="bg-card">
-                {availableStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover open={stateOpen} onOpenChange={(o) => form.country && setStateOpen(o)}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={stateOpen}
+                  disabled={!form.country}
+                  className={cn("w-full justify-between font-normal", !form.state && "text-muted-foreground")}
+                >
+                  {form.state || (form.country ? "Select state" : "Select country first")}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover" align="start">
+                <Command key={stateResetKey}>
+                  <CommandInput placeholder="Search state…" />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>No state found.</CommandEmpty>
+                    <CommandGroup>
+                      {availableStates.map((s) => (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => {
+                            setForm((f) => ({ ...f, state: s, city: "" }));
+                            setStateOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", form.state === s ? "opacity-100" : "opacity-0")} />
+                          {s}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+
           <div className="space-y-2">
             <Label>City</Label>
             <Input
@@ -170,15 +252,48 @@ interface PaymentModalProps {
   addresses: Address[];
 }
 
-// Detect card brand from PAN prefix (lightweight — for display only).
+// Detect card brand from PAN prefix.
+// IMPORTANT: order matters — specific prefixes must be checked BEFORE broader ones.
+// Order: Amex → Verve → Mastercard → Visa → Discover.
 const detectBrand = (pan: string): string => {
   const d = pan.replace(/\D/g, "");
-  if (/^4/.test(d)) return "VISA";
-  if (/^(5[1-5]|2[2-7])/.test(d)) return "Mastercard";
-  if (/^(34|37)/.test(d)) return "AMEX";
-  if (/^6/.test(d)) return "Discover";
-  return "CARD";
+  if (!d) return "";
+  // 1. Amex (15 digits): 34, 37
+  if (/^3[47]/.test(d)) return "AMEX";
+  // 2. Verve (16 digits): 5061, 6500 — must be checked before Mastercard (5x) / Discover (6x)
+  if (/^(5061|6500)/.test(d)) return "Verve";
+  // 3. Mastercard (16 digits): 51-55, 2221-2720
+  if (/^5[1-5]/.test(d)) return "Mastercard";
+  if (/^2(2(2[1-9]|[3-9]\d)|[3-6]\d{2}|7([01]\d|20))/.test(d)) return "Mastercard";
+  // 4. Visa (16 digits in our enforced range): 4
+  if (/^4/.test(d)) return "Visa";
+  // 5. Discover (16 digits): 6011, 65
+  if (/^(6011|65)/.test(d)) return "Discover";
+  return "Unknown";
 };
+
+// Luhn check (mod-10).
+const luhnCheck = (digits: string): boolean => {
+  if (!/^\d+$/.test(digits)) return false;
+  let sum = 0;
+  let alt = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = Number(digits[i]);
+    if (alt) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+};
+
+const expectedLength = (brand: string): number =>
+  brand === "AMEX" ? 15 : 16;
+
+const expectedCvvLength = (brand: string): number =>
+  brand === "AMEX" ? 4 : 3;
 
 const formatCardNumber = (raw: string) =>
   raw.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
@@ -210,6 +325,8 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const digits = cardNumber.replace(/\D/g, "");
   const last4 = digits.slice(-4);
   const brand = detectBrand(digits);
+  const targetLen = expectedLength(brand);
+  const targetCvv = expectedCvvLength(brand);
 
   const validateExpiry = (mmYY: string): boolean => {
     const m = mmYY.match(/^(\d{2})\/(\d{2})$/);
@@ -220,17 +337,27 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
     return lastDay >= new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   };
 
+  const nameValid = /^[A-Za-z\s'-]+$/.test(cardholderName.trim()) && cardholderName.trim().length > 0;
+  const lengthValid = digits.length === targetLen;
+  const luhnValid = lengthValid && luhnCheck(digits);
+  const expiryValid = validateExpiry(expiry);
+  const cvvValid = cvv.length === targetCvv;
+  const formValid = nameValid && luhnValid && expiryValid && cvvValid;
+
   const handleSave = async () => {
     setError("");
     if (!cardholderName.trim()) return setError("Cardholder name is required.");
-    if (digits.length !== 16) return setError("Card number must be 16 digits.");
-    if (!validateExpiry(expiry)) return setError("Expiry must be MM/YY and in the future.");
-    if (cvv.length < 3 || cvv.length > 4) return setError("CVV must be 3 or 4 digits.");
+    if (!nameValid) return setError("Cardholder name may contain letters, spaces, apostrophes and hyphens only.");
+    if (digits.length === 0) return setError("Card number is required.");
+    if (!lengthValid) return setError("Card number must be 15 (Amex) or 16 digits.");
+    if (!luhnValid) return setError("Invalid card number.");
+    if (!expiryValid) return setError(/^\d{2}\/\d{2}$/.test(expiry) ? "Card has expired." : "Expiry must be MM/YY.");
+    if (!cvvValid) return setError(`CVV must be ${targetCvv} digits.`);
 
     setIsSaving(true);
     try {
       // SECURITY: never send raw PAN/CVV. Forward only safe metadata.
-      // Production: swap this for Paystack/Stripe tokenisation first.
+      // Production: swap this for Paystack/Flutterwave tokenisation first.
       await onSave({ brand, last4, expiry, cardholderName: cardholderName.trim(), billingAddressId: billingAddressId || undefined });
       onClose();
     } catch (err: unknown) {
@@ -252,7 +379,12 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
             <Input value={cardholderName} onChange={e => setCardholderName(e.target.value)} placeholder="Jane Doe" />
           </div>
           <div className="space-y-2">
-            <Label>Card Number</Label>
+            <div className="flex items-center justify-between">
+              <Label>Card Number</Label>
+              {brand && digits.length >= 2 && (
+                <Badge variant="secondary" className="text-xs">{brand}</Badge>
+              )}
+            </div>
             <Input
               value={cardFocused ? formatCardNumber(digits) : (digits.length >= 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
               onFocus={() => setCardFocused(true)}
@@ -262,6 +394,14 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               inputMode="numeric"
               autoComplete="cc-number"
             />
+            {digits.length > 0 && digits.length === targetLen && !luhnValid && (
+              <p className="text-xs text-destructive">Invalid card number.</p>
+            )}
+            {digits.length > 0 && digits.length !== targetLen && brand && brand !== "Unknown" && (
+              <p className="text-xs text-muted-foreground">
+                {brand === "AMEX" ? "Amex cards are 15 digits." : "Card number must be 16 digits."}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -280,13 +420,13 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               />
             </div>
             <div className="space-y-2">
-              <Label>CVV</Label>
+              <Label>CVV {brand === "AMEX" ? "(4 digits)" : "(3 digits)"}</Label>
               <Input
                 type="password"
                 value={cvv}
-                onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="•••"
-                maxLength={4}
+                onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, targetCvv))}
+                placeholder={brand === "AMEX" ? "••••" : "•••"}
+                maxLength={targetCvv}
                 inputMode="numeric"
                 autoComplete="cc-csc"
               />
@@ -319,7 +459,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving || !formValid}>
             {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Card"}
           </Button>
         </DialogFooter>
@@ -654,6 +794,8 @@ const Settings = () => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save address";
       toast({ title: "Error", description: msg, variant: "destructive" });
+      // Re-throw so the modal can render its inline banner per the spec.
+      throw err instanceof Error ? err : new Error(msg);
     } finally {
       setAddressSaving(false);
     }
