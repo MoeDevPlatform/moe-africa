@@ -149,9 +149,41 @@ async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
 }
 
 export const artisanService = {
-  getMyProfile: () => apiGet<ArtisanProfile>("/artisans/me"),
-  updateProfile: (data: Partial<ArtisanProfile> & Record<string, unknown>) =>
-    apiPatch<ArtisanProfile>("/artisans/me", data),
+  getMyProfile: async (): Promise<ArtisanProfile> => {
+    const p = await apiGet<ArtisanProfile>("/artisans/me");
+    // Restore locally-stashed coverImageUrl if the backend doesn't return it yet
+    if (p && !p.coverImageUrl) {
+      const stashed = localStorage.getItem("moe_artisan_cover_url");
+      if (stashed) p.coverImageUrl = stashed;
+    }
+    return p;
+  },
+  updateProfile: async (
+    data: Partial<ArtisanProfile> & Record<string, unknown>,
+  ): Promise<ArtisanProfile> => {
+    // Some backend DTOs reject unknown properties (whitelist). If `coverImageUrl`
+    // isn't supported yet, stash it client-side and retry without it so the
+    // rest of the profile still saves and the UI keeps showing the uploaded cover.
+    try {
+      return await apiPatch<ArtisanProfile>("/artisans/me", data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const rejectedCover =
+        "coverImageUrl" in data &&
+        /coverImageUrl/i.test(msg) &&
+        /should not exist|not allowed|whitelist|unexpected/i.test(msg);
+      if (!rejectedCover) throw err;
+
+      const cover = data.coverImageUrl as string | undefined;
+      if (typeof cover === "string" && cover) {
+        localStorage.setItem("moe_artisan_cover_url", cover);
+      }
+      const { coverImageUrl: _omit, ...rest } = data;
+      const result = await apiPatch<ArtisanProfile>("/artisans/me", rest);
+      if (result && cover) result.coverImageUrl = cover;
+      return result;
+    }
+  },
   getMyProducts: (page = 1, pageSize = 20) =>
     apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
       page,
