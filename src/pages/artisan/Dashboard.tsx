@@ -140,6 +140,22 @@ const ArtisanDashboard = () => {
     setStoreImagePreview(URL.createObjectURL(file));
   };
 
+  const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCoverImageError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setCoverImageError("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setCoverImageError("Image must be 5MB or smaller.");
+      return;
+    }
+    setCoverImageFile(file);
+    setCoverImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSaveProfile = async () => {
     setProfileError("");
 
