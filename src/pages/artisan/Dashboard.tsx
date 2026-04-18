@@ -351,35 +351,155 @@ const ArtisanDashboard = () => {
                 ) : editingProfile ? (
                   <>
                     <div className="space-y-2">
-                      <Label>Business Name</Label>
-                      <Input value={businessForm.businessName} onChange={(e) => setBusinessForm((p) => ({ ...p, businessName: e.target.value }))} />
+                      <Label>Business Name *</Label>
+                      <Input
+                        value={businessForm.businessName}
+                        onChange={(e) => setBusinessForm((p) => ({ ...p, businessName: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
-                      <Textarea value={businessForm.description} onChange={(e) => setBusinessForm((p) => ({ ...p, description: e.target.value }))} rows={4} />
+                      <Textarea
+                        value={businessForm.description}
+                        onChange={(e) => setBusinessForm((p) => ({ ...p, description: e.target.value }))}
+                        rows={4}
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Input value={businessForm.category} onChange={(e) => setBusinessForm((p) => ({ ...p, category: e.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Location</Label>
-                        <Input value={businessForm.location} onChange={(e) => setBusinessForm((p) => ({ ...p, location: e.target.value }))} />
-                      </div>
-                    </div>
+
+                    {/* Category — dropdown */}
                     <div className="space-y-2">
-                      <Label>Store Images</Label>
-                      <div className="flex gap-2 flex-wrap">
-                        {artisanProfile?.images?.map((img, i) => (
-                          <img key={i} src={img} alt={`Store image ${i + 1}`} className="h-20 w-20 object-cover rounded-lg border" />
-                        ))}
-                        <button className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary transition-colors">
-                          <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                        </button>
+                      <Label>Category *</Label>
+                      <Select
+                        value={businessForm.category}
+                        onValueChange={(v) => setBusinessForm((p) => ({ ...p, category: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your craft category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card">
+                          {CATEGORIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Structured location: Country → State → City → Address */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Country</Label>
+                        <Select
+                          value={businessForm.country}
+                          onValueChange={(v) =>
+                            // Cascading reset: clear State + City when Country changes
+                            setBusinessForm((p) => ({ ...p, country: v, state: "", city: "" }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card">
+                            {countries.map((c) => (
+                              <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>State</Label>
+                        <Select
+                          value={businessForm.state}
+                          onValueChange={(v) =>
+                            // Cascading reset: clear City when State changes
+                            setBusinessForm((p) => ({ ...p, state: v, city: "" }))
+                          }
+                          disabled={!businessForm.country}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={businessForm.country ? "Select state" : "Select country first"} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card">
+                            {availableStates.map((s) => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>City</Label>
+                        <Input
+                          value={businessForm.city}
+                          onChange={(e) => setBusinessForm((p) => ({ ...p, city: e.target.value }))}
+                          placeholder="e.g. Ikeja"
+                          disabled={!businessForm.state}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Street Address</Label>
+                        <Input
+                          value={businessForm.address}
+                          onChange={(e) => setBusinessForm((p) => ({ ...p, address: e.target.value }))}
+                          placeholder="123 Workshop Road"
+                        />
                       </div>
                     </div>
-                    <Button onClick={handleSaveProfile}>Save Changes</Button>
+
+                    {/* Store Image upload */}
+                    <div className="space-y-2">
+                      <Label>Store Image</Label>
+                      <input
+                        ref={storeImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleStoreImageSelect}
+                      />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {(storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]) && (
+                          <img
+                            src={storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]}
+                            alt="Store preview"
+                            className="h-20 w-20 object-cover rounded-lg border"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => storeImageInputRef.current?.click()}
+                          disabled={storeImageUploading}
+                        >
+                          {storeImageUploading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                          ) : (
+                            <><Upload className="h-4 w-4" /> {storeImagePreview ? "Change image" : "Upload image"}</>
+                          )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP — max 5MB</p>
+                      </div>
+                      {storeImageError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                          {storeImageError}
+                        </div>
+                      )}
+                    </div>
+
+                    {profileError && (
+                      <div className="flex items-center gap-2 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        {profileError}
+                      </div>
+                    )}
+
+                    <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+                      {isSavingProfile ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
                   </>
                 ) : (
                   <div className="space-y-4">
@@ -391,24 +511,31 @@ const ArtisanDashboard = () => {
                       <p className="text-sm text-muted-foreground">Description</p>
                       <p>{artisanProfile?.description || "No description"}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-medium">{artisanProfile?.category || "—"}</p>
+                        <p className="font-medium">
+                          {CATEGORIES.find((c) => c.value === artisanProfile?.category)?.label
+                            || artisanProfile?.category || "—"}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Location</p>
-                        <p className="font-medium">{artisanProfile?.location || "—"}</p>
+                        <p className="font-medium">
+                          {[artisanProfile?.address, artisanProfile?.city, artisanProfile?.state, artisanProfile?.country]
+                            .filter(Boolean).join(", ") || artisanProfile?.location || "—"}
+                        </p>
                       </div>
                     </div>
-                    {artisanProfile?.images && artisanProfile.images.length > 0 && (
+                    {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
                       <div>
-                        <p className="text-sm text-muted-foreground mb-2">Store Images</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {artisanProfile.images.map((img, i) => (
-                            <img key={i} src={img} alt={`Store image ${i + 1}`} className="h-20 w-20 object-cover rounded-lg border" />
-                          ))}
-                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">Store Image</p>
+                        <img
+                          src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
+                          alt="Store"
+                          className="h-24 w-24 object-cover rounded-lg border"
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                        />
                       </div>
                     )}
                   </div>
