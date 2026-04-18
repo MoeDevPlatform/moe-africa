@@ -165,7 +165,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (!form.name.trim()) return "Product name is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.category) return "Please select a category.";
-    if (!form.price || Number(form.price) <= 0) return "Price must be greater than zero.";
+    // In edit mode, allow keeping price empty (e.g. "Price on request" items).
+    if (!isEdit && (!form.price || Number(form.price) <= 0)) return "Price must be greater than zero.";
+    if (form.price && Number(form.price) < 0) return "Price cannot be negative.";
     return "";
   };
 
