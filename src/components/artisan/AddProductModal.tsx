@@ -170,28 +170,17 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
             </Select>
           </div>
 
-          {/* Price Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price-min">Min Price (₦) *</Label>
-              <Input
-                id="price-min"
-                type="number"
-                placeholder="e.g. 25000"
-                value={form.priceMin}
-                onChange={(e) => updateForm("priceMin", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price-max">Max Price (₦) *</Label>
-              <Input
-                id="price-max"
-                type="number"
-                placeholder="e.g. 45000"
-                value={form.priceMax}
-                onChange={(e) => updateForm("priceMax", e.target.value)}
-              />
-            </div>
+          {/* Price (single field) */}
+          <div className="space-y-2">
+            <Label htmlFor="price">Price (₦) *</Label>
+            <Input
+              id="price"
+              type="number"
+              min={1}
+              placeholder="e.g. 25000"
+              value={form.price}
+              onChange={(e) => updateForm("price", e.target.value)}
+            />
           </div>
 
           {/* Materials (optional) */}
