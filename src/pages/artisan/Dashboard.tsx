@@ -188,6 +188,23 @@ const ArtisanDashboard = () => {
         }
       }
 
+      // Upload cover image if a new one was selected
+      let coverImageUrl: string | undefined;
+      if (coverImageFile) {
+        setCoverImageUploading(true);
+        try {
+          const result = await artisanService.uploadCoverImage(coverImageFile);
+          coverImageUrl = result.url;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Cover image upload failed";
+          setCoverImageError(msg);
+          setProfileError(msg);
+          return;
+        } finally {
+          setCoverImageUploading(false);
+        }
+      }
+
       // Send STRUCTURED location fields separately — never concatenated.
       // Backend gap: see backend_MoeV1.md for required DTO update.
       const delta: Record<string, unknown> = {};
@@ -199,6 +216,7 @@ const ArtisanDashboard = () => {
       if (businessForm.city !== (artisanProfile?.city ?? "")) delta.city = businessForm.city;
       if (businessForm.address !== (artisanProfile?.address ?? "")) delta.address = businessForm.address;
       if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
+      if (coverImageUrl) delta.coverImageUrl = coverImageUrl;
 
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
@@ -220,12 +238,15 @@ const ArtisanDashboard = () => {
         city: updated?.city ?? (delta.city as string | undefined) ?? artisanProfile?.city,
         address: updated?.address ?? (delta.address as string | undefined) ?? artisanProfile?.address,
         storeImageUrl: updated?.storeImageUrl ?? storeImageUrl ?? artisanProfile?.storeImageUrl,
+        coverImageUrl: updated?.coverImageUrl ?? coverImageUrl ?? artisanProfile?.coverImageUrl,
       };
       setArtisanProfile(merged);
       // Refetch to guarantee canonical state — non-blocking
       artisanService.getMyProfile().then(setArtisanProfile).catch(() => {});
       setStoreImageFile(null);
       setStoreImagePreview("");
+      setCoverImageFile(null);
+      setCoverImagePreview("");
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
