@@ -81,6 +81,11 @@ const ArtisanDashboard = () => {
     artisanService
       .getMyProfile()
       .then((p) => {
+        // DEV-only diagnostic — must stay gated. Do NOT remove the `import.meta.env.DEV` guard.
+        // Logs raw profile data including personal fields; must never ship to production.
+        if (import.meta.env.DEV) {
+          console.log("[MOE][dev-only] /artisans/me response:", p);
+        }
         setArtisanProfile(p);
         setBusinessForm({
           businessName: p.businessName ?? "",
