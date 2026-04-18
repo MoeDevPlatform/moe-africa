@@ -126,6 +126,7 @@ export interface ArtisanProfile {
   address?: string;
   location?: string;
   storeImageUrl?: string;
+  coverImageUrl?: string;
   images: string[];
   rating: number;
   verified: boolean;
@@ -184,6 +185,25 @@ export const artisanService = {
     const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
     if (typeof url !== "string" || !url) {
       throw new MoeApiError("Store image upload returned no URL", 500);
+    }
+    return { url };
+  },
+  uploadCoverImage: async (file: File): Promise<{ url: string }> => {
+    // Try a dedicated cover endpoint first; fall back to the generic store image endpoint
+    // if the backend hasn't shipped it yet. Either way we get a public URL we can persist
+    // as `coverImageUrl` via PATCH /artisans/me.
+    let res = await uploadFileWithAuth("/artisans/me/upload-cover", file);
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Cover image upload failed", res.status);
+    }
+    const body = await res.json().catch(() => ({}));
+    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
+    if (typeof url !== "string" || !url) {
+      throw new MoeApiError("Cover image upload returned no URL", 500);
     }
     return { url };
   },
@@ -403,6 +423,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => ({
   brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
   about: raw.about ?? raw.description ?? raw.bio ?? "",
   heroImage:
+    raw.coverImageUrl ??
     raw.heroImage ??
     raw.storeImageUrl ??
     (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??

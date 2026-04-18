@@ -56,12 +56,19 @@ const ArtisanDashboard = () => {
     address: "",
   });
 
-  // Store image upload
+  // Store image upload (small thumbnail)
   const [storeImageFile, setStoreImageFile] = useState<File | null>(null);
   const [storeImagePreview, setStoreImagePreview] = useState<string>("");
   const [storeImageError, setStoreImageError] = useState("");
   const [storeImageUploading, setStoreImageUploading] = useState(false);
   const storeImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Cover/banner image upload (provider page hero)
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string>("");
+  const [coverImageError, setCoverImageError] = useState("");
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
 
   const availableStates = useMemo(() => {
     if (!businessForm.country) return [];
@@ -133,6 +140,22 @@ const ArtisanDashboard = () => {
     setStoreImagePreview(URL.createObjectURL(file));
   };
 
+  const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCoverImageError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setCoverImageError("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setCoverImageError("Image must be 5MB or smaller.");
+      return;
+    }
+    setCoverImageFile(file);
+    setCoverImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSaveProfile = async () => {
     setProfileError("");
 
@@ -165,6 +188,23 @@ const ArtisanDashboard = () => {
         }
       }
 
+      // Upload cover image if a new one was selected
+      let coverImageUrl: string | undefined;
+      if (coverImageFile) {
+        setCoverImageUploading(true);
+        try {
+          const result = await artisanService.uploadCoverImage(coverImageFile);
+          coverImageUrl = result.url;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Cover image upload failed";
+          setCoverImageError(msg);
+          setProfileError(msg);
+          return;
+        } finally {
+          setCoverImageUploading(false);
+        }
+      }
+
       // Send STRUCTURED location fields separately — never concatenated.
       // Backend gap: see backend_MoeV1.md for required DTO update.
       const delta: Record<string, unknown> = {};
@@ -176,6 +216,7 @@ const ArtisanDashboard = () => {
       if (businessForm.city !== (artisanProfile?.city ?? "")) delta.city = businessForm.city;
       if (businessForm.address !== (artisanProfile?.address ?? "")) delta.address = businessForm.address;
       if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
+      if (coverImageUrl) delta.coverImageUrl = coverImageUrl;
 
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
@@ -197,12 +238,15 @@ const ArtisanDashboard = () => {
         city: updated?.city ?? (delta.city as string | undefined) ?? artisanProfile?.city,
         address: updated?.address ?? (delta.address as string | undefined) ?? artisanProfile?.address,
         storeImageUrl: updated?.storeImageUrl ?? storeImageUrl ?? artisanProfile?.storeImageUrl,
+        coverImageUrl: updated?.coverImageUrl ?? coverImageUrl ?? artisanProfile?.coverImageUrl,
       };
       setArtisanProfile(merged);
       // Refetch to guarantee canonical state — non-blocking
       artisanService.getMyProfile().then(setArtisanProfile).catch(() => {});
       setStoreImageFile(null);
       setStoreImagePreview("");
+      setCoverImageFile(null);
+      setCoverImagePreview("");
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
@@ -512,6 +556,51 @@ const ArtisanDashboard = () => {
                       )}
                     </div>
 
+                    {/* Cover / Banner Image upload — shows on the public provider page hero */}
+                    <div className="space-y-2">
+                      <Label>Cover / Banner Image</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Wide image displayed as the background of your public storefront page. Recommended 1600×500.
+                      </p>
+                      <input
+                        ref={coverImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleCoverImageSelect}
+                      />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {(coverImagePreview || artisanProfile?.coverImageUrl) && (
+                          <img
+                            src={coverImagePreview || artisanProfile?.coverImageUrl}
+                            alt="Cover preview"
+                            className="h-20 w-40 object-cover rounded-lg border"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => coverImageInputRef.current?.click()}
+                          disabled={coverImageUploading}
+                        >
+                          {coverImageUploading ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                          ) : (
+                            <><Upload className="h-4 w-4" /> {(coverImagePreview || artisanProfile?.coverImageUrl) ? "Change cover" : "Upload cover"}</>
+                          )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP — max 5MB</p>
+                      </div>
+                      {coverImageError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                          {coverImageError}
+                        </div>
+                      )}
+                    </div>
+
                     {profileError && (
                       <div className="flex items-center gap-2 text-sm text-destructive">
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -560,6 +649,17 @@ const ArtisanDashboard = () => {
                           src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
                           alt="Store"
                           className="h-24 w-24 object-cover rounded-lg border"
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                        />
+                      </div>
+                    )}
+                    {artisanProfile?.coverImageUrl && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Cover / Banner Image</p>
+                        <img
+                          src={artisanProfile.coverImageUrl}
+                          alt="Cover"
+                          className="w-full max-w-2xl aspect-[16/5] object-cover rounded-lg border"
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
                         />
                       </div>
