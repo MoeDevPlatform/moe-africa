@@ -226,9 +226,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
-            Fill in the product details below. Fields marked with * are required.
+            {isEdit ? "Update the product details below." : "Fill in the product details below."} Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
