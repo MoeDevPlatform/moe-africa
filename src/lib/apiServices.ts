@@ -156,6 +156,11 @@ export const artisanService = {
       const stashed = localStorage.getItem("moe_artisan_cover_url");
       if (stashed) p.coverImageUrl = stashed;
     }
+    // Stash own userId so normalizeProvider can recognize the artisan
+    // viewing their own public storefront and hydrate cover/store from cache.
+    if (p?.userId != null) {
+      localStorage.setItem("moe_self_user_id", String(p.userId));
+    }
     return p;
   },
   updateProfile: async (
