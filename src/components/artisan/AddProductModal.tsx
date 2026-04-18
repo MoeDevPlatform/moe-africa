@@ -158,8 +158,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
       // Only include `images` when we have uploaded URLs — omit entirely
       // when empty so a stricter DTO (required array) won't reject a
       // text-only submission while the upload endpoint is unavailable.
-      if (images.length > 0) {
-        payload.images = images.map((i) => i.url);
+      const imageUrls = images
+        .map((i) => i.url)
+        .filter((u): u is string => typeof u === "string" && u.length > 0);
+      if (imageUrls.length > 0) {
+        payload.images = imageUrls;
       }
 
       await artisanService.createProduct(payload);
