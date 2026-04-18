@@ -404,6 +404,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => ({
   brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
   about: raw.about ?? raw.description ?? raw.bio ?? "",
   heroImage:
+    raw.coverImageUrl ??
     raw.heroImage ??
     raw.storeImageUrl ??
     (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
