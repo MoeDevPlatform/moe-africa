@@ -72,7 +72,12 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: editProduct.name ?? "",
         description: editProduct.description ?? "",
         category: editProduct.category ?? "",
-        price: editProduct.priceRange?.min != null ? String(editProduct.priceRange.min) : "",
+        price:
+          editProduct.priceRange?.min && editProduct.priceRange.min > 0
+            ? String(editProduct.priceRange.min)
+            : editProduct.priceRange?.max && editProduct.priceRange.max > 0
+            ? String(editProduct.priceRange.max)
+            : "",
         materials: (editProduct as unknown as { materials?: string }).materials ?? "",
         estimatedDeliveryDays:
           (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
@@ -160,7 +165,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (!form.name.trim()) return "Product name is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.category) return "Please select a category.";
-    if (!form.price || Number(form.price) <= 0) return "Price must be greater than zero.";
+    // In edit mode, allow keeping price empty (e.g. "Price on request" items).
+    if (!isEdit && (!form.price || Number(form.price) <= 0)) return "Price must be greater than zero.";
+    if (form.price && Number(form.price) < 0) return "Price cannot be negative.";
     return "";
   };
 
@@ -181,12 +188,14 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        price: Number(form.price),
         currency: "NGN",
         materials: form.materials.trim() || undefined,
         estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       };
+      if (form.price && Number(form.price) > 0) {
+        payload.price = Number(form.price);
+      }
       // Only include `images` when we have uploaded URLs — omit entirely
       // when empty so a stricter DTO (required array) won't reject a
       // text-only submission while the upload endpoint is unavailable.
