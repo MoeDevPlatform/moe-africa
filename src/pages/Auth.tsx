@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/apiServices";
-import { User, Palette } from "lucide-react";
+import { User, Palette, Eye, EyeOff } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
@@ -20,6 +20,7 @@ const Auth = () => {
   // Sign in state
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
 
   // Sign up state
   const [firstName, setFirstName] = useState("");
@@ -27,6 +28,8 @@ const Auth = () => {
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<UserRole>("customer");
 
   const handleSignIn = async (e: React.FormEvent) => {
