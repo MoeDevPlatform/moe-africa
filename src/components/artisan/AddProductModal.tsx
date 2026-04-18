@@ -427,9 +427,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || isSubmitting || isUploading}>
             {isSubmitting ? (
-              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Adding...</>
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEdit ? "Saving..." : "Adding..."}</>
             ) : (
-              "Add Product"
+              isEdit ? "Save Changes" : "Add Product"
             )}
           </Button>
         </DialogFooter>
