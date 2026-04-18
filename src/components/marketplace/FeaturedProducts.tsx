@@ -40,7 +40,7 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
         productName: product.name,
         providerId: product.providerId,
         providerName: product.providerName,
-        priceRange: { min: product.price, max: product.price },
+        price: product.price ?? null,
         currency: "NGN",
         category: product.category,
         imageUrl: product.imageUrl,
