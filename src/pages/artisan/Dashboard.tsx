@@ -41,6 +41,7 @@ const ArtisanDashboard = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
