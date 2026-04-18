@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { authService, addressesService, artisanService, type AddressApi } from "@/lib/apiServices";
+import { authService, addressesService, artisanService, paymentMethodsService, type AddressApi, type PaymentMethodApi } from "@/lib/apiServices";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -34,17 +35,14 @@ interface Address {
 }
 
 interface PaymentMethod {
-  id: number;
-  type: string;
+  id: string;
+  brand: string;
   last4: string;
   expiry: string;
+  cardholderName: string;
+  billingAddressId?: string;
   isDefault: boolean;
 }
-
-// ─── Initial state ───────────────────────────────────────────────────────────
-const initialPayments: PaymentMethod[] = [
-  { id: 1, type: "VISA", last4: "4242", expiry: "12/25", isDefault: true },
-];
 
 // ─── Address Modal ────────────────────────────────────────────────────────────
 interface AddressModalProps {
