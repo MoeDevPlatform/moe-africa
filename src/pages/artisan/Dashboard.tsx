@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
@@ -12,12 +12,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
+
+const CATEGORIES = [
+  { value: "tailoring", label: "Tailoring" },
+  { value: "shoemaking", label: "Shoemaking" },
+  { value: "canvas", label: "Canvas & Painting" },
+  { value: "leatherwork", label: "Leatherwork" },
+  { value: "beauty", label: "Beauty" },
+  { value: "crafts", label: "Art & Crafts" },
+];
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
