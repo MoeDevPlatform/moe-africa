@@ -794,6 +794,8 @@ const Settings = () => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save address";
       toast({ title: "Error", description: msg, variant: "destructive" });
+      // Re-throw so the modal can render its inline banner per the spec.
+      throw err instanceof Error ? err : new Error(msg);
     } finally {
       setAddressSaving(false);
     }
