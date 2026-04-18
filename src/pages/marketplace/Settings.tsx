@@ -14,9 +14,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import {
   User, Shield, Bell, Settings as SettingsIcon, MapPin, CreditCard,
-  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2
+  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2, ChevronsUpDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,6 +65,11 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
     street: address?.street ?? "",
   });
   const [error, setError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
+  // Tracking key forces internal Command search to reset on country change.
+  const [stateResetKey, setStateResetKey] = useState(0);
 
   useEffect(() => {
     setForm({
@@ -72,6 +80,8 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
       street: address?.street ?? "",
     });
     setError("");
+    setSaveError("");
+    setStateResetKey((k) => k + 1);
   }, [address, open]);
 
   const availableStates = (() => {
@@ -80,14 +90,26 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
     return c ? getStatesByCountry(c.code) : [];
   })();
 
-  const handleSave = () => {
+  const handleCountryChange = (v: string) => {
+    setForm((f) => ({ ...f, country: v, state: "", city: "" }));
+    setCountryOpen(false);
+    // Bump key so the State Command remounts with empty internal search input.
+    setStateResetKey((k) => k + 1);
+  };
+
+  const handleSave = async () => {
     setError("");
+    setSaveError("");
     if (!form.label.trim()) return setError("Label is required.");
     if (!form.country) return setError("Country is required.");
     if (!form.state) return setError("State is required.");
     if (!form.city.trim()) return setError("City is required.");
     if (!form.street.trim()) return setError("Street address is required.");
-    onSave(form);
+    try {
+      await onSave(form);
+    } catch {
+      setSaveError("Unable to save address — please try again or contact support.");
+    }
   };
 
   return (
@@ -96,40 +118,100 @@ const AddressModal = ({ open, address, onClose, onSave, isSaving }: AddressModal
         <DialogHeader>
           <DialogTitle>{address ? "Edit Address" : "Add New Address"}</DialogTitle>
         </DialogHeader>
+
+        {saveError && (
+          <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>{saveError}</span>
+          </div>
+        )}
+
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Label (e.g. Home, Office)</Label>
             <Input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Home" />
           </div>
 
-          {/* Country → State → City → Street (cascading resets) */}
+          {/* Country — searchable Combobox */}
           <div className="space-y-2">
             <Label>Country</Label>
-            <Select
-              value={form.country}
-              onValueChange={(v) => setForm(f => ({ ...f, country: v, state: "", city: "" }))}
-            >
-              <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
-              <SelectContent className="bg-card">
-                {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={countryOpen}
+                  className={cn("w-full justify-between font-normal", !form.country && "text-muted-foreground")}
+                >
+                  {form.country || "Select country"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover" align="start">
+                <Command>
+                  <CommandInput placeholder="Search country…" />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {countries.map((c) => (
+                        <CommandItem
+                          key={c.code}
+                          value={c.name}
+                          onSelect={() => handleCountryChange(c.name)}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", form.country === c.name ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* State — searchable Combobox, key forces search reset on country change */}
           <div className="space-y-2">
             <Label>State</Label>
-            <Select
-              value={form.state}
-              onValueChange={(v) => setForm(f => ({ ...f, state: v, city: "" }))}
-              disabled={!form.country}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={form.country ? "Select state" : "Select country first"} />
-              </SelectTrigger>
-              <SelectContent className="bg-card">
-                {availableStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover open={stateOpen} onOpenChange={(o) => form.country && setStateOpen(o)}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={stateOpen}
+                  disabled={!form.country}
+                  className={cn("w-full justify-between font-normal", !form.state && "text-muted-foreground")}
+                >
+                  {form.state || (form.country ? "Select state" : "Select country first")}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover" align="start">
+                <Command key={stateResetKey}>
+                  <CommandInput placeholder="Search state…" />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>No state found.</CommandEmpty>
+                    <CommandGroup>
+                      {availableStates.map((s) => (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => {
+                            setForm((f) => ({ ...f, state: s, city: "" }));
+                            setStateOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", form.state === s ? "opacity-100" : "opacity-0")} />
+                          {s}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
+
           <div className="space-y-2">
             <Label>City</Label>
             <Input
