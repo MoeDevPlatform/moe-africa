@@ -962,18 +962,20 @@ export const addressesService = {
         "/customers/me/addresses",
       );
       const arr = Array.isArray(res) ? res : (res?.data ?? []);
-      return arr.map(toApi);
+      return arr.map((a) => toApi(a));
     } catch {
       return [];
     }
   },
   create: async (data: Omit<AddressApi, "id" | "isDefault">) => {
     const created = await apiPost<BackendAddress>("/customers/me/addresses", toBackend(data));
-    return toApi(created);
+    if (data.label) writeLabel(created.id, data.label);
+    return toApi(created, data.label);
   },
   update: async (id: string, data: Partial<Omit<AddressApi, "id">>) => {
     const updated = await apiPatch<BackendAddress>(`/customers/me/addresses/${id}`, toBackend(data));
-    return toApi(updated);
+    if (data.label) writeLabel(id, data.label);
+    return toApi(updated, data.label);
   },
   remove: (id: string) => apiDelete(`/customers/me/addresses/${id}`),
   setDefault: async (id: string) => {
