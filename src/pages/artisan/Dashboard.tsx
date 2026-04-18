@@ -43,9 +43,30 @@ const ArtisanDashboard = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   const [editingProfile, setEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [businessForm, setBusinessForm] = useState({
-    businessName: "", description: "", category: "", location: "",
+    businessName: "",
+    description: "",
+    category: "",
+    country: "",
+    state: "",
+    city: "",
+    address: "",
   });
+
+  // Store image upload
+  const [storeImageFile, setStoreImageFile] = useState<File | null>(null);
+  const [storeImagePreview, setStoreImagePreview] = useState<string>("");
+  const [storeImageError, setStoreImageError] = useState("");
+  const [storeImageUploading, setStoreImageUploading] = useState(false);
+  const storeImageInputRef = useRef<HTMLInputElement>(null);
+
+  const availableStates = useMemo(() => {
+    if (!businessForm.country) return [];
+    const c = countries.find((x) => x.name === businessForm.country);
+    return c ? getStatesByCountry(c.code) : [];
+  }, [businessForm.country]);
 
   const loadProducts = () => {
     setIsLoadingProducts(true);
@@ -61,17 +82,28 @@ const ArtisanDashboard = () => {
       .getMyProfile()
       .then((p) => {
         setArtisanProfile(p);
-        setBusinessForm({ businessName: p.businessName, description: p.description, category: p.category, location: p.location });
+        setBusinessForm({
+          businessName: p.businessName ?? "",
+          description: p.description ?? "",
+          category: p.category ?? "",
+          country: p.country ?? "",
+          state: p.state ?? "",
+          city: p.city ?? "",
+          address: p.address ?? "",
+        });
       })
       .catch(() => {
         if (user) {
           const fallback: ArtisanProfile = {
             id: 0, userId: user.id, businessName: user.name + "'s Store",
-            description: "", category: "", location: "", images: [],
+            description: "", category: "", images: [],
             rating: 0, verified: false, featured: false, createdAt: new Date().toISOString(),
           };
           setArtisanProfile(fallback);
-          setBusinessForm({ businessName: fallback.businessName, description: "", category: "", location: "" });
+          setBusinessForm({
+            businessName: fallback.businessName,
+            description: "", category: "", country: "", state: "", city: "", address: "",
+          });
         }
       })
       .finally(() => setIsLoadingProfile(false));
@@ -79,14 +111,65 @@ const ArtisanDashboard = () => {
     loadProducts();
   }, [user]);
 
+  const handleStoreImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStoreImageError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setStoreImageError("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setStoreImageError("Image must be 5MB or smaller.");
+      return;
+    }
+    setStoreImageFile(file);
+    setStoreImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSaveProfile = async () => {
+    setProfileError("");
+
+    // Client-side validation BEFORE any API call
+    if (!businessForm.businessName.trim()) {
+      setProfileError("Business name is required.");
+      return;
+    }
+    if (!businessForm.category) {
+      setProfileError("Please select a category.");
+      return;
+    }
+
+    setIsSavingProfile(true);
     try {
-      // Only send fields that actually changed vs original profile
-      const delta: Record<string, string> = {};
+      // Upload store image first if a new one was selected
+      let storeImageUrl: string | undefined;
+      if (storeImageFile) {
+        setStoreImageUploading(true);
+        try {
+          const result = await artisanService.uploadStoreImage(storeImageFile);
+          storeImageUrl = result.url;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Store image upload failed";
+          setStoreImageError(msg);
+          setProfileError(msg);
+          return;
+        } finally {
+          setStoreImageUploading(false);
+        }
+      }
+
+      // Send STRUCTURED location fields separately — never concatenated.
+      // Backend gap: see backend_MoeV1.md for required DTO update.
+      const delta: Record<string, unknown> = {};
       if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
       if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
       if (businessForm.category !== (artisanProfile?.category ?? "")) delta.category = businessForm.category;
-      if (businessForm.location !== (artisanProfile?.location ?? "")) delta.location = businessForm.location;
+      if (businessForm.country !== (artisanProfile?.country ?? "")) delta.country = businessForm.country;
+      if (businessForm.state !== (artisanProfile?.state ?? "")) delta.state = businessForm.state;
+      if (businessForm.city !== (artisanProfile?.city ?? "")) delta.city = businessForm.city;
+      if (businessForm.address !== (artisanProfile?.address ?? "")) delta.address = businessForm.address;
+      if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
 
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
@@ -95,11 +178,16 @@ const ArtisanDashboard = () => {
 
       const updated = await artisanService.updateProfile(delta);
       setArtisanProfile(updated);
+      setStoreImageFile(null);
+      setStoreImagePreview("");
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update profile";
+      setProfileError(msg);
       toast.error(msg);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
