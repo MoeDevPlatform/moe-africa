@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -10,12 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ImagePlus, X, Loader2, AlertCircle } from "lucide-react";
 import { artisanService } from "@/lib/apiServices";
+import { Product } from "@/data/mockData";
 import { toast } from "sonner";
 
 interface AddProductModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProductAdded: () => void;
+  /** When provided, the modal opens in edit mode and PATCHes this product on submit. */
+  editProduct?: Product | null;
 }
 
 const CATEGORIES = [
