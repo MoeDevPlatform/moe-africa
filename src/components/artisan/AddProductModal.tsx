@@ -188,12 +188,14 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        price: Number(form.price),
         currency: "NGN",
         materials: form.materials.trim() || undefined,
         estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       };
+      if (form.price && Number(form.price) > 0) {
+        payload.price = Number(form.price);
+      }
       // Only include `images` when we have uploaded URLs — omit entirely
       // when empty so a stricter DTO (required array) won't reject a
       // text-only submission while the upload endpoint is unavailable.
