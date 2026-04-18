@@ -126,6 +126,7 @@ export interface ArtisanProfile {
   address?: string;
   location?: string;
   storeImageUrl?: string;
+  coverImageUrl?: string;
   images: string[];
   rating: number;
   verified: boolean;
