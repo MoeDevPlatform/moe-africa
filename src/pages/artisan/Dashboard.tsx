@@ -600,6 +600,8 @@ const ArtisanDashboard = () => {
                         </div>
                       )}
                     </div>
+
+                    {profileError && (
                       <div className="flex items-center gap-2 text-sm text-destructive">
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         {profileError}
