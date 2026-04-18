@@ -188,6 +188,25 @@ export const artisanService = {
     }
     return { url };
   },
+  uploadCoverImage: async (file: File): Promise<{ url: string }> => {
+    // Try a dedicated cover endpoint first; fall back to the generic store image endpoint
+    // if the backend hasn't shipped it yet. Either way we get a public URL we can persist
+    // as `coverImageUrl` via PATCH /artisans/me.
+    let res = await uploadFileWithAuth("/artisans/me/upload-cover", file);
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Cover image upload failed", res.status);
+    }
+    const body = await res.json().catch(() => ({}));
+    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
+    if (typeof url !== "string" || !url) {
+      throw new MoeApiError("Cover image upload returned no URL", 500);
+    }
+    return { url };
+  },
 };
 
 // ─── Customer Profile ─────────────────────────────────────
