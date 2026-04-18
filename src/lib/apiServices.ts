@@ -435,22 +435,7 @@ export const providersService = {
     try {
       const raw = await apiGet<Record<string, any>>(`/service-providers/${id}/public-info`);
       if (!raw) return mockGetProviderById(id);
-      // Normalize backend field aliases — backend may return businessName/description/storeImageUrl
-      // instead of the canonical brandName/about/heroImage. Keep all tolerance here.
-      const normalized: Provider = {
-        ...(raw as Provider),
-        brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
-        about: raw.about ?? raw.description ?? raw.bio ?? "",
-        heroImage:
-          raw.heroImage ??
-          raw.storeImageUrl ??
-          (Array.isArray(raw.images) && raw.images.length > 0 ? raw.images[0] : "") ??
-          "",
-        city: raw.city ?? "",
-        state: raw.state ?? "",
-        category: raw.category ?? "",
-      };
-      return normalized;
+      return normalizeProvider(raw);
     } catch {
       return mockGetProviderById(id);
     }
@@ -458,11 +443,11 @@ export const providersService = {
 
   getByCategory: async (category: string): Promise<Provider[]> => {
     try {
-      const res = await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[] }>(
         "/service-providers/public-info",
         { category },
       );
-      return res.data;
+      return Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [];
     } catch {
       return mockGetProvidersByCategory(category);
     }
@@ -474,10 +459,14 @@ export const providersService = {
     budget?: number;
   }): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/service-providers/recommendations",
         params as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProviders();
     }
