@@ -45,7 +45,8 @@ interface UploadedImage {
   previewUrl: string;
 }
 
-const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModalProps) => {
+const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: AddProductModalProps) => {
+  const isEdit = !!editProduct;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -62,6 +63,34 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded }: AddProductModal
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  // Hydrate form when opening in edit mode (or reset when switching back to add).
+  useEffect(() => {
+    if (!open) return;
+    if (editProduct) {
+      setForm({
+        name: editProduct.name ?? "",
+        description: editProduct.description ?? "",
+        category: editProduct.category ?? "",
+        price: editProduct.priceRange?.min != null ? String(editProduct.priceRange.min) : "",
+        materials: (editProduct as unknown as { materials?: string }).materials ?? "",
+        estimatedDeliveryDays:
+          (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
+            ? String((editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays)
+            : "",
+        tags: Array.isArray(editProduct.styleTags) ? editProduct.styleTags : [],
+      });
+      setImages(
+        (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
+      );
+    } else {
+      setForm({ name: "", description: "", category: "", price: "", materials: "", estimatedDeliveryDays: "", tags: [] });
+      setImages([]);
+    }
+    setSubmitError("");
+    setValidationError("");
+    setImageError("");
+  }, [open, editProduct]);
 
   const updateForm = (field: string, value: string | string[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
