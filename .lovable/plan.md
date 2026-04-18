@@ -1,68 +1,45 @@
 
 
-# Plan v2 — Final Frontend Hardening Pass (confirmed)
+# Plan v2 — Artisan Profile Display Fixes (with observations folded in)
 
-Acknowledged: text-only fallback depends on backend accepting `images: []` (or omitted). I'll send `images` as **optional** — omit the field entirely when empty rather than sending `[]` — to maximise compatibility with either DTO shape. Will be flagged in `backend_MoeV1.md` as a test-immediately item.
+## A. `src/lib/apiServices.ts` — normalize `providersService.getById`
+Tolerate backend field aliases:
+- `heroImage` ← `heroImage` ?? `storeImageUrl` ?? `images[0]` ?? `""`
+- `about` ← `about` ?? `description` ?? `bio` ?? `""`
+- `brandName` ← `brandName` ?? `businessName` ?? `name` ?? `""`
+- `city`, `state`, `category` passthrough with `""` fallback
 
-## 1. Wishlist
-No frontend change. Documented as backend-broken in `backend_MoeV1.md`.
+## B. `src/pages/marketplace/ProviderDetail.tsx`
+- Add `onError` → `/placeholder.svg` on hero `<img>`.
+- When `heroImage` is empty, skip rendering the `<img>` so the gradient shows cleanly (no broken icon).
+- Empty-state in About: *"This artisan hasn't added a description yet."*
 
-## 2. Add Product — Image Upload (`AddProductModal.tsx`)
-- Re-enable multi-image picker (JPEG/PNG/WebP, 5MB each, max 5).
-- Upload via `artisanService.uploadProductImage`.
-- **Graceful upload failure**: catch errors, show inline per-file message *"Image upload is temporarily unavailable — the server is not ready yet."*
-- **Text-only fallback**: if no images uploaded, omit `images` from payload entirely (do not send empty array). Submit succeeds even if upload endpoint is down.
-- Flag in `backend_MoeV1.md`: *"Confirm `POST /artisans/me/products` accepts a payload with `images` omitted or empty — test immediately."*
-
-## 3. Settings — Searchable Country/State Combobox
-- Replace Country and State `<Select>` with shadcn `Command` + `Popover`.
-- Searchable, scrollable (max-h-72), clear selected value.
-- **On country change**: clear State value AND reset State combobox search input AND clear City.
-- **On address save failure**: inline banner at top of form *"Unable to save address — please try again or contact support."* + toast.
-
-## 4. Payment Form — Realistic UX (`Settings.tsx` PaymentModal)
-
-Brand detection (apply in this order — specific before broad):
-1. Amex (`34`, `37`)
-2. Verve (`5061`, `6500`)
-3. Mastercard (`51-55`, `2221-2720`)
-4. Visa (`4`)
-5. Discover (`6011`, `65`)
-
-Length enforcement (before Luhn):
-- Amex → exactly **15** digits
-- Visa/Mastercard/Verve/Discover → exactly **16** digits
-- Other → inline *"Card number must be 15 (Amex) or 16 digits."*
-
-Then Luhn → reject invalid with *"Invalid card number."*
-
-Other fields:
-- Expiry MM/YY, reject past *"Card has expired."*
-- CVV: 4 Amex / 3 others, masked.
-- Cardholder: required, `/^[A-Za-z\s'-]+$/`.
-- Submit disabled until valid.
-- Masking preserved (focus = digits, blur = `•••• •••• •••• 1234`).
-- POST only safe fields: `brand`, `last4`, `expiry`, `cardholderName`, `billingAddressId`.
-
-## 5. `backend_MoeV1.md` — Top-of-section 🔴 status badges
-Each broken endpoint section starts with:
+## C. `src/pages/artisan/Dashboard.tsx` — DEV-gated diagnostic
+Add **once**, gated behind Vite dev flag so it never ships:
+```ts
+if (import.meta.env.DEV) {
+  console.log("[MOE][dev-only] /artisans/me response:", profile);
+}
 ```
-🔴 STILL BROKEN — confirmed not implemented
-```
-Sections flagged:
-- Wishlist GET/POST/DELETE — not persisting
-- `POST /artisans/me/upload-image` — returns "Cannot POST"
-- `POST /customers/me/payment-methods` — returns "Cannot POST"
-- Address — frontend uses correct plural; backend may have singular route bug
-- **NEW**: Product DTO — confirm `images` is optional (test text-only submission)
+Inline comment: *"DEV-only diagnostic — must stay gated. Do NOT remove the `import.meta.env.DEV` guard. Logs raw profile data including personal fields."*
+
+## D. `backend_MoeV1.md` — two additions
+
+**New Section 8 — Public Provider Endpoint field alignment** (🔴 badge)
+Document required/aliased fields on `GET /service-providers/:id/public-info`:
+`brandName`/`businessName`, `about`/`description`, `heroImage`/`storeImageUrl`.
+
+**Missing `providerId` link — framed by user impact (not as footnote):**
+> 🔴 **UX BLOCKER — high priority.** The `/artisans/me` response does not include the artisan's public `providerId`. **User-facing consequence:** an artisan cannot navigate from their own dashboard to their public profile page to verify how it looks to customers. They have no way to preview their own storefront. This is a significant UX gap and should be prioritised — add `providerId: string` to the `/artisans/me` response payload.
 
 ## Files Changed
 
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/components/artisan/AddProductModal.tsx` | Re-enable image upload; graceful failure; omit `images` when empty |
-| `src/pages/marketplace/Settings.tsx` | Searchable Country/State combobox; inline save error; brand-ordered Luhn payment form |
-| `backend_MoeV1.md` | 🔴 top-of-section badges + product DTO `images` optional check |
+| `src/lib/apiServices.ts` | Field-alias normalization in `providersService.getById` |
+| `src/pages/marketplace/ProviderDetail.tsx` | Image `onError` + empty-states |
+| `src/pages/artisan/Dashboard.tsx` | DEV-gated diagnostic log with retention comment |
+| `backend_MoeV1.md` | Section 8 + reframed `providerId` UX-blocker note |
 
-No new dependencies.
+No new dependencies. No backend changes required for A/B/C to take effect.
 
