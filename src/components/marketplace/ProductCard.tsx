@@ -37,7 +37,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         productName: product.name,
         providerId: product.providerId,
         providerName: provider?.brandName || "",
-        priceRange: product.priceRange,
+        price: product.priceRange?.min ?? null,
         currency: product.currency,
         category: product.category,
         imageUrl: product.images[0],
