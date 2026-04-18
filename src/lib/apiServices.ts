@@ -909,24 +909,34 @@ export interface AddressApi {
   isDefault: boolean;
 }
 
-// Backend DTO uses `addressLine1` and rejects `label` / `street`.
-// Translate at the service boundary so the rest of the app keeps the
-// friendlier { label, street } shape. Label is stashed in addressLine2
-// as `[label]` prefix so it survives a roundtrip until backend supports it.
+// Backend DTO accepts only `addressLine1`, `city`, `state`, `country`, `isDefault`.
+// It REJECTS `label`, `street`, and `addressLine2` ("property X should not exist").
+// We translate at the service boundary and stash the user's label client-side only
+// (in a localStorage map keyed by address id) so the friendlier { label, street }
+// shape survives until the backend supports it.
 interface BackendAddress {
   id: string;
   addressLine1: string;
-  addressLine2?: string;
   city: string;
   state: string;
   country: string;
   isDefault: boolean;
-  label?: string;
 }
 
-const toApi = (a: BackendAddress): AddressApi => ({
+const ADDRESS_LABELS_KEY = "moe_address_labels";
+const readLabels = (): Record<string, string> => {
+  try { return JSON.parse(localStorage.getItem(ADDRESS_LABELS_KEY) || "{}"); }
+  catch { return {}; }
+};
+const writeLabel = (id: string, label: string) => {
+  const all = readLabels();
+  all[id] = label;
+  try { localStorage.setItem(ADDRESS_LABELS_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+};
+
+const toApi = (a: BackendAddress, fallbackLabel?: string): AddressApi => ({
   id: a.id,
-  label: a.label ?? (a.addressLine2?.match(/^\[(.+?)\]/)?.[1] ?? "Address"),
+  label: readLabels()[a.id] ?? fallbackLabel ?? "Address",
   street: a.addressLine1,
   city: a.city,
   state: a.state,
@@ -937,11 +947,11 @@ const toApi = (a: BackendAddress): AddressApi => ({
 const toBackend = (data: Partial<Omit<AddressApi, "id">>) => {
   const out: Record<string, unknown> = {};
   if (data.street !== undefined) out.addressLine1 = data.street;
-  if (data.label !== undefined) out.addressLine2 = `[${data.label}]`;
   if (data.city !== undefined) out.city = data.city;
   if (data.state !== undefined) out.state = data.state;
   if (data.country !== undefined) out.country = data.country;
   if (data.isDefault !== undefined) out.isDefault = data.isDefault;
+  // NOTE: deliberately NOT sending `label` or `addressLine2` — backend rejects them.
   return out;
 };
 
