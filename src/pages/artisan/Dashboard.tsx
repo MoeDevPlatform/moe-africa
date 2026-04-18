@@ -579,6 +579,13 @@ const ArtisanDashboard = () => {
         onOpenChange={setShowAddProduct}
         onProductAdded={loadProducts}
       />
+
+      <AddProductModal
+        open={!!editingProduct}
+        onOpenChange={(o) => { if (!o) setEditingProduct(null); }}
+        onProductAdded={loadProducts}
+        editProduct={editingProduct}
+      />
     </div>
   );
 };
