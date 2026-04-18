@@ -1031,7 +1031,7 @@ const Settings = () => {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-12 h-8 bg-muted rounded flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {pm.type}
+                          {pm.brand}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium">•••• •••• •••• {pm.last4}</p>
@@ -1095,6 +1095,7 @@ const Settings = () => {
         payment={paymentModal.payment}
         onClose={() => setPaymentModal({ open: false })}
         onSave={handleSavePayment}
+        addresses={addresses}
       />
     </div>
   );
