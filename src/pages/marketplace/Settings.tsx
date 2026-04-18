@@ -379,7 +379,12 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
             <Input value={cardholderName} onChange={e => setCardholderName(e.target.value)} placeholder="Jane Doe" />
           </div>
           <div className="space-y-2">
-            <Label>Card Number</Label>
+            <div className="flex items-center justify-between">
+              <Label>Card Number</Label>
+              {brand && digits.length >= 2 && (
+                <Badge variant="secondary" className="text-xs">{brand}</Badge>
+              )}
+            </div>
             <Input
               value={cardFocused ? formatCardNumber(digits) : (digits.length >= 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
               onFocus={() => setCardFocused(true)}
@@ -389,6 +394,14 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               inputMode="numeric"
               autoComplete="cc-number"
             />
+            {digits.length > 0 && digits.length === targetLen && !luhnValid && (
+              <p className="text-xs text-destructive">Invalid card number.</p>
+            )}
+            {digits.length > 0 && digits.length !== targetLen && brand && brand !== "Unknown" && (
+              <p className="text-xs text-muted-foreground">
+                {brand === "AMEX" ? "Amex cards are 15 digits." : "Card number must be 16 digits."}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -407,13 +420,13 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               />
             </div>
             <div className="space-y-2">
-              <Label>CVV</Label>
+              <Label>CVV {brand === "AMEX" ? "(4 digits)" : "(3 digits)"}</Label>
               <Input
                 type="password"
                 value={cvv}
-                onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="•••"
-                maxLength={4}
+                onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, targetCvv))}
+                placeholder={brand === "AMEX" ? "••••" : "•••"}
+                maxLength={targetCvv}
                 inputMode="numeric"
                 autoComplete="cc-csc"
               />
