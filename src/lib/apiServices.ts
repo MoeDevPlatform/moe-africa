@@ -55,7 +55,11 @@ export interface RegisterRequest {
 }
 
 // Mock auth fallback for offline/dev use
-const mockAuthFallback = (name: string, email: string, role: UserRole = "customer"): AuthResponse => ({
+const mockAuthFallback = (
+  name: string,
+  email: string,
+  role: UserRole = "customer",
+): AuthResponse => ({
   token: "mock_access_token_" + Date.now(),
   refreshToken: "mock_refresh_token_" + Date.now(),
   user: {
@@ -70,13 +74,9 @@ const mockAuthFallback = (name: string, email: string, role: UserRole = "custome
 
 export const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    try {
-      return await apiPost<AuthResponse>("/auth/login", data);
-    } catch {
-      console.warn("[MOE] Backend unreachable — using mock login");
-      return mockAuthFallback(data.email.split("@")[0], data.email);
-    }
+    return await apiPost<AuthResponse>("/auth/login", data);
   },
+
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
     try {
       return await apiPost<AuthResponse>("/auth/register", data);
@@ -87,14 +87,19 @@ export const authService = {
   },
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
-  updateProfile: (data: Partial<Pick<CustomerProfile, "name" | "email" | "phone" | "avatarUrl">>) =>
-    apiPatch<CustomerProfile>("/auth/profile", data),
+  updateProfile: (
+    data: Partial<
+      Pick<CustomerProfile, "name" | "email" | "phone" | "avatarUrl">
+    >,
+  ) => apiPatch<CustomerProfile>("/auth/profile", data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiPost<void>("/auth/change-password", data),
   uploadAvatar: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const base = (import.meta.env?.VITE_API_BASE_URL ?? import.meta.env?.VITE_MOE_API_BASE_URL ?? "http://localhost:3000") as string;
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "http://localhost:3000") as string;
     const token = localStorage.getItem("moe_access_token");
     const res = await fetch(`${base}/auth/profile/avatar`, {
       method: "POST",
@@ -124,17 +129,24 @@ export interface ArtisanProfile {
 
 export const artisanService = {
   getMyProfile: () => apiGet<ArtisanProfile>("/artisans/me"),
-  updateProfile: (data: Partial<ArtisanProfile>) => apiPatch<ArtisanProfile>("/artisans/me", data),
+  updateProfile: (data: Partial<ArtisanProfile>) =>
+    apiPatch<ArtisanProfile>("/artisans/me", data),
   getMyProducts: (page = 1, pageSize = 20) =>
-    apiGet<PaginatedResponse<Product>>("/artisans/me/products", { page, pageSize }),
-  createProduct: (data: Record<string, unknown>) => apiPost<Product>("/artisans/me/products", data),
+    apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
+      page,
+      pageSize,
+    }),
+  createProduct: (data: Record<string, unknown>) =>
+    apiPost<Product>("/artisans/me/products", data),
   updateProduct: (id: number, data: Record<string, unknown>) =>
     apiPatch<Product>(`/artisans/me/products/${id}`, data),
   deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
   uploadProductImage: async (file: File): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append("file", file);
-    const base = (import.meta.env?.VITE_API_BASE_URL ?? import.meta.env?.VITE_MOE_API_BASE_URL ?? "http://localhost:3000") as string;
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "http://localhost:3000") as string;
     const token = localStorage.getItem("moe_access_token");
     const res = await fetch(`${base}/artisans/me/products/upload-image`, {
       method: "POST",
@@ -177,8 +189,11 @@ export interface UserPreference {
 
 export const preferencesService = {
   get: () => apiGet<UserPreference>("/customers/me/preferences"),
-  update: (data: { categories: string[]; styleTags: string[]; budget: number }) =>
-    apiPost<UserPreference>("/customers/me/preferences", data),
+  update: (data: {
+    categories: string[];
+    styleTags: string[];
+    budget: number;
+  }) => apiPost<UserPreference>("/customers/me/preferences", data),
   clear: () => apiDelete("/customers/me/preferences"),
 };
 
@@ -220,7 +235,9 @@ export interface ProductsResponse {
   filterMeta?: FilterMetadata;
 }
 
-async function fallbackProducts(filters?: ProductFilters): Promise<ProductsResponse> {
+async function fallbackProducts(
+  filters?: ProductFilters,
+): Promise<ProductsResponse> {
   let filtered = [...mockProducts];
 
   if (filters?.category) {
@@ -233,10 +250,14 @@ async function fallbackProducts(filters?: ProductFilters): Promise<ProductsRespo
     });
   }
   if (filters?.priceMin !== undefined) {
-    filtered = filtered.filter((p) => p.priceRange.max >= (filters.priceMin ?? 0));
+    filtered = filtered.filter(
+      (p) => p.priceRange.max >= (filters.priceMin ?? 0),
+    );
   }
   if (filters?.priceMax !== undefined) {
-    filtered = filtered.filter((p) => p.priceRange.min <= (filters.priceMax ?? Infinity));
+    filtered = filtered.filter(
+      (p) => p.priceRange.min <= (filters.priceMax ?? Infinity),
+    );
   }
   if (filters?.q) {
     const q = filters.q.toLowerCase();
@@ -244,20 +265,28 @@ async function fallbackProducts(filters?: ProductFilters): Promise<ProductsRespo
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
-        p.tags.some((t) => t.toLowerCase().includes(q))
+        p.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
 
   return {
     data: filtered,
-    pagination: { page: 1, pageSize: filtered.length, totalPages: 1, totalItems: filtered.length },
+    pagination: {
+      page: 1,
+      pageSize: filtered.length,
+      totalPages: 1,
+      totalItems: filtered.length,
+    },
   };
 }
 
 export const productsService = {
   list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>("/products", filters as Record<string, unknown>);
+      return await apiGet<ProductsResponse>(
+        "/products",
+        filters as Record<string, unknown>,
+      );
     } catch {
       return fallbackProducts(filters);
     }
@@ -273,7 +302,9 @@ export const productsService = {
 
   getByProvider: async (providerId: number): Promise<Product[]> => {
     try {
-      const res = await apiGet<ProductsResponse>(`/service-providers/${providerId}/products`);
+      const res = await apiGet<ProductsResponse>(
+        `/service-providers/${providerId}/products`,
+      );
       return res.data;
     } catch {
       return mockGetProductsByProviderId(providerId);
@@ -286,7 +317,10 @@ export const productsService = {
     budget?: number;
   }): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>("/products/recommendations", params as Record<string, unknown>);
+      return await apiGet<ProductsResponse>(
+        "/products/recommendations",
+        params as Record<string, unknown>,
+      );
     } catch {
       return fallbackProducts();
     }
@@ -311,7 +345,9 @@ export interface ProvidersResponse {
   pagination: Pagination;
 }
 
-async function fallbackProviders(filters?: ProviderFilters): Promise<ProvidersResponse> {
+async function fallbackProviders(
+  filters?: ProviderFilters,
+): Promise<ProvidersResponse> {
   let filtered = [...mockProviders];
   if (filters?.category) {
     filtered = mockGetProvidersByCategory(filters.category);
@@ -321,14 +357,22 @@ async function fallbackProviders(filters?: ProviderFilters): Promise<ProvidersRe
   }
   return {
     data: filtered,
-    pagination: { page: 1, pageSize: filtered.length, totalPages: 1, totalItems: filtered.length },
+    pagination: {
+      page: 1,
+      pageSize: filtered.length,
+      totalPages: 1,
+      totalItems: filtered.length,
+    },
   };
 }
 
 export const providersService = {
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>("/service-providers/public-info", filters as Record<string, unknown>);
+      return await apiGet<ProvidersResponse>(
+        "/service-providers/public-info",
+        filters as Record<string, unknown>,
+      );
     } catch {
       return fallbackProviders(filters);
     }
@@ -344,7 +388,10 @@ export const providersService = {
 
   getByCategory: async (category: string): Promise<Provider[]> => {
     try {
-      const res = await apiGet<ProvidersResponse>("/service-providers/public-info", { category });
+      const res = await apiGet<ProvidersResponse>(
+        "/service-providers/public-info",
+        { category },
+      );
       return res.data;
     } catch {
       return mockGetProvidersByCategory(category);
@@ -357,7 +404,10 @@ export const providersService = {
     budget?: number;
   }): Promise<ProvidersResponse> => {
     try {
-      return await apiGet<ProvidersResponse>("/service-providers/recommendations", params as Record<string, unknown>);
+      return await apiGet<ProvidersResponse>(
+        "/service-providers/recommendations",
+        params as Record<string, unknown>,
+      );
     } catch {
       return fallbackProviders();
     }
@@ -377,15 +427,24 @@ export interface Review {
 }
 
 export const reviewsService = {
-  getByProvider: async (providerId: number): Promise<PaginatedResponse<Review>> => {
+  getByProvider: async (
+    providerId: number,
+  ): Promise<PaginatedResponse<Review>> => {
     try {
-      return await apiGet<PaginatedResponse<Review>>(`/service-providers/${providerId}/reviews`);
+      return await apiGet<PaginatedResponse<Review>>(
+        `/service-providers/${providerId}/reviews`,
+      );
     } catch {
-      return { data: [], pagination: { page: 1, pageSize: 0, totalPages: 0, totalItems: 0 } };
+      return {
+        data: [],
+        pagination: { page: 1, pageSize: 0, totalPages: 0, totalItems: 0 },
+      };
     }
   },
-  create: (providerId: number, data: { rating: number; comment: string; orderId?: string }) =>
-    apiPost<Review>(`/service-providers/${providerId}/reviews`, data),
+  create: (
+    providerId: number,
+    data: { rating: number; comment: string; orderId?: string },
+  ) => apiPost<Review>(`/service-providers/${providerId}/reviews`, data),
 };
 
 // ─── Orders ───────────────────────────────────────────────
@@ -419,11 +478,20 @@ export interface Order {
   providerName: string;
   customizationId?: number;
   isCustomOrder: boolean;
-  status: "pending" | "awaiting_payment" | "in_progress" | "completed" | "cancelled";
+  status:
+    | "pending"
+    | "awaiting_payment"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
   price: number;
   currency: string;
   shippingAddress: ShippingAddress;
-  paymentMethod: "paystack" | "flutterwave" | "bank_transfer" | "pay_on_delivery";
+  paymentMethod:
+    | "paystack"
+    | "flutterwave"
+    | "bank_transfer"
+    | "pay_on_delivery";
   paymentReference?: string;
   paymentStatus: "unpaid" | "paid" | "refunded";
   createdAt: string;
@@ -434,13 +502,25 @@ export interface CreateOrderRequest {
   customerId?: number;
   items: OrderItem[];
   shippingAddress: ShippingAddress;
-  paymentMethod: "paystack" | "flutterwave" | "bank_transfer" | "pay_on_delivery";
+  paymentMethod:
+    | "paystack"
+    | "flutterwave"
+    | "bank_transfer"
+    | "pay_on_delivery";
   currency: string;
 }
 
 export const ordersService = {
-  list: async (params?: { status?: string; isCustomOrder?: boolean; page?: number; pageSize?: number }) => {
-    return apiGet<PaginatedResponse<Order>>("/orders", params as Record<string, unknown>);
+  list: async (params?: {
+    status?: string;
+    isCustomOrder?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    return apiGet<PaginatedResponse<Order>>(
+      "/orders",
+      params as Record<string, unknown>,
+    );
   },
   getById: async (id: string) => {
     return apiGet<Order>(`/orders/${id}`);
@@ -448,7 +528,14 @@ export const ordersService = {
   create: async (data: CreateOrderRequest) => {
     return apiPost<Order>("/orders", data);
   },
-  update: async (id: string, data: { status?: string; paymentStatus?: string; paymentReference?: string }) => {
+  update: async (
+    id: string,
+    data: {
+      status?: string;
+      paymentStatus?: string;
+      paymentReference?: string;
+    },
+  ) => {
     return apiPatch<Order>(`/orders/${id}`, data);
   },
 };
@@ -490,8 +577,10 @@ export interface CustomizationOrder {
 }
 
 export const customizationService = {
-  create: (data: CreateCustomizationRequest) => apiPost<CustomizationOrder>("/customization-orders", data),
-  getById: (id: number) => apiGet<CustomizationOrder>(`/customization-orders/${id}`),
+  create: (data: CreateCustomizationRequest) =>
+    apiPost<CustomizationOrder>("/customization-orders", data),
+  getById: (id: number) =>
+    apiGet<CustomizationOrder>(`/customization-orders/${id}`),
 };
 
 // ─── Custom Order Requests ────────────────────────────────
@@ -509,7 +598,8 @@ export interface CustomOrderRequest {
 }
 
 export const customOrderService = {
-  create: (data: CustomOrderRequest) => apiPost<{ id: number; status: string }>("/orders/custom-requests", data),
+  create: (data: CustomOrderRequest) =>
+    apiPost<{ id: number; status: string }>("/orders/custom-requests", data),
 };
 
 // ─── Payments ─────────────────────────────────────────────
@@ -541,7 +631,8 @@ export interface PaymentVerifyResponse {
 }
 
 export const paymentsService = {
-  initialize: (data: PaymentInitRequest) => apiPost<PaymentInitResponse>("/payments/initialize", data),
+  initialize: (data: PaymentInitRequest) =>
+    apiPost<PaymentInitResponse>("/payments/initialize", data),
   verify: (data: { reference: string; gateway: "paystack" | "flutterwave" }) =>
     apiPost<PaymentVerifyResponse>("/payments/verify", data),
 };
@@ -570,14 +661,24 @@ export interface Message {
 
 export const messagingService = {
   listConversations: (params?: { page?: number; pageSize?: number }) =>
-    apiGet<PaginatedResponse<Conversation>>("/conversations", params as Record<string, unknown>),
-  getMessages: (conversationId: number, params?: { page?: number; pageSize?: number }) =>
-    apiGet<PaginatedResponse<Message>>(`/conversations/${conversationId}/messages`, params as Record<string, unknown>),
+    apiGet<PaginatedResponse<Conversation>>(
+      "/conversations",
+      params as Record<string, unknown>,
+    ),
+  getMessages: (
+    conversationId: number,
+    params?: { page?: number; pageSize?: number },
+  ) =>
+    apiGet<PaginatedResponse<Message>>(
+      `/conversations/${conversationId}/messages`,
+      params as Record<string, unknown>,
+    ),
   sendMessage: (conversationId: number, content: string) =>
     apiPost<Message>(`/conversations/${conversationId}/messages`, { content }),
   startConversation: (providerId: number, initialMessage: string) =>
     apiPost<Conversation>("/conversations", { providerId, initialMessage }),
-  markRead: (conversationId: number) => apiPatch<void>(`/conversations/${conversationId}/read`),
+  markRead: (conversationId: number) =>
+    apiPatch<void>(`/conversations/${conversationId}/read`),
 };
 
 // ─── Wishlist (API sync for logged-in users) ──────────────
@@ -599,9 +700,12 @@ export interface WishlistItemApi {
 }
 
 export const wishlistService = {
-  list: () => apiGet<PaginatedResponse<WishlistItemApi>>("/customers/me/wishlist"),
-  add: (productId: number) => apiPost<WishlistItemApi>("/customers/me/wishlist", { productId }),
-  remove: (productId: number) => apiDelete(`/customers/me/wishlist/${productId}`),
+  list: () =>
+    apiGet<PaginatedResponse<WishlistItemApi>>("/customers/me/wishlist"),
+  add: (productId: number) =>
+    apiPost<WishlistItemApi>("/customers/me/wishlist", { productId }),
+  remove: (productId: number) =>
+    apiDelete(`/customers/me/wishlist/${productId}`),
 };
 
 // ─── Cart (API sync for logged-in users) ──────────────────
@@ -625,8 +729,10 @@ export interface CartItemApi {
 
 export const cartService = {
   list: () => apiGet<PaginatedResponse<CartItemApi>>("/customers/me/cart"),
-  add: (item: Omit<CartItemApi, "id">) => apiPost<CartItemApi>("/customers/me/cart", item),
-  update: (id: string, item: Partial<CartItemApi>) => apiPatch<CartItemApi>(`/customers/me/cart/${id}`, item),
+  add: (item: Omit<CartItemApi, "id">) =>
+    apiPost<CartItemApi>("/customers/me/cart", item),
+  update: (id: string, item: Partial<CartItemApi>) =>
+    apiPatch<CartItemApi>(`/customers/me/cart/${id}`, item),
   remove: (id: string) => apiDelete(`/customers/me/cart/${id}`),
   clear: () => apiDelete("/customers/me/cart"),
 };
@@ -707,7 +813,9 @@ export interface AddressApi {
 export const addressesService = {
   list: async (): Promise<AddressApi[]> => {
     try {
-      const res = await apiGet<{ data: AddressApi[] }>("/customers/me/addresses");
+      const res = await apiGet<{ data: AddressApi[] }>(
+        "/customers/me/addresses",
+      );
       return res.data ?? [];
     } catch {
       return [];
@@ -718,7 +826,8 @@ export const addressesService = {
   update: (id: string, data: Partial<Omit<AddressApi, "id">>) =>
     apiPatch<AddressApi>(`/customers/me/addresses/${id}`, data),
   remove: (id: string) => apiDelete(`/customers/me/addresses/${id}`),
-  setDefault: (id: string) => apiPatch<AddressApi>(`/customers/me/addresses/${id}/default`),
+  setDefault: (id: string) =>
+    apiPatch<AddressApi>(`/customers/me/addresses/${id}/default`),
 };
 
 // ─── Search ───────────────────────────────────────────────
@@ -740,12 +849,12 @@ export const searchService = {
         products: mockProducts.filter(
           (p) =>
             p.name.toLowerCase().includes(lq) ||
-            p.tags.some((t) => t.toLowerCase().includes(lq))
+            p.tags.some((t) => t.toLowerCase().includes(lq)),
         ),
         providers: mockProviders.filter(
           (p) =>
             p.brandName.toLowerCase().includes(lq) ||
-            p.category.toLowerCase().includes(lq)
+            p.category.toLowerCase().includes(lq),
         ),
         categories: [],
       };
