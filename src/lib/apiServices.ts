@@ -119,7 +119,13 @@ export interface ArtisanProfile {
   businessName: string;
   description: string;
   category: string;
-  location: string;
+  // Structured location (preferred). `location` kept for backward-compat reads only.
+  country?: string;
+  state?: string;
+  city?: string;
+  address?: string;
+  location?: string;
+  storeImageUrl?: string;
   images: string[];
   rating: number;
   verified: boolean;
@@ -127,9 +133,23 @@ export interface ArtisanProfile {
   createdAt: string;
 }
 
+async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const base = (import.meta.env?.VITE_API_BASE_URL ??
+    import.meta.env?.VITE_MOE_API_BASE_URL ??
+    "http://localhost:3000") as string;
+  const token = localStorage.getItem("moe_access_token");
+  return fetch(`${base}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+}
+
 export const artisanService = {
   getMyProfile: () => apiGet<ArtisanProfile>("/artisans/me"),
-  updateProfile: (data: Partial<ArtisanProfile>) =>
+  updateProfile: (data: Partial<ArtisanProfile> & Record<string, unknown>) =>
     apiPatch<ArtisanProfile>("/artisans/me", data),
   getMyProducts: (page = 1, pageSize = 20) =>
     apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
@@ -142,20 +162,18 @@ export const artisanService = {
     apiPatch<Product>(`/artisans/me/products/${id}`, data),
   deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
   uploadProductImage: async (file: File): Promise<{ url: string }> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const base = (import.meta.env?.VITE_API_BASE_URL ??
-      import.meta.env?.VITE_MOE_API_BASE_URL ??
-      "http://localhost:3000") as string;
-    const token = localStorage.getItem("moe_access_token");
-    const res = await fetch(`${base}/artisans/me/products/upload-image`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    const res = await uploadFileWithAuth("/artisans/me/products/upload-image", file);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Image upload failed", res.status);
+    }
+    return (await res.json()) as { url: string };
+  },
+  uploadStoreImage: async (file: File): Promise<{ url: string }> => {
+    const res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Store image upload failed", res.status);
     }
     return (await res.json()) as { url: string };
   },
