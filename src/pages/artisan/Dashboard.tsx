@@ -6,6 +6,7 @@ import Footer from "@/components/marketplace/Footer";
 import AddProductModal from "@/components/artisan/AddProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { artisanService, ArtisanProfile } from "@/lib/apiServices";
+import { useAuth as _useAuthForDashboard } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
