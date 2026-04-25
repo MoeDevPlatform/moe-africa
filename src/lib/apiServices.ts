@@ -7,6 +7,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete, MoeApiError } from "./moeApi";
+import { FALLBACK_IMAGE } from "./imageFallback";
 import {
   Product,
   Provider,
@@ -491,8 +492,8 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
       selfFallback?.coverImageUrl ??
       selfFallback?.storeImageUrl ??
       "",
-    city: raw.city ?? "",
-    state: raw.state ?? "",
+    city: raw.city ?? raw.businessCity ?? raw.businessAddress?.city ?? "",
+    state: raw.state ?? raw.businessState ?? raw.businessAddress?.state ?? "",
     category: raw.category ?? "",
     styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
     rating: typeof raw.rating === "number" ? raw.rating : 0,
