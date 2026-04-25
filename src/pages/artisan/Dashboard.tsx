@@ -226,12 +226,27 @@ const ArtisanDashboard = () => {
       if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
       if (coverImageUrl) delta.coverImageUrl = coverImageUrl;
 
+      // Explicit clear signals — bypass any truthy filter so the backend
+      // receives an unambiguous null. See backend gap #13 in backend_MoeV1.md.
+      if (removeStoreImage && !storeImageUrl) {
+        (delta as Record<string, unknown>).storeImageUrl = null;
+      }
+      if (removeCoverImage && !coverImageUrl) {
+        (delta as Record<string, unknown>).coverImageUrl = null;
+      }
+
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
         return;
       }
 
       const updated = await artisanService.updateProfile(delta);
+      // NOTE: Until backend gap #13 (backend_MoeV1.md) is resolved, the API may
+      // echo back the previous storeImageUrl/coverImageUrl after a clear request.
+      // The X button will appear to work, save fires, then the old image
+      // reappears on the next refresh. This is expected and resolves
+      // automatically once #13 ships. Do NOT add response filtering here —
+      // it would mask legitimate null updates.
       // Merge instead of replace — backend PATCH may only echo changed fields,
       // which would otherwise wipe storeImageUrl, images, description, etc.
       const merged: ArtisanProfile = {
@@ -251,10 +266,15 @@ const ArtisanDashboard = () => {
       setArtisanProfile(merged);
       // Refetch to guarantee canonical state — non-blocking
       artisanService.getMyProfile().then(setArtisanProfile).catch(() => {});
+      // Sync AuthContext so businessName changes reflect across the app
+      // (navbar, marketplace listings) without a hard refresh.
+      refreshProfile().catch(() => {});
       setStoreImageFile(null);
       setStoreImagePreview("");
       setCoverImageFile(null);
       setCoverImagePreview("");
+      setRemoveStoreImage(false);
+      setRemoveCoverImage(false);
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
