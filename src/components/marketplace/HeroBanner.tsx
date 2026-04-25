@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
+import womanThrift from "@/assets/uploads/woman-thrift.jpg";
+import africanShoppers from "@/assets/uploads/african-shoppers.jpg";
+import secondhandMarket from "@/assets/uploads/secondhand-market.jpg";
 
 interface Banner {
   id: number;
@@ -13,19 +17,19 @@ interface Banner {
 const mockBanners: Banner[] = [
   {
     id: 1,
-    imageUrl: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200&h=400&fit=crop",
+    imageUrl: womanThrift,
     title: "New Collection - Traditional Kente",
     description: "Discover authentic African craftsmanship",
   },
   {
     id: 2,
-    imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=1200&h=400&fit=crop",
+    imageUrl: africanShoppers,
     title: "Summer Deals - Up to 40% Off",
     description: "Limited time offers on custom tailoring",
   },
   {
     id: 3,
-    imageUrl: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=1200&h=400&fit=crop",
+    imageUrl: secondhandMarket,
     title: "Handcrafted Leather Shoes",
     description: "Premium quality, made to order",
   },
@@ -75,7 +79,7 @@ const HeroBanner = () => {
               src={banner.imageUrl}
               alt={banner.title}
               className="w-full h-full object-cover"
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             

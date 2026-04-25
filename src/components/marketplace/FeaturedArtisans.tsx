@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,7 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                     alt={provider.brandName}
                     className="w-full h-full object-cover"
                     loading="lazy"
-                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                   />
                 </div>
               </div>
@@ -96,7 +97,7 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                               alt={product.name}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                               loading="lazy"
-                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                             />
                           </div>
                         </div>

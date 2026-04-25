@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           onError={(e) => {
             const target = e.currentTarget;
             target.onerror = null;
-            target.src = "/placeholder.svg";
+            target.src = FALLBACK_IMAGE;
           }}
         />
         <Button

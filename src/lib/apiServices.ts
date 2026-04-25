@@ -676,7 +676,7 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     productId: Number(r.productId ?? 0),
     productName: (r.productName as string) ?? r.product?.name ?? "Unknown product",
     productImage:
-      (r.productImage as string) ?? r.product?.images?.[0] ?? "/placeholder.svg",
+      (r.productImage as string) ?? r.product?.images?.[0] ?? FALLBACK_IMAGE,
     providerId: Number(r.providerId ?? 0),
     providerName:
       (r.providerName as string) ??

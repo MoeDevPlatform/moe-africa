@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
@@ -50,7 +51,7 @@ const OrderCard = ({ order }: { order: Order }) => {
               alt={order.productName}
               className="w-full h-full object-cover"
               loading="lazy"
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
             />
           </div>
           <div className="flex-1 p-4">

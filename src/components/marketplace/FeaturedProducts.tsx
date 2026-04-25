@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
@@ -59,7 +60,7 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
-          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
         />
         <Button
           variant="secondary"
@@ -127,7 +128,7 @@ const FeaturedProducts = () => {
     id: p.id,
     name: p.name,
     price: p.priceRange.min,
-    imageUrl: p.images[0] || "/placeholder.svg",
+    imageUrl: p.images[0] || FALLBACK_IMAGE,
     providerId: p.providerId,
     providerName: providerMap[p.providerId]?.brandName || "Artisan",
     category: p.category,
