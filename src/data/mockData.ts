@@ -1,3 +1,8 @@
+import womanThrift from "@/assets/uploads/woman-thrift.jpg";
+import africanBarista from "@/assets/uploads/african-barista.jpg";
+import africanShoppers from "@/assets/uploads/african-shoppers.jpg";
+import childrensClothes from "@/assets/uploads/childrens-clothes.jpg";
+import secondhandMarket from "@/assets/uploads/secondhand-market.jpg";
 // Centralized mock data for products and providers
 
 export interface Product {
@@ -51,7 +56,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: true,
     estimatedDeliveryDays: 7,
-    heroImage: "https://images.unsplash.com/photo-1558769132-cb1aea3c8501?w=1200",
+    heroImage: womanThrift,
     customOrdersEnabled: true,
     category: "tailoring",
     styleTags: ["Afrocentric", "Modern", "Traditional"],
@@ -71,7 +76,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: false,
     estimatedDeliveryDays: 5,
-    heroImage: "https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=1200",
+    heroImage: africanShoppers,
     customOrdersEnabled: true,
     category: "tailoring",
     styleTags: ["Executive", "Corporate", "Wedding"],
@@ -91,7 +96,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: true,
     estimatedDeliveryDays: 6,
-    heroImage: "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=1200",
+    heroImage: womanThrift,
     customOrdersEnabled: true,
     category: "tailoring",
     styleTags: ["Elegant", "Evening Wear", "Aso-Ebi"],
@@ -111,7 +116,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: true,
     estimatedDeliveryDays: 10,
-    heroImage: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=1200",
+    heroImage: africanBarista,
     customOrdersEnabled: true,
     category: "shoemaking",
     styleTags: ["Premium", "Handmade", "Leather"],
@@ -131,7 +136,7 @@ export const providers: Provider[] = [
     verified: false,
     featured: false,
     estimatedDeliveryDays: 8,
-    heroImage: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=1200",
+    heroImage: africanShoppers,
     customOrdersEnabled: true,
     category: "shoemaking",
     styleTags: ["Women's Fashion", "Elegant", "Custom Fit"],
@@ -151,7 +156,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: false,
     estimatedDeliveryDays: 1,
-    heroImage: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=1200",
+    heroImage: africanShoppers,
     customOrdersEnabled: true,
     category: "beauty",
     styleTags: ["Bridal", "Events", "Professional"],
@@ -171,7 +176,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: false,
     estimatedDeliveryDays: 7,
-    heroImage: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=1200",
+    heroImage: secondhandMarket,
     customOrdersEnabled: true,
     category: "leatherwork",
     styleTags: ["Artisan", "Premium", "Handcrafted"],
@@ -191,7 +196,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: true,
     estimatedDeliveryDays: 14,
-    heroImage: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=1200",
+    heroImage: secondhandMarket,
     customOrdersEnabled: true,
     category: "canvas",
     styleTags: ["Portraits", "Abstract", "Prints"],
@@ -211,7 +216,7 @@ export const providers: Provider[] = [
     verified: true,
     featured: false,
     estimatedDeliveryDays: 7,
-    heroImage: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=1200",
+    heroImage: childrensClothes,
     customOrdersEnabled: true,
     category: "canvas",
     styleTags: ["Digital Print", "Photo Canvas", "Modern"],
