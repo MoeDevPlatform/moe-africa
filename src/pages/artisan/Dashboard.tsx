@@ -6,7 +6,6 @@ import Footer from "@/components/marketplace/Footer";
 import AddProductModal from "@/components/artisan/AddProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { artisanService, ArtisanProfile } from "@/lib/apiServices";
-import { useAuth as _useAuthForDashboard } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +36,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [artisanProfile, setArtisanProfile] = useState<ArtisanProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -64,6 +63,7 @@ const ArtisanDashboard = () => {
   const [storeImageError, setStoreImageError] = useState("");
   const [storeImageUploading, setStoreImageUploading] = useState(false);
   const storeImageInputRef = useRef<HTMLInputElement>(null);
+  const [removeStoreImage, setRemoveStoreImage] = useState(false);
 
   // Cover/banner image upload (provider page hero)
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -71,6 +71,7 @@ const ArtisanDashboard = () => {
   const [coverImageError, setCoverImageError] = useState("");
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [removeCoverImage, setRemoveCoverImage] = useState(false);
 
   const availableStates = useMemo(() => {
     if (!businessForm.country) return [];
@@ -140,6 +141,7 @@ const ArtisanDashboard = () => {
     }
     setStoreImageFile(file);
     setStoreImagePreview(URL.createObjectURL(file));
+    setRemoveStoreImage(false);
   };
 
   const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,6 +158,7 @@ const ArtisanDashboard = () => {
     }
     setCoverImageFile(file);
     setCoverImagePreview(URL.createObjectURL(file));
+    setRemoveCoverImage(false);
   };
 
   const handleSaveProfile = async () => {
