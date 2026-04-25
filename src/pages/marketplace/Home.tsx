@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
@@ -113,7 +114,7 @@ const MarketplaceHome = () => {
         name: p.name,
         price: p.priceRange?.min ?? 0,
         originalPrice: p.priceRange?.max ?? 0,
-        imageUrl: p.images?.[0] || "/placeholder.svg",
+        imageUrl: p.images?.[0] || FALLBACK_IMAGE,
         providerId: p.providerId,
         discount: (p.priceRange?.max ?? 0) > 0 ? Math.round((((p.priceRange?.max ?? 0) - (p.priceRange?.min ?? 0)) / (p.priceRange?.max ?? 1)) * 100) : 0,
         tags: p.tags ?? [],
@@ -129,7 +130,7 @@ const MarketplaceHome = () => {
         id: p.id,
         name: p.name,
         price: p.priceRange?.min ?? 0,
-        imageUrl: p.images?.[0] || "/placeholder.svg",
+        imageUrl: p.images?.[0] || FALLBACK_IMAGE,
         providerId: p.providerId,
         tag: (p.tags ?? []).find((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)) || (p.tags ?? [])[0] || "",
       }));
@@ -289,7 +290,7 @@ const MarketplaceHome = () => {
                       src={product.imageUrl}
                       alt={product.name}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                     />
                     <Badge className="absolute top-3 right-3 bg-accent text-accent-foreground">
                       {product.discount}% OFF
@@ -321,7 +322,7 @@ const MarketplaceHome = () => {
                       src={product.imageUrl}
                       alt={product.name}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                     />
                     <Badge className="absolute bottom-3 left-3" variant="secondary">
                       {product.tag}

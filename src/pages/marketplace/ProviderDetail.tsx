@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
@@ -100,7 +101,7 @@ const ProviderDetail = () => {
               alt={provider.brandName}
               className="w-full h-full object-cover"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+                (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
               }}
             />
           )}

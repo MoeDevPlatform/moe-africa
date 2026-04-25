@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
@@ -76,7 +77,7 @@ const Wishlist = () => {
               {items.map((item) => {
                 const productName = item?.productName ?? "Untitled product";
                 const providerName = item?.providerName ?? "Unknown artisan";
-                const imageUrl = item?.imageUrl || "/placeholder.svg";
+                const imageUrl = item?.imageUrl || FALLBACK_IMAGE;
                 const styleTags = Array.isArray(item?.styleTags) ? item.styleTags : [];
 
                 return (
@@ -91,7 +92,7 @@ const Wishlist = () => {
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
-                          e.currentTarget.src = "/placeholder.svg";
+                          e.currentTarget.src = FALLBACK_IMAGE;
                         }}
                       />
                       <Button

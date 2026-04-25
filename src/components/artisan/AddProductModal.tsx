@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -399,7 +400,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                       src={img.previewUrl}
                       alt={img.name}
                       className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE; }}
                     />
                     <button
                       type="button"

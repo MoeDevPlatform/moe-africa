@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
 
@@ -43,7 +44,7 @@ function readLocal(): WishlistItem[] {
       price: it.price ?? it.priceRange?.min ?? null,
       currency: String(it.currency ?? "NGN"),
       category: String(it.category ?? ""),
-      imageUrl: String(it.imageUrl ?? "/placeholder.svg"),
+      imageUrl: String(it.imageUrl ?? FALLBACK_IMAGE),
       styleTags: Array.isArray(it.styleTags) ? it.styleTags : [],
       addedAt: it.addedAt ? new Date(it.addedAt as unknown as string) : new Date(),
     }));

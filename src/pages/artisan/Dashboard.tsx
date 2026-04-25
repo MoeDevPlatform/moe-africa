@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
@@ -359,10 +360,10 @@ const ArtisanDashboard = () => {
                     {products.map((product) => (
                       <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                         <img
-                          src={product.images?.[0] || "/placeholder.svg"}
+                          src={product.images?.[0] || FALLBACK_IMAGE}
                           alt={product.name}
                           className="h-16 w-16 object-cover rounded-lg"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{product.name}</p>
@@ -533,7 +534,7 @@ const ArtisanDashboard = () => {
                             src={storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]}
                             alt="Store preview"
                             className="h-20 w-20 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                           />
                         )}
                         <Button
@@ -578,7 +579,7 @@ const ArtisanDashboard = () => {
                             src={coverImagePreview || artisanProfile?.coverImageUrl}
                             alt="Cover preview"
                             className="h-20 w-40 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                           />
                         )}
                         <Button
@@ -652,7 +653,7 @@ const ArtisanDashboard = () => {
                           src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
                           alt="Store"
                           className="h-24 w-24 object-cover rounded-lg border"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                         />
                       </div>
                     )}
@@ -663,7 +664,7 @@ const ArtisanDashboard = () => {
                           src={artisanProfile.coverImageUrl}
                           alt="Cover"
                           className="w-full max-w-2xl aspect-[16/5] object-cover rounded-lg border"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                         />
                       </div>
                     )}
