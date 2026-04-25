@@ -722,7 +722,7 @@ const PaymentTermsSection = () => {
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshProfile } = useAuth();
 
   // Account form state seeded from auth user
   const [accountForm, setAccountForm] = useState({
@@ -981,6 +981,9 @@ const Settings = () => {
                     }
                     await authService.updateProfile(delta);
                     updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    // Sync AuthContext from server so name/email/phone propagate everywhere
+                    // (e.g. marketplace listings) without a hard refresh.
+                    await refreshProfile();
                     toast({ title: "Changes saved", description: "Your account information has been updated." });
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : "Failed to save changes";
