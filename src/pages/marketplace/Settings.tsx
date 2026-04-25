@@ -313,7 +313,9 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   useEffect(() => {
     if (open) {
       setCardholderName(payment?.cardholderName ?? "");
-      setCardNumber(payment ? `•••• •••• •••• ${payment.last4}` : "");
+      // Store raw digits only — masking is done at render time so validation
+      // (length / Luhn) runs against real digits, not bullets.
+      setCardNumber(payment ? payment.last4 : "");
       setExpiry(payment?.expiry ?? "");
       setCvv("");
       setBillingAddressId(payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? ""));
@@ -386,10 +388,10 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               )}
             </div>
             <Input
-              value={cardFocused ? formatCardNumber(digits) : (digits.length >= 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
+              value={cardFocused ? formatCardNumber(digits) : (digits.length > 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
               onFocus={() => setCardFocused(true)}
               onBlur={() => setCardFocused(false)}
-              onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+              onChange={e => setCardNumber(e.target.value.replace(/\D/g, "").slice(0, 19))}
               placeholder="1234 5678 9012 3456"
               inputMode="numeric"
               autoComplete="cc-number"
