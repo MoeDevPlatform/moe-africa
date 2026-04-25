@@ -553,14 +553,34 @@ const ArtisanDashboard = () => {
                         onChange={handleStoreImageSelect}
                       />
                       <div className="flex items-center gap-3 flex-wrap">
-                        {(storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]) && (
-                          <img
-                            src={storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]}
-                            alt="Store preview"
-                            className="h-20 w-20 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                          />
-                        )}
+                        {(() => {
+                          const src = removeStoreImage
+                            ? ""
+                            : (storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0] || "");
+                          if (!src) return null;
+                          return (
+                            <div className="relative">
+                              <img
+                                src={src}
+                                alt="Store preview"
+                                className="h-20 w-20 object-cover rounded-lg border"
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                              />
+                              <button
+                                type="button"
+                                aria-label="Remove store image"
+                                onClick={() => {
+                                  setStoreImageFile(null);
+                                  setStoreImagePreview("");
+                                  setRemoveStoreImage(true);
+                                }}
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow hover:opacity-90"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         <Button
                           type="button"
                           variant="outline"
@@ -598,14 +618,34 @@ const ArtisanDashboard = () => {
                         onChange={handleCoverImageSelect}
                       />
                       <div className="flex items-center gap-3 flex-wrap">
-                        {(coverImagePreview || artisanProfile?.coverImageUrl) && (
-                          <img
-                            src={coverImagePreview || artisanProfile?.coverImageUrl}
-                            alt="Cover preview"
-                            className="h-20 w-40 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                          />
-                        )}
+                        {(() => {
+                          const src = removeCoverImage
+                            ? ""
+                            : (coverImagePreview || artisanProfile?.coverImageUrl || "");
+                          if (!src) return null;
+                          return (
+                            <div className="relative">
+                              <img
+                                src={src}
+                                alt="Cover preview"
+                                className="h-20 w-40 object-cover rounded-lg border"
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                              />
+                              <button
+                                type="button"
+                                aria-label="Remove cover image"
+                                onClick={() => {
+                                  setCoverImageFile(null);
+                                  setCoverImagePreview("");
+                                  setRemoveCoverImage(true);
+                                }}
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow hover:opacity-90"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         <Button
                           type="button"
                           variant="outline"
