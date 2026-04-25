@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
@@ -36,7 +36,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [artisanProfile, setArtisanProfile] = useState<ArtisanProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -63,6 +63,7 @@ const ArtisanDashboard = () => {
   const [storeImageError, setStoreImageError] = useState("");
   const [storeImageUploading, setStoreImageUploading] = useState(false);
   const storeImageInputRef = useRef<HTMLInputElement>(null);
+  const [removeStoreImage, setRemoveStoreImage] = useState(false);
 
   // Cover/banner image upload (provider page hero)
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -70,6 +71,7 @@ const ArtisanDashboard = () => {
   const [coverImageError, setCoverImageError] = useState("");
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [removeCoverImage, setRemoveCoverImage] = useState(false);
 
   const availableStates = useMemo(() => {
     if (!businessForm.country) return [];
@@ -139,6 +141,7 @@ const ArtisanDashboard = () => {
     }
     setStoreImageFile(file);
     setStoreImagePreview(URL.createObjectURL(file));
+    setRemoveStoreImage(false);
   };
 
   const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +158,7 @@ const ArtisanDashboard = () => {
     }
     setCoverImageFile(file);
     setCoverImagePreview(URL.createObjectURL(file));
+    setRemoveCoverImage(false);
   };
 
   const handleSaveProfile = async () => {
@@ -222,12 +226,27 @@ const ArtisanDashboard = () => {
       if (storeImageUrl) delta.storeImageUrl = storeImageUrl;
       if (coverImageUrl) delta.coverImageUrl = coverImageUrl;
 
+      // Explicit clear signals — bypass any truthy filter so the backend
+      // receives an unambiguous null. See backend gap #13 in backend_MoeV1.md.
+      if (removeStoreImage && !storeImageUrl) {
+        (delta as Record<string, unknown>).storeImageUrl = null;
+      }
+      if (removeCoverImage && !coverImageUrl) {
+        (delta as Record<string, unknown>).coverImageUrl = null;
+      }
+
       if (Object.keys(delta).length === 0) {
         setEditingProfile(false);
         return;
       }
 
       const updated = await artisanService.updateProfile(delta);
+      // NOTE: Until backend gap #13 (backend_MoeV1.md) is resolved, the API may
+      // echo back the previous storeImageUrl/coverImageUrl after a clear request.
+      // The X button will appear to work, save fires, then the old image
+      // reappears on the next refresh. This is expected and resolves
+      // automatically once #13 ships. Do NOT add response filtering here —
+      // it would mask legitimate null updates.
       // Merge instead of replace — backend PATCH may only echo changed fields,
       // which would otherwise wipe storeImageUrl, images, description, etc.
       const merged: ArtisanProfile = {
@@ -247,10 +266,15 @@ const ArtisanDashboard = () => {
       setArtisanProfile(merged);
       // Refetch to guarantee canonical state — non-blocking
       artisanService.getMyProfile().then(setArtisanProfile).catch(() => {});
+      // Sync AuthContext so businessName changes reflect across the app
+      // (navbar, marketplace listings) without a hard refresh.
+      refreshProfile().catch(() => {});
       setStoreImageFile(null);
       setStoreImagePreview("");
       setCoverImageFile(null);
       setCoverImagePreview("");
+      setRemoveStoreImage(false);
+      setRemoveCoverImage(false);
       setEditingProfile(false);
       toast.success("Business profile updated");
     } catch (err: unknown) {
@@ -529,14 +553,34 @@ const ArtisanDashboard = () => {
                         onChange={handleStoreImageSelect}
                       />
                       <div className="flex items-center gap-3 flex-wrap">
-                        {(storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]) && (
-                          <img
-                            src={storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0]}
-                            alt="Store preview"
-                            className="h-20 w-20 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                          />
-                        )}
+                        {(() => {
+                          const src = removeStoreImage
+                            ? ""
+                            : (storeImagePreview || artisanProfile?.storeImageUrl || artisanProfile?.images?.[0] || "");
+                          if (!src) return null;
+                          return (
+                            <div className="relative">
+                              <img
+                                src={src}
+                                alt="Store preview"
+                                className="h-20 w-20 object-cover rounded-lg border"
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                              />
+                              <button
+                                type="button"
+                                aria-label="Remove store image"
+                                onClick={() => {
+                                  setStoreImageFile(null);
+                                  setStoreImagePreview("");
+                                  setRemoveStoreImage(true);
+                                }}
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow hover:opacity-90"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         <Button
                           type="button"
                           variant="outline"
@@ -574,14 +618,34 @@ const ArtisanDashboard = () => {
                         onChange={handleCoverImageSelect}
                       />
                       <div className="flex items-center gap-3 flex-wrap">
-                        {(coverImagePreview || artisanProfile?.coverImageUrl) && (
-                          <img
-                            src={coverImagePreview || artisanProfile?.coverImageUrl}
-                            alt="Cover preview"
-                            className="h-20 w-40 object-cover rounded-lg border"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                          />
-                        )}
+                        {(() => {
+                          const src = removeCoverImage
+                            ? ""
+                            : (coverImagePreview || artisanProfile?.coverImageUrl || "");
+                          if (!src) return null;
+                          return (
+                            <div className="relative">
+                              <img
+                                src={src}
+                                alt="Cover preview"
+                                className="h-20 w-40 object-cover rounded-lg border"
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                              />
+                              <button
+                                type="button"
+                                aria-label="Remove cover image"
+                                onClick={() => {
+                                  setCoverImageFile(null);
+                                  setCoverImagePreview("");
+                                  setRemoveCoverImage(true);
+                                }}
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow hover:opacity-90"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                         <Button
                           type="button"
                           variant="outline"

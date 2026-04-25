@@ -187,13 +187,26 @@ const ProviderDetail = () => {
                 <TabsContent value="about" className="mt-6">
                   <div className="bg-card rounded-xl border p-6">
                     <h2 className="text-2xl font-display font-bold mb-4">About {provider.brandName}</h2>
-                    {provider.about ? (
-                      <p className="text-muted-foreground leading-relaxed">{provider.about}</p>
-                    ) : (
-                      <p className="text-muted-foreground italic leading-relaxed">
-                        This artisan hasn't added a description yet.
-                      </p>
-                    )}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Business Name</p>
+                        <p className="font-medium">{provider.brandName || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Description</p>
+                        {provider.about ? (
+                          <p className="leading-relaxed">{provider.about}</p>
+                        ) : (
+                          <p className="italic text-muted-foreground leading-relaxed">
+                            This artisan hasn't added a description yet.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Category</p>
+                        <p className="font-medium capitalize">{provider.category || "—"}</p>
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
 

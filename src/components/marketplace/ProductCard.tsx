@@ -59,6 +59,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
   };
 
   const handleCardClick = () => {
+    if (!product.id) {
+      if (import.meta.env.DEV) console.warn("[ProductCard] Missing product.id, skipping navigation", product);
+      return;
+    }
     navigate(`/marketplace/product/${product.id}`);
   };
 
@@ -141,6 +145,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
             className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
             onClick={(e) => {
               e.stopPropagation();
+              if (!product.id) {
+                if (import.meta.env.DEV) console.warn("[ProductCard] Missing product.id, skipping navigation", product);
+                return;
+              }
               navigate(`/marketplace/product/${product.id}`);
             }}
           >

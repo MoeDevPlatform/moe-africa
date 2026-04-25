@@ -192,6 +192,40 @@ when convenient so the mapper can be simplified.
 
 ---
 
+## 10. PATCH responses must return updated profile object
+
+> 🔴 **STILL BROKEN** — after `PATCH /auth/profile` (customer name/email/phone) and `PATCH /artisans/me` (artisan business profile), the frontend now calls `refreshProfile()` to re-pull canonical state. For this to work end-to-end, both endpoints **must** return the fully-updated profile/user object in the response so subsequent reads (`GET /auth/profile`, `GET /artisans/me`) reflect the new values immediately.
+
+**User-facing consequence:** if the response is stale (or empty), updated names do not appear on the marketplace listing or navbar without a hard refresh — users assume the save silently failed and re-submit, creating duplicate write events.
+
+**Fix:** ensure PATCH handlers return the full updated record (not 204 No Content, not a partial echo) so the frontend's `refreshProfile()` call hydrates with canonical state.
+
+---
+
+## 11. *(reserved)*
+
+---
+
+## 12. Product `images[]` must be persisted and returned
+
+> 🔴 **STILL BROKEN** — `POST /artisans/me/products` and `PATCH /artisans/me/products/:id` currently strip the `images: string[]` field. Uploaded image URLs round-trip through the upload endpoint successfully, but the product DTO either rejects or silently drops the `images` property.
+
+**User-facing consequence:** an artisan uploads photos for a new product, sees the upload succeed, hits Save — and the product is created with no images. The product card on the marketplace shows the fallback placeholder, which buyers interpret as "low quality / not real". Confidence in the platform drops sharply.
+
+**Fix:** add `images: string[]` to the create/update product DTOs, persist it on the product record, and include it on every product response (`GET /products`, `GET /products/:id`, `GET /service-providers/:id/products`, `GET /artisans/me/products`).
+
+---
+
+## 13. PATCH `/artisans/me` must accept explicit image-clear signal
+
+> 🔴 **NEW** — the dashboard now exposes an X button to remove the store image and cover image. The frontend sends `storeImageUrl: null` (and/or `coverImageUrl: null`) explicitly when the artisan clears an image. The current backend either rejects `null` as invalid type, or interprets it as "no change" and keeps the previous value.
+
+**User-facing consequence:** artisan clicks X to remove an outdated/embarrassing image, hits Save, sees a success toast — but the old image reappears on next refresh because the backend silently kept it. The artisan loses trust in the dashboard's controls.
+
+**Fix:** accept `storeImageUrl: null` and `coverImageUrl: null` (or empty string `""`) on `PATCH /artisans/me` as an explicit clear signal. Persist the cleared state and echo it back as `null` in the response so the merge propagates correctly.
+
+---
+
 ## Cross-cutting reminders
 
 - **Auth:** every endpoint above requires `Authorization: Bearer <token>`.

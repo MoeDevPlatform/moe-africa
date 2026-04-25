@@ -17,6 +17,10 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
   const productCount = getProductsByProviderId(provider.id).length;
 
   const handleCardClick = () => {
+    if (!provider.id) {
+      if (import.meta.env.DEV) console.warn("[ProviderCard] Missing provider.id, skipping navigation", provider);
+      return;
+    }
     navigate(`/marketplace/provider/${provider.id}`);
   };
   
@@ -105,6 +109,10 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
             className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
             onClick={(e) => {
               e.stopPropagation();
+              if (!provider.id) {
+                if (import.meta.env.DEV) console.warn("[ProviderCard] Missing provider.id, skipping navigation", provider);
+                return;
+              }
               navigate(`/marketplace/provider/${provider.id}`);
             }}
           >

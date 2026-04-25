@@ -313,7 +313,9 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   useEffect(() => {
     if (open) {
       setCardholderName(payment?.cardholderName ?? "");
-      setCardNumber(payment ? `•••• •••• •••• ${payment.last4}` : "");
+      // Store raw digits only — masking is done at render time so validation
+      // (length / Luhn) runs against real digits, not bullets.
+      setCardNumber(payment ? payment.last4 : "");
       setExpiry(payment?.expiry ?? "");
       setCvv("");
       setBillingAddressId(payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? ""));
@@ -386,10 +388,10 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
               )}
             </div>
             <Input
-              value={cardFocused ? formatCardNumber(digits) : (digits.length >= 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
+              value={cardFocused ? formatCardNumber(digits) : (digits.length > 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
               onFocus={() => setCardFocused(true)}
               onBlur={() => setCardFocused(false)}
-              onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+              onChange={e => setCardNumber(e.target.value.replace(/\D/g, "").slice(0, 19))}
               placeholder="1234 5678 9012 3456"
               inputMode="numeric"
               autoComplete="cc-number"
@@ -722,7 +724,7 @@ const PaymentTermsSection = () => {
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshProfile } = useAuth();
 
   // Account form state seeded from auth user
   const [accountForm, setAccountForm] = useState({
@@ -981,6 +983,9 @@ const Settings = () => {
                     }
                     await authService.updateProfile(delta);
                     updateUser({ name: fullName, email: accountForm.email, phone: accountForm.phone });
+                    // Sync AuthContext from server so name/email/phone propagate everywhere
+                    // (e.g. marketplace listings) without a hard refresh.
+                    await refreshProfile();
                     toast({ title: "Changes saved", description: "Your account information has been updated." });
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : "Failed to save changes";
