@@ -62,6 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authService.logout().catch(() => {});
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    // Clear per-artisan local stashes so the next account on this browser
+    // doesn't inherit the previous user's cover/store images.
+    localStorage.removeItem("moe_artisan_cover_url");
+    localStorage.removeItem("moe_artisan_store_url");
+    localStorage.removeItem("moe_self_user_id");
     setUser(null);
   }, []);
 
