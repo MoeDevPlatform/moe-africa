@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiGet } from "@/lib/moeApi";
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 
 interface SearchResultsProps {
   searchQuery: string;
@@ -68,17 +69,22 @@ type ProductResult = {
   provider: string;
   providerId?: number;
   category?: string;
-  price: number;
-  image?: string;
+  images: string[];
+  priceRange: { min: number | null; max: number | null };
+  currency: string;
   tags: string[];
 };
 
-function coerceImageUrl(maybeImages: any): string | undefined {
-  if (typeof maybeImages === "string") return maybeImages;
-  if (Array.isArray(maybeImages) && typeof maybeImages[0] === "string") return maybeImages[0] as string;
-  if (Array.isArray(maybeImages) && maybeImages[0]?.url) return maybeImages[0].url as string;
-  if (maybeImages?.url) return maybeImages.url as string;
-  return undefined;
+function coerceImages(maybeImages: any): string[] {
+  if (!maybeImages) return [];
+  if (typeof maybeImages === "string") return [maybeImages];
+  if (Array.isArray(maybeImages)) {
+    return maybeImages
+      .map((i: any) => (typeof i === "string" ? i : i?.url))
+      .filter((u: any): u is string => typeof u === "string" && u.length > 0);
+  }
+  if (maybeImages?.url) return [maybeImages.url as string];
+  return [];
 }
 
 function mapProvider(p: any): ProviderResult {
@@ -96,8 +102,20 @@ function mapProvider(p: any): ProviderResult {
 }
 
 function mapProduct(p: any): ProductResult {
-  const price =
-    typeof p.priceMin === "number" ? p.priceMin : typeof p.price === "number" ? p.price : 0;
+  const min =
+    typeof p.priceRange?.min === "number"
+      ? p.priceRange.min
+      : typeof p.priceMin === "number"
+      ? p.priceMin
+      : typeof p.price === "number"
+      ? p.price
+      : null;
+  const max =
+    typeof p.priceRange?.max === "number"
+      ? p.priceRange.max
+      : typeof p.priceMax === "number"
+      ? p.priceMax
+      : null;
 
   return {
     id: Number(p.id),
@@ -105,8 +123,9 @@ function mapProduct(p: any): ProductResult {
     provider: p.providerName ?? p.provider?.brandName ?? "",
     providerId: p.providerId ? Number(p.providerId) : undefined,
     category: p.category ?? p.serviceCategoryId ?? undefined,
-    price,
-    image: coerceImageUrl(p.images ?? p.imageUrls ?? p.imagesUrls ?? p.imageUrl),
+    images: coerceImages(p.images ?? p.imageUrls ?? p.imagesUrls ?? p.imageUrl ?? p.image),
+    priceRange: { min, max },
+    currency: p.currency ?? "NGN",
     tags: (p.styleTags ?? p.tags ?? []).filter((t: any) => typeof t === "string"),
   };
 }
@@ -377,9 +396,15 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                       >
                         <div className="flex gap-4 p-4">
                           <img
-                            src={product.image ?? ""}
+                            src={product.images?.[0] || FALLBACK_IMAGE}
                             alt={product.name}
                             className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.onerror = null;
+                              target.src = FALLBACK_IMAGE;
+                            }}
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-sm mb-1 truncate">
@@ -388,9 +413,16 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                             <p className="text-xs text-muted-foreground mb-2">
                               {product.provider}
                             </p>
-                            <p className="font-bold text-primary text-sm">
-                              ₦{product.price.toLocaleString()}
-                            </p>
+                            {product.priceRange?.min != null ? (
+                              <p className="font-bold text-primary text-sm">
+                                {product.currency === "NGN" ? "₦" : "$"}
+                                {product.priceRange.min.toLocaleString()}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground italic">
+                                Price on request
+                              </p>
+                            )}
                             <div className="flex gap-1 mt-2">
                               {product.tags.slice(0, 2).map((tag) => (
                                 <Badge
