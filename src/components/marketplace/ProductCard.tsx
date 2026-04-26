@@ -73,7 +73,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
     >
       <div className="relative h-64 bg-muted">
         <img 
-          src={product.images[0]} 
+          src={product.images?.[0] || FALLBACK_IMAGE} 
           alt={product.name}
           className="w-full h-full object-cover"
           loading="lazy"

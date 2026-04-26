@@ -414,12 +414,28 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
 
   // Images: array, single imageUrl, or empty.
   let images: string[] = [];
-  if (Array.isArray(raw.images)) {
-    images = raw.images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0);
-  } else if (typeof raw.imageUrl === "string" && raw.imageUrl) {
-    images = [raw.imageUrl];
-  } else if (typeof raw.image === "string" && raw.image) {
-    images = [raw.image];
+  const imgSources: unknown[] = [
+    ...(Array.isArray(raw.images) ? raw.images : []),
+    ...(Array.isArray(raw.imageUrls) ? raw.imageUrls : []),
+    ...(Array.isArray(raw.photos) ? raw.photos : []),
+    raw.imageUrl,
+    raw.image_url,
+    raw.image,
+    raw.thumbnail,
+    raw.thumbnailUrl,
+  ];
+  for (const item of imgSources) {
+    if (typeof item === "string" && item.length > 0) {
+      images.push(item);
+    } else if (item && typeof item === "object") {
+      // Backend may return [{ url }] or [{ imageUrl }] or [{ src }]
+      const obj = item as Record<string, unknown>;
+      const u = obj.url ?? obj.imageUrl ?? obj.src ?? obj.path;
+      if (typeof u === "string" && u.length > 0) images.push(u);
+    }
+  }
+  if (import.meta.env.DEV && images.length === 0 && (raw.id || raw.name)) {
+    console.warn("[normalizeProduct] no images found for product", { id: raw.id, name: raw.name, rawKeys: Object.keys(raw) });
   }
 
   // Tags: array or comma-separated string.
@@ -436,7 +452,7 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
       ? raw.providerId
       : typeof raw.artisanId === "number"
         ? raw.artisanId
-        : raw.artisan?.id ?? raw.provider?.id ?? 0;
+        : raw.artisan?.id ?? raw.artisan?.userId ?? raw.provider?.id ?? raw.userId ?? 0;
 
   return {
     id: typeof raw.id === "number" ? raw.id : Number(raw.id) || 0,

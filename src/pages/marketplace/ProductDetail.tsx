@@ -43,7 +43,27 @@ const ProductDetail = () => {
       if (p) {
         setProduct(p);
         const prov = await providersService.getById(p.providerId);
-        if (prov) setProvider(prov);
+        if (prov) {
+          setProvider(prov);
+        } else {
+          // Provider lookup failed (e.g., new artisan's public-info endpoint
+          // not yet returning data). Render the product anyway with a minimal
+          // provider stub so the page doesn't bounce the user back to /marketplace.
+          setProvider({
+            id: p.providerId,
+            brandName: "Artisan",
+            about: "",
+            heroImage: "",
+            city: "",
+            state: "",
+            category: p.category,
+            styleTags: [],
+            rating: 0,
+            reviewCount: 0,
+            verified: false,
+            featured: false,
+          } as Provider);
+        }
       }
     };
     loadData();
@@ -84,8 +104,12 @@ const ProductDetail = () => {
     setRushOrderCost(additionalCost);
   };
 
-  if (!product || !provider) {
+  if (!product) {
     return <Navigate to="/marketplace" replace />;
+  }
+  if (!provider) {
+    // Brief loading state while provider hydrates; product is already loaded.
+    return null;
   }
 
   return (
