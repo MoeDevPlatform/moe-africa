@@ -226,6 +226,23 @@ when convenient so the mapper can be simplified.
 
 ---
 
+## 14. Product responses must use a consistent shape across all list/detail endpoints
+
+> 🔴 **NEW** — the frontend `Product` type expects `priceRange: { min, max }`, `images: string[]`, and `tags: string[]` on every product. Backend responses currently mix shapes: `price` (single number) without a range, `priceMin`/`priceMax` as flat fields, `images` sometimes missing entirely, and `tags` occasionally returned as a comma-separated string. The frontend now normalizes at the service boundary, but this is a workaround, not a contract.
+
+**User-facing consequence:** freshly created products show "₦0" in search results and on the artisan storefront, "View Details" navigates to a page that immediately redirects back to the marketplace (because the detail GET returns a malformed payload that the mock fallback can't resolve), and product cards render without images. Buyers conclude the product is broken or fake.
+
+**Fix:** every product response (`GET /products`, `GET /products/:id`, `GET /service-providers/:id/products`, `GET /artisans/me/products`, `POST /artisans/me/products`, `PATCH /artisans/me/products/:id`) must return the same shape:
+- `id: number`, `name`, `description`, `category`, `currency`, `materials`, `estimatedDeliveryDays`
+- `priceMin: number`, `priceMax: number` (echo the same value for both when only one price was supplied)
+- `images: string[]` (always present, empty array if none)
+- `tags: string[]` (always present, never a comma-joined string)
+- `providerId: number` (flat, not nested under `artisan.id`)
+
+Additionally, `GET /service-providers/public-info` and `GET /service-providers/:id/public-info` should include `productCount: number` so artisan cards show the correct count without a second round-trip.
+
+---
+
 ## Cross-cutting reminders
 
 - **Auth:** every endpoint above requires `Authorization: Bearer <token>`.

@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
-// Note: ProviderCard uses mock product count. When API returns provider with productCount, this import can be removed.
+// Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
+// back to the mock dataset count only when the field is missing — this prevents a freshly
+// created artisan from showing "0 products" after they actually added one.
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProviderCardProps {
@@ -14,7 +16,9 @@ interface ProviderCardProps {
 
 const ProviderCard = ({ provider }: ProviderCardProps) => {
   const navigate = useNavigate();
-  const productCount = getProductsByProviderId(provider.id).length;
+  const liveCount = (provider as Provider & { productCount?: number }).productCount;
+  const productCount =
+    typeof liveCount === "number" ? liveCount : getProductsByProviderId(provider.id).length;
 
   const handleCardClick = () => {
     if (!provider.id) {

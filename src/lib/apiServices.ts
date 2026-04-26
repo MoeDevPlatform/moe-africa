@@ -204,11 +204,16 @@ export const artisanService = {
       return result;
     }
   },
-  getMyProducts: (page = 1, pageSize = 20) =>
-    apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
-      page,
-      pageSize,
-    }),
+  getMyProducts: async (page = 1, pageSize = 20): Promise<PaginatedResponse<Product>> => {
+    const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
+      "/artisans/me/products",
+      { page, pageSize },
+    );
+    return {
+      data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+      pagination: res?.pagination ?? { page, pageSize, totalPages: 1, totalItems: 0 },
+    };
+  },
   createProduct: (data: Record<string, unknown>) =>
     apiPost<Product>("/artisans/me/products", data),
   updateProduct: (id: number, data: Record<string, unknown>) =>
@@ -380,13 +385,87 @@ async function fallbackProducts(
   };
 }
 
+// Normalize a backend product record into the canonical frontend `Product` shape.
+// Backend may emit: price (single), priceMin/priceMax, images as string[] of urls
+// or as a single imageUrl, tags as comma-separated string, providerId nested under
+// artisan/provider. Frontend consumers rely on priceRange.{min,max} and images: string[].
+// Keep all tolerance here so no UI has to special-case shapes.
+// Logged in backend_MoeV1.md (gap #14).
+const normalizeProduct = (raw: Record<string, any>): Product => {
+  // Price: prefer explicit range, fall back to single price field.
+  const single =
+    typeof raw.price === "number"
+      ? raw.price
+      : typeof raw.price === "string" && raw.price !== ""
+        ? Number(raw.price)
+        : undefined;
+  const min =
+    typeof raw.priceRange?.min === "number"
+      ? raw.priceRange.min
+      : typeof raw.priceMin === "number"
+        ? raw.priceMin
+        : single ?? 0;
+  const max =
+    typeof raw.priceRange?.max === "number"
+      ? raw.priceRange.max
+      : typeof raw.priceMax === "number"
+        ? raw.priceMax
+        : single ?? min;
+
+  // Images: array, single imageUrl, or empty.
+  let images: string[] = [];
+  if (Array.isArray(raw.images)) {
+    images = raw.images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0);
+  } else if (typeof raw.imageUrl === "string" && raw.imageUrl) {
+    images = [raw.imageUrl];
+  } else if (typeof raw.image === "string" && raw.image) {
+    images = [raw.image];
+  }
+
+  // Tags: array or comma-separated string.
+  let tags: string[] = [];
+  if (Array.isArray(raw.tags)) {
+    tags = raw.tags.filter((t: unknown): t is string => typeof t === "string");
+  } else if (typeof raw.tags === "string" && raw.tags) {
+    tags = raw.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+  }
+
+  // Provider id may be flat or nested.
+  const providerId =
+    typeof raw.providerId === "number"
+      ? raw.providerId
+      : typeof raw.artisanId === "number"
+        ? raw.artisanId
+        : raw.artisan?.id ?? raw.provider?.id ?? 0;
+
+  return {
+    id: typeof raw.id === "number" ? raw.id : Number(raw.id) || 0,
+    name: raw.name ?? "",
+    description: raw.description ?? "",
+    priceRange: { min, max },
+    currency: raw.currency ?? "NGN",
+    estimatedDeliveryDays:
+      typeof raw.estimatedDeliveryDays === "number" ? raw.estimatedDeliveryDays : 0,
+    materials: raw.materials ?? "",
+    tags,
+    images,
+    category: (raw.category ?? "tailoring") as Product["category"],
+    providerId: Number(providerId) || 0,
+  };
+};
+
 export const productsService = {
   list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination; filterMeta?: FilterMetadata }>(
         "/products",
         filters as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+        filterMeta: res?.filterMeta,
+      };
     } catch {
       return fallbackProducts(filters);
     }
@@ -394,7 +473,9 @@ export const productsService = {
 
   getById: async (id: number): Promise<Product | undefined> => {
     try {
-      return await apiGet<Product>(`/products/${id}`);
+      const raw = await apiGet<Record<string, any>>(`/products/${id}`);
+      if (!raw) return mockGetProductById(id);
+      return normalizeProduct(raw);
     } catch {
       return mockGetProductById(id);
     }
@@ -402,10 +483,10 @@ export const productsService = {
 
   getByProvider: async (providerId: number): Promise<Product[]> => {
     try {
-      const res = await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[] }>(
         `/service-providers/${providerId}/products`,
       );
-      return res.data;
+      return Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [];
     } catch {
       return mockGetProductsByProviderId(providerId);
     }
@@ -417,10 +498,14 @@ export const productsService = {
     budget?: number;
   }): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/products/recommendations",
         params as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProducts();
     }
@@ -494,6 +579,14 @@ const getSelfArtisanFallback = (raw: Record<string, any>) => {
 
 const normalizeProvider = (raw: Record<string, any>): Provider => {
   const selfFallback = getSelfArtisanFallback(raw);
+  const productCount =
+    typeof raw.productCount === "number"
+      ? raw.productCount
+      : typeof raw._count?.products === "number"
+        ? raw._count.products
+        : Array.isArray(raw.products)
+          ? raw.products.length
+          : undefined;
   return {
     ...(raw as Provider),
     brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
@@ -512,6 +605,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
     rating: typeof raw.rating === "number" ? raw.rating : 0,
     reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+    ...(productCount !== undefined ? { productCount } : {}),
   };
 };
 
