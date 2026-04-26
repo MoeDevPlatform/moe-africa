@@ -9,13 +9,30 @@ import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Shield, Clock, Heart, CheckCircle, ArrowLeft, ShoppingCart, Sliders } from "lucide-react";
-import { getProductById as mockGetProductById, getProviderById as mockGetProviderById } from "@/data/mockData";
+import {
+  Star,
+  Shield,
+  Clock,
+  Heart,
+  CheckCircle,
+  ArrowLeft,
+  ShoppingCart,
+  Sliders,
+} from "lucide-react";
+import {
+  getProductById as mockGetProductById,
+  getProviderById as mockGetProviderById,
+} from "@/data/mockData";
 import { productsService, providersService } from "@/lib/apiServices";
 import type { Product, Provider } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 
 const ProductDetail = () => {
@@ -31,13 +48,15 @@ const ProductDetail = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
-  const [product, setProduct] = useState<Product | undefined>(mockGetProductById(Number(id)));
+  const [product, setProduct] = useState<Product | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
   const [provider, setProvider] = useState<Provider | undefined>(
-    product ? mockGetProviderById(product.providerId) : undefined
+    product ? mockGetProviderById(product.providerId) : undefined,
   );
 
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
       const productId = Number(id);
       const p = await productsService.getById(productId);
       if (p) {
@@ -46,9 +65,6 @@ const ProductDetail = () => {
         if (prov) {
           setProvider(prov);
         } else {
-          // Provider lookup failed (e.g., new artisan's public-info endpoint
-          // not yet returning data). Render the product anyway with a minimal
-          // provider stub so the page doesn't bounce the user back to /marketplace.
           setProvider({
             id: p.providerId,
             brandName: "Artisan",
@@ -65,6 +81,7 @@ const ProductDetail = () => {
           } as Provider);
         }
       }
+      setIsLoading(false);
     };
     loadData();
   }, [id]);
@@ -104,6 +121,7 @@ const ProductDetail = () => {
     setRushOrderCost(additionalCost);
   };
 
+  if (isLoading) return null; // or a spinner if one exists in the project
   if (!product) {
     return <Navigate to="/marketplace" replace />;
   }
@@ -129,13 +147,18 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div>
-            <ProductImageGallery images={product.images} productName={product.name} />
+            <ProductImageGallery
+              images={product.images}
+              productName={product.name}
+            />
           </div>
 
           {/* Product Info */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">{product.name}</h1>
+              <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">
+                {product.name}
+              </h1>
               <Link
                 to={`/marketplace/provider/${provider.id}`}
                 className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
@@ -148,7 +171,9 @@ const ProductDetail = () => {
                         <CheckCircle className="h-4 w-4 text-primary fill-primary/20" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">Verified artisan — quality checked by MOE</p>
+                        <p className="text-xs">
+                          Verified artisan — quality checked by MOE
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -169,20 +194,29 @@ const ProductDetail = () => {
 
             <div className="border-y py-6">
               <div className="mb-2">
-                <p className="text-sm text-muted-foreground mb-1">Price Range</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Price Range
+                </p>
                 <p className="text-3xl font-bold text-primary">
-                  ₦{product.priceRange.min.toLocaleString()} - ₦{product.priceRange.max.toLocaleString()}
+                  ₦{product.priceRange.min.toLocaleString()} - ₦
+                  {product.priceRange.max.toLocaleString()}
                 </p>
                 {rushOrderCost > 0 && (
-                  <p className="text-sm text-accent mt-1">+₦{rushOrderCost.toLocaleString()} rush order fee</p>
+                  <p className="text-sm text-accent mt-1">
+                    +₦{rushOrderCost.toLocaleString()} rush order fee
+                  </p>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">Final price depends on customization options</p>
+              <p className="text-sm text-muted-foreground">
+                Final price depends on customization options
+              </p>
             </div>
 
             <div>
               <h3 className="font-semibold mb-3">Description</h3>
-              <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                {product.description}
+              </p>
             </div>
 
             <div>
@@ -209,11 +243,19 @@ const ProductDetail = () => {
 
             <div className="grid grid-cols-2 gap-2 py-2">
               <div className="text-center">
-                <Shield className="h-6 w-6 mx-auto mb-2 text-primary" aria-hidden="true" />
-                <p className="text-xs text-muted-foreground">Quality Guaranteed</p>
+                <Shield
+                  className="h-6 w-6 mx-auto mb-2 text-primary"
+                  aria-hidden="true"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quality Guaranteed
+                </p>
               </div>
               <div className="text-center">
-                <Clock className="h-6 w-6 mx-auto mb-2 text-primary" aria-hidden="true" />
+                <Clock
+                  className="h-6 w-6 mx-auto mb-2 text-primary"
+                  aria-hidden="true"
+                />
                 <p className="text-xs text-muted-foreground">Made to Order</p>
               </div>
             </div>
@@ -246,13 +288,19 @@ const ProductDetail = () => {
                       variant="outline"
                       className="aspect-square p-0"
                       onClick={handleWishlistToggle}
-                      aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                      aria-label={
+                        inWishlist ? "Remove from wishlist" : "Add to wishlist"
+                      }
                     >
-                      <Heart className={`h-6 w-6 transition-colors ${inWishlist ? "fill-primary text-primary" : ""}`} />
+                      <Heart
+                        className={`h-6 w-6 transition-colors ${inWishlist ? "fill-primary text-primary" : ""}`}
+                      />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">{inWishlist ? "Remove from wishlist" : "Save to wishlist"}</p>
+                    <p className="text-xs">
+                      {inWishlist ? "Remove from wishlist" : "Save to wishlist"}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
