@@ -383,10 +383,15 @@ async function fallbackProducts(
 export const productsService = {
   list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination; filterMeta?: FilterMetadata }>(
         "/products",
         filters as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+        filterMeta: res?.filterMeta,
+      };
     } catch {
       return fallbackProducts(filters);
     }
@@ -394,7 +399,9 @@ export const productsService = {
 
   getById: async (id: number): Promise<Product | undefined> => {
     try {
-      return await apiGet<Product>(`/products/${id}`);
+      const raw = await apiGet<Record<string, any>>(`/products/${id}`);
+      if (!raw) return mockGetProductById(id);
+      return normalizeProduct(raw);
     } catch {
       return mockGetProductById(id);
     }
@@ -402,10 +409,10 @@ export const productsService = {
 
   getByProvider: async (providerId: number): Promise<Product[]> => {
     try {
-      const res = await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[] }>(
         `/service-providers/${providerId}/products`,
       );
-      return res.data;
+      return Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [];
     } catch {
       return mockGetProductsByProviderId(providerId);
     }
@@ -417,10 +424,14 @@ export const productsService = {
     budget?: number;
   }): Promise<ProductsResponse> => {
     try {
-      return await apiGet<ProductsResponse>(
+      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
         "/products/recommendations",
         params as Record<string, unknown>,
       );
+      return {
+        data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      };
     } catch {
       return fallbackProducts();
     }
