@@ -260,8 +260,16 @@ const ArtisanDashboard = () => {
         state: updated?.state ?? (delta.state as string | undefined) ?? artisanProfile?.state,
         city: updated?.city ?? (delta.city as string | undefined) ?? artisanProfile?.city,
         address: updated?.address ?? (delta.address as string | undefined) ?? artisanProfile?.address,
-        storeImageUrl: updated?.storeImageUrl ?? storeImageUrl ?? artisanProfile?.storeImageUrl,
-        coverImageUrl: updated?.coverImageUrl ?? coverImageUrl ?? artisanProfile?.coverImageUrl,
+        // If the user explicitly removed the image, force-clear it locally
+        // regardless of what the backend echoes back. The localStorage stash
+        // was already cleared in artisanService.updateProfile, so the next
+        // refetch won't rehydrate it either.
+        storeImageUrl: removeStoreImage
+          ? ""
+          : (updated?.storeImageUrl ?? storeImageUrl ?? artisanProfile?.storeImageUrl),
+        coverImageUrl: removeCoverImage
+          ? ""
+          : (updated?.coverImageUrl ?? coverImageUrl ?? artisanProfile?.coverImageUrl),
       };
       setArtisanProfile(merged);
       // Refetch to guarantee canonical state — non-blocking

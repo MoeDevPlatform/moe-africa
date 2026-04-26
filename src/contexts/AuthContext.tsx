@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authService.login({ email, password });
+    // Wipe any previous account's per-artisan stashes before signing in
+    localStorage.removeItem("moe_artisan_cover_url");
+    localStorage.removeItem("moe_artisan_store_url");
+    localStorage.removeItem("moe_self_user_id");
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
     localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
     setUser(res.user);
@@ -53,6 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (name: string, email: string, password: string, role?: UserRole) => {
     const res = await authService.register({ name, email, password, role });
+    // Fresh accounts must start with a clean image stash
+    localStorage.removeItem("moe_artisan_cover_url");
+    localStorage.removeItem("moe_artisan_store_url");
+    localStorage.removeItem("moe_self_user_id");
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
     localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
     setUser(res.user);
@@ -62,6 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authService.logout().catch(() => {});
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    // Clear per-artisan local stashes so the next account on this browser
+    // doesn't inherit the previous user's cover/store images.
+    localStorage.removeItem("moe_artisan_cover_url");
+    localStorage.removeItem("moe_artisan_store_url");
+    localStorage.removeItem("moe_self_user_id");
     setUser(null);
   }, []);
 
