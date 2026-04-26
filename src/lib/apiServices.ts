@@ -204,11 +204,16 @@ export const artisanService = {
       return result;
     }
   },
-  getMyProducts: (page = 1, pageSize = 20) =>
-    apiGet<PaginatedResponse<Product>>("/artisans/me/products", {
-      page,
-      pageSize,
-    }),
+  getMyProducts: async (page = 1, pageSize = 20): Promise<PaginatedResponse<Product>> => {
+    const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
+      "/artisans/me/products",
+      { page, pageSize },
+    );
+    return {
+      data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+      pagination: res?.pagination ?? { page, pageSize, totalPages: 1, totalItems: 0 },
+    };
+  },
   createProduct: (data: Record<string, unknown>) =>
     apiPost<Product>("/artisans/me/products", data),
   updateProduct: (id: number, data: Record<string, unknown>) =>
@@ -574,6 +579,14 @@ const getSelfArtisanFallback = (raw: Record<string, any>) => {
 
 const normalizeProvider = (raw: Record<string, any>): Provider => {
   const selfFallback = getSelfArtisanFallback(raw);
+  const productCount =
+    typeof raw.productCount === "number"
+      ? raw.productCount
+      : typeof raw._count?.products === "number"
+        ? raw._count.products
+        : Array.isArray(raw.products)
+          ? raw.products.length
+          : undefined;
   return {
     ...(raw as Provider),
     brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
@@ -592,6 +605,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
     rating: typeof raw.rating === "number" ? raw.rating : 0,
     reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+    ...(productCount !== undefined ? { productCount } : {}),
   };
 };
 
