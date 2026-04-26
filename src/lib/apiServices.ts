@@ -381,13 +381,6 @@ async function fallbackProducts(
 }
 
 export const productsService = {
-  // Normalize a backend product record into the canonical frontend `Product` shape.
-  // Backend may emit: price (single), priceMin/priceMax, images as string[] of urls,
-  // tags as comma-separated string, providerId nested under artisan/provider.
-  // All consumers (cards, search, detail page) rely on `priceRange.{min,max}` and
-  // `images: string[]` — keep tolerance here so no UI has to special-case shapes.
-  // Logged in backend_MoeV1.md (gap #14).
-
   list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
     try {
       const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination; filterMeta?: FilterMetadata }>(
