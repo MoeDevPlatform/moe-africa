@@ -53,7 +53,8 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     name: "",
     description: "",
     category: "",
-    price: "",
+    priceMin: "",
+    priceMax: "",
     materials: "",
     estimatedDeliveryDays: "",
     tags: [] as string[],
@@ -73,10 +74,12 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: editProduct.name ?? "",
         description: editProduct.description ?? "",
         category: editProduct.category ?? "",
-        price:
+        priceMin:
           editProduct.priceRange?.min && editProduct.priceRange.min > 0
             ? String(editProduct.priceRange.min)
-            : editProduct.priceRange?.max && editProduct.priceRange.max > 0
+            : "",
+        priceMax:
+          editProduct.priceRange?.max && editProduct.priceRange.max > 0
             ? String(editProduct.priceRange.max)
             : "",
         materials: (editProduct as unknown as { materials?: string }).materials ?? "",
@@ -90,7 +93,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
       );
     } else {
-      setForm({ name: "", description: "", category: "", price: "", materials: "", estimatedDeliveryDays: "", tags: [] });
+      setForm({ name: "", description: "", category: "", priceMin: "", priceMax: "", materials: "", estimatedDeliveryDays: "", tags: [] });
       setImages([]);
     }
     setSubmitError("");
@@ -166,9 +169,15 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (!form.name.trim()) return "Product name is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.category) return "Please select a category.";
-    // In edit mode, allow keeping price empty (e.g. "Price on request" items).
-    if (!isEdit && (!form.price || Number(form.price) <= 0)) return "Price must be greater than zero.";
-    if (form.price && Number(form.price) < 0) return "Price cannot be negative.";
+    if (form.priceMin === "" || Number.isNaN(Number(form.priceMin)) || Number(form.priceMin) < 0) {
+      return "Minimum price is required and must be 0 or greater.";
+    }
+    if (form.priceMax === "" || Number.isNaN(Number(form.priceMax)) || Number(form.priceMax) < 0) {
+      return "Maximum price is required and must be 0 or greater.";
+    }
+    if (Number(form.priceMax) < Number(form.priceMin)) {
+      return "Maximum price must be greater than or equal to minimum price.";
+    }
     return "";
   };
 
@@ -190,13 +199,12 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         description: form.description.trim(),
         category: form.category,
         currency: "NGN",
+        priceMin: Number(form.priceMin),
+        priceMax: Number(form.priceMax),
         materials: form.materials.trim() || undefined,
         estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       };
-      if (form.price && Number(form.price) > 0) {
-        payload.price = Number(form.price);
-      }
       // Only include `images` when we have uploaded URLs — omit entirely
       // when empty so a stricter DTO (required array) won't reject a
       // text-only submission while the upload endpoint is unavailable.
@@ -219,7 +227,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       images.forEach((i) => i.previewUrl && i.previewUrl.startsWith("blob:") && URL.revokeObjectURL(i.previewUrl));
       setImages([]);
       setForm({
-        name: "", description: "", category: "", price: "",
+        name: "", description: "", category: "", priceMin: "", priceMax: "",
         materials: "", estimatedDeliveryDays: "", tags: [],
       });
       setSubmitError("");
@@ -280,16 +288,29 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="price">Price (₦) *</Label>
-            <Input
-              id="price"
-              type="number"
-              min={1}
-              placeholder="e.g. 25000"
-              value={form.price}
-              onChange={(e) => updateForm("price", e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="priceMin">Min Price (₦) *</Label>
+              <Input
+                id="priceMin"
+                type="number"
+                min={0}
+                placeholder="e.g. 20000"
+                value={form.priceMin}
+                onChange={(e) => updateForm("priceMin", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="priceMax">Max Price (₦) *</Label>
+              <Input
+                id="priceMax"
+                type="number"
+                min={0}
+                placeholder="e.g. 30000"
+                value={form.priceMax}
+                onChange={(e) => updateForm("priceMax", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
