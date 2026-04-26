@@ -167,6 +167,20 @@ export const artisanService = {
   updateProfile: async (
     data: Partial<ArtisanProfile> & Record<string, unknown>,
   ): Promise<ArtisanProfile> => {
+    // Honor explicit clear: if caller sent coverImageUrl=null/"" wipe the
+    // local stash too so it can't rehydrate on the next getMyProfile().
+    if ("coverImageUrl" in data) {
+      const v = data.coverImageUrl;
+      if (v === null || v === "" || v === undefined) {
+        localStorage.removeItem("moe_artisan_cover_url");
+      }
+    }
+    if ("storeImageUrl" in data) {
+      const v = data.storeImageUrl;
+      if (v === null || v === "" || v === undefined) {
+        localStorage.removeItem("moe_artisan_store_url");
+      }
+    }
     // Some backend DTOs reject unknown properties (whitelist). If `coverImageUrl`
     // isn't supported yet, stash it client-side and retry without it so the
     // rest of the profile still saves and the UI keeps showing the uploaded cover.
