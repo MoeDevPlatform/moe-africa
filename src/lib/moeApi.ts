@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "http://95.217.187.173:3000";
+const DEFAULT_BASE_URL = "https://moe-backend.duckdns.org";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
