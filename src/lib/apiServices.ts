@@ -100,7 +100,7 @@ export const authService = {
     formData.append("file", file);
     const base = (import.meta.env?.VITE_API_BASE_URL ??
       import.meta.env?.VITE_MOE_API_BASE_URL ??
-      "http://95.217.187.173:3000") as string;
+      "https://moe-backend.duckdns.org") as string;
     const token = localStorage.getItem("moe_access_token");
     const res = await fetch(`${base}/auth/profile/avatar`, {
       method: "POST",
@@ -140,7 +140,7 @@ async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
   formData.append("file", file);
   const base = (import.meta.env?.VITE_API_BASE_URL ??
     import.meta.env?.VITE_MOE_API_BASE_URL ??
-    "http://95.217.187.173:3000") as string;
+    "https://moe-backend.duckdns.org") as string;
   const token = localStorage.getItem("moe_access_token");
   return fetch(`${base}${path}`, {
     method: "POST",
