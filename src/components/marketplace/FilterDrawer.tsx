@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, X } from "lucide-react";
+import { filterMetaService, type ProductFilterMeta } from "@/lib/apiServices";
 
 export interface FilterState {
   priceRange: [number, number];
@@ -20,7 +21,7 @@ interface FilterDrawerProps {
   children?: React.ReactNode;
 }
 
-const MATERIALS = [
+const FALLBACK_MATERIALS = [
   { id: "cotton", label: "Cotton" },
   { id: "linen", label: "Linen" },
   { id: "aso-oke", label: "Aso-Oke" },
@@ -31,7 +32,7 @@ const MATERIALS = [
   { id: "wool", label: "Wool" },
 ];
 
-const STYLE_TAGS = [
+const FALLBACK_STYLE_TAGS = [
   { id: "urban", label: "Urban" },
   { id: "traditional", label: "Traditional" },
   { id: "minimalist", label: "Minimalist" },
@@ -52,6 +53,20 @@ const DELIVERY_OPTIONS = [
 const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState<FilterState>(filters);
+  const [meta, setMeta] = useState<ProductFilterMeta | null>(null);
+
+  // Item 3 — hydrate chips & price range from the backend on first open.
+  useEffect(() => {
+    if (meta || !open) return;
+    filterMetaService.products().then(setMeta).catch(() => setMeta(null));
+  }, [open, meta]);
+
+  // Drive chip list & price slider max from live meta when available; fall back to constants.
+  const styleTagOptions = meta?.styleTags?.length
+    ? meta.styleTags.map((t) => ({ id: t, label: t }))
+    : FALLBACK_STYLE_TAGS;
+  const materialOptions = FALLBACK_MATERIALS; // backend doesn't expose materials in filter-meta
+  const priceMax = meta?.priceRange?.max ?? 500000;
 
   useEffect(() => {
     setLocalFilters(filters);
@@ -78,7 +93,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
 
   const handleClear = () => {
     const clearedFilters: FilterState = {
-      priceRange: [0, 500000],
+      priceRange: [0, priceMax],
       materials: [],
       styleTags: [],
       deliveryEstimate: null,
@@ -88,7 +103,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
   };
 
   const activeFilterCount = 
-    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < 500000 ? 1 : 0) +
+    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < priceMax ? 1 : 0) +
     localFilters.materials.length +
     localFilters.styleTags.length +
     (localFilters.deliveryEstimate ? 1 : 0);
@@ -129,7 +144,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
               <Slider
                 value={localFilters.priceRange}
                 onValueChange={(value) => setLocalFilters({ ...localFilters, priceRange: value as [number, number] })}
-                max={500000}
+                max={priceMax}
                 step={5000}
                 className="w-full"
               />
@@ -144,7 +159,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
           <div>
             <Label className="text-sm font-semibold mb-3 block">Materials</Label>
             <div className="grid grid-cols-2 gap-2">
-              {MATERIALS.map((material) => (
+              {materialOptions.map((material) => (
                 <label
                   key={material.id}
                   className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-muted transition-colors"
@@ -163,7 +178,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
           <div>
             <Label className="text-sm font-semibold mb-3 block">Style Tags</Label>
             <div className="flex flex-wrap gap-2">
-              {STYLE_TAGS.map((style) => (
+              {styleTagOptions.map((style) => (
                 <Badge
                   key={style.id}
                   variant={localFilters.styleTags.includes(style.id) ? "default" : "outline"}

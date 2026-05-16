@@ -53,6 +53,8 @@ export interface RegisterRequest {
   password: string;
   phone?: string;
   role?: UserRole;
+  /** Required for artisan signup — multi-select of service category slugs. */
+  serviceCategories?: string[];
 }
 
 // Mock auth fallback for offline/dev use
@@ -74,17 +76,38 @@ const mockAuthFallback = (
 });
 
 export const authService = {
-  login: async (data: LoginRequest): Promise<AuthResponse> => {
-    return await apiPost<AuthResponse>("/auth/login", data);
+  login: async (data: LoginRequest): Promise<LoginResult> => {
+    // Backend may return:
+    //  - full AuthResponse (tokens + user) for normal logins
+    //  - { requiresOtp: true, email } for admin logins (item 11)
+    // 403 EMAIL_NOT_VERIFIED is thrown as MoeApiError and handled by the caller (item 9).
+    return await apiPost<LoginResult>("/auth/login", data);
   },
 
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+  register: async (data: RegisterRequest): Promise<RegisterResult> => {
     try {
-      return await apiPost<AuthResponse>("/auth/register", data);
-    } catch {
+      // New email/password signups: backend returns NO tokens — only confirmation an OTP was emailed.
+      // Existing accounts / legacy mode may still return tokens. Caller must check.
+      return await apiPost<RegisterResult>("/auth/register", data);
+    } catch (err) {
+      // Only fall back to mock when the network is unreachable, not on validation errors.
+      if (err instanceof MoeApiError) throw err;
       console.warn("[MOE] Backend unreachable — using mock register");
       return mockAuthFallback(data.name, data.email, data.role);
     }
+  },
+  verifyEmail: (data: { email: string; otp: string }) =>
+    apiPost<AuthResponse>("/auth/verify-email", data),
+  resendOtp: (data: { email: string }) =>
+    apiPost<{ message: string }>("/auth/resend-otp", data),
+  adminVerifyOtp: (data: { email: string; otp: string }) =>
+    apiPost<AuthResponse>("/auth/admin/verify-otp", data),
+  /** Full-page redirect target for Google OAuth (item 9). */
+  googleOAuthUrl: () => {
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    return `${base}/auth/google`;
   },
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
@@ -108,9 +131,24 @@ export const authService = {
       body: formData,
     });
     if (!res.ok) throw new MoeApiError("Upload failed", res.status);
-    return (await res.json()) as { avatarUrl: string };
+    // Backend item 4: Cloudinary uploads return { url }. Older builds may still return { avatarUrl }.
+    const body = (await res.json()) as { url?: string; avatarUrl?: string };
+    return { avatarUrl: body.url ?? body.avatarUrl ?? "" };
   },
 };
+
+// Discriminated unions for login / register so callers can branch safely.
+export type LoginResult =
+  | AuthResponse
+  | { requiresOtp: true; email: string };
+
+export type RegisterResult =
+  | AuthResponse
+  | { requiresEmailVerification: true; email: string; message?: string };
+
+export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthResponse {
+  return typeof (r as AuthResponse).token === "string";
+}
 
 // ─── Artisan Profile ──────────────────────────────────────
 
@@ -132,6 +170,11 @@ export interface ArtisanProfile {
   rating: number;
   verified: boolean;
   featured: boolean;
+  /** Admin approval workflow (item 10). New signups are `pending`. */
+  status?: "pending" | "approved" | "rejected";
+  serviceCategories?: string[];
+  rushOrderEnabled?: boolean;
+  rushOrderSurchargePercent?: number;
   createdAt: string;
 }
 
@@ -467,6 +510,9 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     images,
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
+    // Item 10 — preserve approval status for artisan dashboard / admin UI.
+    ...(raw.status ? { status: raw.status } : {}),
+    ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),
   };
 };
 
@@ -1023,12 +1069,12 @@ export interface WishlistItemApi {
 }
 
 export const wishlistService = {
-  list: () =>
-    apiGet<PaginatedResponse<WishlistItemApi>>("/customers/me/wishlist"),
+  // Item 5 — switched to JWT-protected /wishlist routes.
+  // POST/DELETE put productId in the URL, not the body. Add is idempotent server-side.
+  list: () => apiGet<PaginatedResponse<WishlistItemApi>>("/wishlist"),
   add: (productId: number) =>
-    apiPost<WishlistItemApi>("/customers/me/wishlist", { productId }),
-  remove: (productId: number) =>
-    apiDelete(`/customers/me/wishlist/${productId}`),
+    apiPost<WishlistItemApi>(`/wishlist/${productId}`),
+  remove: (productId: number) => apiDelete(`/wishlist/${productId}`),
 };
 
 // ─── Cart (API sync for logged-in users) ──────────────────
@@ -1280,4 +1326,154 @@ export const paymentMethodsService = {
   },
   setDefault: (id: string) =>
     apiPatch<PaymentMethodApi>(`/customers/me/payment-methods/${id}/default`),
+};
+
+// ─── Filter Metadata (item 3) ─────────────────────────────
+// Live filter chips sourced from the database, not hardcoded UI values.
+
+export interface ProductFilterMeta {
+  categories: string[];
+  styleTags: string[];
+  priceRange: { min: number; max: number };
+  deliveryDays: number[];
+}
+
+export interface ArtisanFilterMeta {
+  categories: string[];
+  serviceCategories: string[];
+  locations: string[];
+}
+
+export const filterMetaService = {
+  products: async (): Promise<ProductFilterMeta> => {
+    try {
+      return await apiGet<ProductFilterMeta>("/products/filter-meta");
+    } catch {
+      return {
+        categories: [],
+        styleTags: [],
+        priceRange: { min: 0, max: 500000 },
+        deliveryDays: [3, 7, 14],
+      };
+    }
+  },
+  artisans: async (): Promise<ArtisanFilterMeta> => {
+    try {
+      return await apiGet<ArtisanFilterMeta>("/artisans/filter-meta");
+    } catch {
+      return { categories: [], serviceCategories: [], locations: [] };
+    }
+  },
+};
+
+// ─── Customisation Template (item 2) ──────────────────────
+// Backend-driven field schema per product category. Replaces hardcoded
+// customisation steps so artisans/admins can evolve the schema without
+// frontend changes.
+
+export type CustomisationFieldType = "select" | "text" | "number" | "multiselect";
+
+export interface CustomisationField {
+  key: string;
+  label: string;
+  type: CustomisationFieldType;
+  options?: string[];
+  required?: boolean;
+  placeholder?: string;
+}
+
+export interface CustomisationTemplate {
+  category: string;
+  fields: CustomisationField[];
+}
+
+export const customisationTemplateService = {
+  get: async (category: string): Promise<CustomisationTemplate | null> => {
+    try {
+      return await apiGet<CustomisationTemplate>("/products/customisation-template", { category });
+    } catch {
+      return null;
+    }
+  },
+};
+
+// ─── Rush Order (item 6) ──────────────────────────────────
+
+export interface RushOrderConfig {
+  rushOrderEnabled: boolean;
+  surchargePercent: number;
+}
+
+export const rushOrderService = {
+  /** Fetch artisan's rush-order config to drive checkout pricing preview. */
+  getConfig: async (artisanId: number): Promise<RushOrderConfig> => {
+    try {
+      return await apiGet<RushOrderConfig>(`/artisans/${artisanId}/rush-order-config`);
+    } catch {
+      return { rushOrderEnabled: false, surchargePercent: 25 };
+    }
+  },
+};
+
+// ─── Admin (item 11) ──────────────────────────────────────
+// Approval workflow for artisans/products + paginated user list.
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalArtisans: number;
+  totalProducts: number;
+  pendingArtisans: number;
+  pendingProducts: number;
+  totalOrders?: number;
+  revenue?: number;
+}
+
+export interface AdminArtisanRow {
+  id: number;
+  userId: number;
+  businessName: string;
+  email?: string;
+  category: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface AdminProductRow {
+  id: number;
+  name: string;
+  category: string;
+  artisanName?: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface AdminUserRow {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  emailVerified?: boolean;
+  createdAt: string;
+}
+
+export const adminService = {
+  getDashboard: () => apiGet<AdminDashboardStats>("/admin/dashboard"),
+
+  listArtisans: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
+    apiGet<PaginatedResponse<AdminArtisanRow>>("/admin/artisans", params as Record<string, unknown>),
+  getArtisan: (id: number) => apiGet<AdminArtisanRow>(`/admin/artisans/${id}`),
+  setArtisanStatus: (id: number, status: ApprovalStatus, reason?: string) =>
+    apiPatch<AdminArtisanRow>(`/admin/artisans/${id}/status`, { status, reason }),
+
+  listProducts: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
+    apiGet<PaginatedResponse<AdminProductRow>>("/admin/products", params as Record<string, unknown>),
+  getProduct: (id: number) => apiGet<AdminProductRow>(`/admin/products/${id}`),
+  setProductStatus: (id: number, status: ApprovalStatus, reason?: string) =>
+    apiPatch<AdminProductRow>(`/admin/products/${id}/status`, { status, reason }),
+
+  listUsers: (params?: { page?: number; pageSize?: number }) =>
+    apiGet<PaginatedResponse<AdminUserRow>>("/admin/users", params as Record<string, unknown>),
+  getUser: (id: number) => apiGet<AdminUserRow>(`/admin/users/${id}`),
 };

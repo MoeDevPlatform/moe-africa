@@ -31,6 +31,8 @@ import CustomerOrders from "./pages/marketplace/Orders";
 import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
+import VerifyEmail from "./pages/VerifyEmail";
+import AuthCallback from "./pages/AuthCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
 import ArtisanDashboard from "./pages/artisan/Dashboard";
@@ -73,6 +75,8 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/verify" element={<VerifyEmail />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   
                   {/* Footer & Static Pages */}
                   <Route path="/about" element={<About />} />
