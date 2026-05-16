@@ -510,6 +510,9 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     images,
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
+    // Item 10 — preserve approval status for artisan dashboard / admin UI.
+    ...(raw.status ? { status: raw.status } : {}),
+    ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),
   };
 };
 
