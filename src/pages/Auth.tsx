@@ -177,6 +177,19 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
+                  <div className="relative my-2">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleGoogle}
+                    disabled={isLoading}
+                  >
+                    <Mail className="h-4 w-4" /> Continue with Google
+                  </Button>
                   <div className="text-center">
                     <a href="#" className="text-sm text-primary hover:underline">
                       Forgot password?
@@ -306,6 +319,19 @@ const Auth = () => {
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
+                  </Button>
+                  <div className="relative my-2">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleGoogle}
+                    disabled={isLoading}
+                  >
+                    <Mail className="h-4 w-4" /> Continue with Google
                   </Button>
                 </form>
               </TabsContent>
