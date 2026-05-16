@@ -1,24 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Clock, Truck, Zap, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { rushOrderService } from "@/lib/apiServices";
 
 interface DeliveryEstimateProps {
   estimatedDeliveryDays: number;
+  /** Artisan/provider id — required to load the rush-order surcharge config (item 6). */
+  artisanId?: number;
+  /** Base price the surcharge is computed against (% of base). */
+  basePrice?: number;
   onRushOrderChange?: (enabled: boolean, additionalCost: number) => void;
 }
 
-const DeliveryEstimate = ({ estimatedDeliveryDays, onRushOrderChange }: DeliveryEstimateProps) => {
+const DeliveryEstimate = ({
+  estimatedDeliveryDays,
+  artisanId,
+  basePrice = 0,
+  onRushOrderChange,
+}: DeliveryEstimateProps) => {
   const [rushOrder, setRushOrder] = useState(false);
-  
+  const [rushEnabled, setRushEnabled] = useState(false);
+  const [surchargePercent, setSurchargePercent] = useState(25);
+
+  // Item 6 — live rush-order config per artisan.
+  useEffect(() => {
+    if (!artisanId) return;
+    let cancelled = false;
+    rushOrderService.getConfig(artisanId).then((cfg) => {
+      if (cancelled) return;
+      setRushEnabled(!!cfg.rushOrderEnabled);
+      setSurchargePercent(cfg.surchargePercent ?? 25);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [artisanId]);
+
   // Calculate estimates
   const creationDays = estimatedDeliveryDays;
   const deliveryDays = creationDays <= 5 ? "1-3" : creationDays <= 10 ? "2-4" : "3-5";
   const rushCreationDays = Math.max(1, Math.ceil(creationDays * 0.6));
-  const rushAdditionalCost = 5000; // Fixed rush fee
-  
+  const rushAdditionalCost = Math.round((basePrice || 0) * (surchargePercent / 100));
+
   const totalDaysMin = rushOrder ? rushCreationDays + 1 : creationDays + parseInt(deliveryDays.split("-")[0]);
   const totalDaysMax = rushOrder ? rushCreationDays + 2 : creationDays + parseInt(deliveryDays.split("-")[1]);
 
@@ -71,7 +97,8 @@ const DeliveryEstimate = ({ estimatedDeliveryDays, onRushOrderChange }: Delivery
           </div>
         </div>
 
-        {/* Rush Order Option */}
+        {/* Rush Order Option (item 6) — only shown when artisan has it enabled. */}
+        {rushEnabled && (
         <div className="pt-3 border-t">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -87,7 +114,7 @@ const DeliveryEstimate = ({ estimatedDeliveryDays, onRushOrderChange }: Delivery
                   <TooltipContent>
                     <p className="max-w-[200px] text-xs">
                       Rush orders are prioritized and completed faster. 
-                      Additional ₦{rushAdditionalCost.toLocaleString()} fee applies.
+                      A {surchargePercent}% surcharge (₦{rushAdditionalCost.toLocaleString()}) applies.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -101,10 +128,11 @@ const DeliveryEstimate = ({ estimatedDeliveryDays, onRushOrderChange }: Delivery
           </div>
           {rushOrder && (
             <p className="text-xs text-accent mt-2">
-              +₦{rushAdditionalCost.toLocaleString()} for priority processing
+              +{surchargePercent}% (₦{rushAdditionalCost.toLocaleString()}) for priority processing
             </p>
           )}
         </div>
+        )}
       </CardContent>
     </Card>
   );

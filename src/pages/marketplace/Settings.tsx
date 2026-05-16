@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService, addressesService, artisanService, paymentMethodsService, type AddressApi, type PaymentMethodApi } from "@/lib/apiServices";
+import { MoeApiError } from "@/lib/moeApi";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -863,13 +864,25 @@ const Settings = () => {
         setPayments(prev => prev.map(p => p.id === paymentModal.payment!.id ? { ...p, ...data } : p));
         toast({ title: "Payment method updated" });
       } else {
-        const created = await paymentMethodsService.create(data);
+        // Item 8 — derive MM/YY parts and forward a processorToken placeholder.
+        // In production this will be the token returned by Paystack/Stripe tokenisation.
+        const [mm, yy] = data.expiry.split("/");
+        const created = await paymentMethodsService.create({
+          ...data,
+          expiryMonth: Number(mm),
+          expiryYear: 2000 + Number(yy),
+          processorToken: "manual_unverified",
+        } as Parameters<typeof paymentMethodsService.create>[0]);
         const newPm = mapPaymentApi({ ...created, isDefault: payments.length === 0 } as PaymentMethodApi);
         setPayments(prev => [...prev, newPm]);
         toast({ title: "Payment method added" });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to save payment method";
+      // Item 8 — surface CARD_EXPIRED explicitly so the user sees actionable copy.
+      let msg = err instanceof Error ? err.message : "Failed to save payment method";
+      if (err instanceof MoeApiError && err.code === "CARD_EXPIRED") {
+        msg = "This card has expired. Please use a different card.";
+      }
       toast({ title: "Error", description: msg, variant: "destructive" });
       throw err;
     }

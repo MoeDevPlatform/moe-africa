@@ -1,127 +1,102 @@
+import { useEffect, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, FolderTree, Image, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, Package, ShoppingBag, AlertCircle, TrendingUp, Loader2 } from "lucide-react";
+import { adminService, type AdminDashboardStats } from "@/lib/apiServices";
+import { toast } from "sonner";
 
 const Dashboard = () => {
-  const stats = [
-    {
-      title: "Total Providers",
-      value: "48",
-      description: "+4 new this month",
-      icon: Users,
-      trend: "+8.3%",
-      endpoint: "GET /service-providers",
-    },
-    {
-      title: "Total Products",
-      value: "342",
-      description: "+23 this week",
-      icon: Package,
-      trend: "+6.7%",
-      endpoint: "GET /products",
-    },
-    {
-      title: "Active Categories",
-      value: "12",
-      description: "Service + Product",
-      icon: FolderTree,
-      trend: "Stable",
-      endpoint: "GET /service-categories + /product-categories",
-    },
-    {
-      title: "Media Uploads",
-      value: "1,247",
-      description: "Total files",
-      icon: Image,
-      trend: "+12.1%",
-      endpoint: "GET /media",
-    },
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    adminService
+      .getDashboard()
+      .then(setStats)
+      .catch((err) => {
+        toast.error("Failed to load admin dashboard");
+        console.error(err);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const cards = [
+    { title: "Total Users", value: stats?.totalUsers ?? 0, icon: Users, endpoint: "GET /admin/dashboard" },
+    { title: "Total Artisans", value: stats?.totalArtisans ?? 0, icon: Users, endpoint: "GET /admin/artisans" },
+    { title: "Total Products", value: stats?.totalProducts ?? 0, icon: Package, endpoint: "GET /admin/products" },
+    { title: "Total Orders", value: stats?.totalOrders ?? 0, icon: ShoppingBag, endpoint: "GET /admin/orders" },
   ];
 
-  const recentActivity = [
-    { action: "New provider registered", provider: "Kemi Fabrics", time: "2 hours ago", status: "pending" },
-    { action: "Product approved", product: "Ankara Dress", time: "5 hours ago", status: "success" },
-    { action: "Category created", category: "Footwear", time: "1 day ago", status: "success" },
-    { action: "Provider verification", provider: "Ade Tailors", time: "2 days ago", status: "warning" },
+  const pending = [
+    { title: "Artisans awaiting approval", value: stats?.pendingArtisans ?? 0, href: "/admin/providers" },
+    { title: "Products awaiting approval", value: stats?.pendingProducts ?? 0, href: "/admin/products" },
   ];
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Dashboard Overview
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Monitor your marketplace performance and activity
-          </p>
+          <h1 className="text-3xl font-display font-bold text-foreground">Dashboard Overview</h1>
+          <p className="mt-1 text-muted-foreground">Marketplace performance and pending reviews</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.title} className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-display font-bold text-foreground">
-                  {stat.value}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.description}
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <TrendingUp className="h-3 w-3 text-primary" />
-                  <span className="text-xs text-primary font-medium">{stat.trend}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
-                  {stat.endpoint}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Recent Activity */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-xl font-display">Recent Activity</CardTitle>
-            <CardDescription>Latest updates across the platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    {activity.status === "pending" && (
-                      <AlertCircle className="h-5 w-5 text-accent" />
-                    )}
-                    {activity.status === "success" && (
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    )}
-                    {activity.status === "warning" && (
-                      <div className="h-2 w-2 rounded-full bg-accent" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.provider || activity.product || activity.category}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{activity.time}</span>
-                </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {cards.map((stat) => (
+                <Card key={stat.title} className="border-border bg-card shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+                    <stat.icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-display font-bold text-foreground">{stat.value.toLocaleString()}</div>
+                    <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">{stat.endpoint}</p>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-xl font-display flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-accent" /> Pending Approvals
+                </CardTitle>
+                <CardDescription>Items requiring admin action</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pending.map((p) => (
+                  <a
+                    key={p.title}
+                    href={p.href}
+                    className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted transition-colors"
+                  >
+                    <span className="text-sm font-medium text-foreground">{p.title}</span>
+                    <span className="text-2xl font-display font-bold text-primary">{p.value}</span>
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+
+            {stats?.revenue != null && (
+              <Card className="border-border bg-card">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-display font-bold text-foreground">
+                    ₦{Number(stats.revenue).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
       </div>
     </AdminLayout>
   );

@@ -17,6 +17,10 @@ export interface Product {
   images: string[];
   category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts" | "canvas";
   providerId: number;
+  /** Admin approval status (item 10) — only present on backend-sourced products. */
+  status?: "pending" | "approved" | "rejected" | "draft";
+  /** When true, cart requires a customisation payload (item 7). Defaults to false. */
+  customisationRequired?: boolean;
 }
 
 export interface Provider {

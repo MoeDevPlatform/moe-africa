@@ -1297,8 +1297,12 @@ export interface PaymentMethodApi {
   brand: string; // "VISA" | "Mastercard" | etc.
   last4: string;
   expiry: string; // "MM/YY"
+  expiryMonth?: number;
+  expiryYear?: number;
   cardholderName: string;
   billingAddressId?: string;
+  /** Tokenised payment-processor reference. Never send raw PAN/CVV. */
+  processorToken?: string;
   isDefault: boolean;
   createdAt?: string;
 }

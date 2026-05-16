@@ -4,6 +4,7 @@ import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 import CanvasCustomizationModal from "@/components/marketplace/CanvasCustomizationModal";
+import DynamicCustomizationModal from "@/components/marketplace/DynamicCustomizationModal";
 import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
@@ -238,6 +239,8 @@ const ProductDetail = () => {
             {/* Delivery Estimate Module */}
             <DeliveryEstimate
               estimatedDeliveryDays={product.estimatedDeliveryDays}
+              artisanId={provider.id}
+              basePrice={product.priceRange.min}
               onRushOrderChange={handleRushOrderChange}
             />
 
@@ -325,7 +328,7 @@ const ProductDetail = () => {
           basePrice={product.priceRange.min + rushOrderCost}
           estimatedDeliveryDays={product.estimatedDeliveryDays}
         />
-      ) : (
+      ) : product.category === "tailoring" || product.category === "shoemaking" ? (
         <CustomizationFormModal
           open={showCustomizationForm}
           onOpenChange={setShowCustomizationForm}
@@ -335,6 +338,17 @@ const ProductDetail = () => {
           providerName={provider.brandName}
           basePrice={product.priceRange.min + rushOrderCost}
           estimatedDeliveryDays={product.estimatedDeliveryDays}
+          category={product.category}
+        />
+      ) : (
+        <DynamicCustomizationModal
+          open={showCustomizationForm}
+          onOpenChange={setShowCustomizationForm}
+          providerId={provider.id}
+          productId={product.id}
+          productName={product.name}
+          providerName={provider.brandName}
+          basePrice={product.priceRange.min + rushOrderCost}
           category={product.category}
         />
       )}
