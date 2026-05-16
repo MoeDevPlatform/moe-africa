@@ -421,7 +421,20 @@ const ArtisanDashboard = () => {
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium truncate">{product.name}</p>
+                            {(() => {
+                              const status = (product as unknown as { status?: "pending" | "approved" | "rejected" }).status;
+                              if (!status) return null;
+                              const cls =
+                                status === "approved" ? "bg-green-100 text-green-800 border-green-200"
+                                : status === "rejected" ? "bg-red-100 text-red-800 border-red-200"
+                                : "bg-yellow-100 text-yellow-800 border-yellow-200";
+                              return (
+                                <Badge variant="outline" className={`capitalize text-xs ${cls}`}>{status}</Badge>
+                              );
+                            })()}
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             {product.priceRange?.min != null ? (
                               <>₦{product.priceRange.min.toLocaleString()} – ₦{(product.priceRange.max ?? product.priceRange.min).toLocaleString()}</>
