@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { authService, CustomerProfile, UserRole } from "@/lib/apiServices";
+import {
+  authService,
+  CustomerProfile,
+  UserRole,
+  isAuthResponse,
+  type LoginResult,
+  type RegisterResult,
+} from "@/lib/apiServices";
 
 interface AuthContextType {
   user: CustomerProfile | null;
@@ -7,8 +14,18 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isArtisan: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role?: UserRole) => Promise<void>;
+  /** Returns `requiresOtp` payload for admin logins; otherwise resolves with `null`. */
+  login: (email: string, password: string) => Promise<{ requiresOtp: true; email: string } | null>;
+  /** Returns `requiresEmailVerification` payload for new accounts; otherwise resolves with `null`. */
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role?: UserRole,
+    serviceCategories?: string[],
+  ) => Promise<{ requiresEmailVerification: true; email: string } | null>;
+  /** Persist tokens + hydrate profile (used by OTP verify + Google OAuth callback). */
+  loginWithTokens: (token: string, refreshToken: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<CustomerProfile>) => void;
   refreshProfile: () => Promise<void>;
@@ -44,26 +61,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProfile]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await authService.login({ email, password });
-    // Wipe any previous account's per-artisan stashes before signing in
+  const clearArtisanStash = () => {
     localStorage.removeItem("moe_artisan_cover_url");
     localStorage.removeItem("moe_artisan_store_url");
     localStorage.removeItem("moe_self_user_id");
-    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
-    localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-    setUser(res.user);
+  };
+
+  const loginWithTokens = useCallback(async (token: string, refreshToken: string) => {
+    clearArtisanStash();
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    await refreshProfile();
+  }, [refreshProfile]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const res: LoginResult = await authService.login({ email, password });
+    if (isAuthResponse(res)) {
+      clearArtisanStash();
+      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+      setUser(res.user);
+      return null;
+    }
+    // Admin path — caller must redirect to OTP screen.
+    return res;
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, role?: UserRole) => {
-    const res = await authService.register({ name, email, password, role });
-    // Fresh accounts must start with a clean image stash
-    localStorage.removeItem("moe_artisan_cover_url");
-    localStorage.removeItem("moe_artisan_store_url");
-    localStorage.removeItem("moe_self_user_id");
-    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
-    localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-    setUser(res.user);
+  const register = useCallback(async (
+    name: string,
+    email: string,
+    password: string,
+    role?: UserRole,
+    serviceCategories?: string[],
+  ) => {
+    const res: RegisterResult = await authService.register({ name, email, password, role, serviceCategories });
+    if (isAuthResponse(res)) {
+      clearArtisanStash();
+      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+      setUser(res.user);
+      return null;
+    }
+    // New signup path — caller must redirect to email verification screen.
+    return res;
   }, []);
 
   const logout = useCallback(() => {
@@ -92,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.role === "admin",
         login,
         register,
+        loginWithTokens,
         logout,
         updateUser,
         refreshProfile,
