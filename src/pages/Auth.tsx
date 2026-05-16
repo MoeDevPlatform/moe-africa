@@ -237,6 +237,34 @@ const Auth = () => {
                     </RadioGroup>
                   </div>
 
+                  {role === "artisan" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Service categories</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Pick the crafts you offer. You can refine these later.
+                      </p>
+                      {availableServiceCategories.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">Loading categories…</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {availableServiceCategories.map((slug) => {
+                            const active = serviceCategories.includes(slug);
+                            return (
+                              <Badge
+                                key={slug}
+                                variant={active ? "default" : "outline"}
+                                onClick={() => toggleServiceCategory(slug)}
+                                className="cursor-pointer capitalize"
+                              >
+                                {slug}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstname">First Name</Label>
