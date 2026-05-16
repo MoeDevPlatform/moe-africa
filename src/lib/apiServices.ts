@@ -1324,3 +1324,153 @@ export const paymentMethodsService = {
   setDefault: (id: string) =>
     apiPatch<PaymentMethodApi>(`/customers/me/payment-methods/${id}/default`),
 };
+
+// ─── Filter Metadata (item 3) ─────────────────────────────
+// Live filter chips sourced from the database, not hardcoded UI values.
+
+export interface ProductFilterMeta {
+  categories: string[];
+  styleTags: string[];
+  priceRange: { min: number; max: number };
+  deliveryDays: number[];
+}
+
+export interface ArtisanFilterMeta {
+  categories: string[];
+  serviceCategories: string[];
+  locations: string[];
+}
+
+export const filterMetaService = {
+  products: async (): Promise<ProductFilterMeta> => {
+    try {
+      return await apiGet<ProductFilterMeta>("/products/filter-meta");
+    } catch {
+      return {
+        categories: [],
+        styleTags: [],
+        priceRange: { min: 0, max: 500000 },
+        deliveryDays: [3, 7, 14],
+      };
+    }
+  },
+  artisans: async (): Promise<ArtisanFilterMeta> => {
+    try {
+      return await apiGet<ArtisanFilterMeta>("/artisans/filter-meta");
+    } catch {
+      return { categories: [], serviceCategories: [], locations: [] };
+    }
+  },
+};
+
+// ─── Customisation Template (item 2) ──────────────────────
+// Backend-driven field schema per product category. Replaces hardcoded
+// customisation steps so artisans/admins can evolve the schema without
+// frontend changes.
+
+export type CustomisationFieldType = "select" | "text" | "number" | "multiselect";
+
+export interface CustomisationField {
+  key: string;
+  label: string;
+  type: CustomisationFieldType;
+  options?: string[];
+  required?: boolean;
+  placeholder?: string;
+}
+
+export interface CustomisationTemplate {
+  category: string;
+  fields: CustomisationField[];
+}
+
+export const customisationTemplateService = {
+  get: async (category: string): Promise<CustomisationTemplate | null> => {
+    try {
+      return await apiGet<CustomisationTemplate>("/products/customisation-template", { category });
+    } catch {
+      return null;
+    }
+  },
+};
+
+// ─── Rush Order (item 6) ──────────────────────────────────
+
+export interface RushOrderConfig {
+  rushOrderEnabled: boolean;
+  surchargePercent: number;
+}
+
+export const rushOrderService = {
+  /** Fetch artisan's rush-order config to drive checkout pricing preview. */
+  getConfig: async (artisanId: number): Promise<RushOrderConfig> => {
+    try {
+      return await apiGet<RushOrderConfig>(`/artisans/${artisanId}/rush-order-config`);
+    } catch {
+      return { rushOrderEnabled: false, surchargePercent: 25 };
+    }
+  },
+};
+
+// ─── Admin (item 11) ──────────────────────────────────────
+// Approval workflow for artisans/products + paginated user list.
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalArtisans: number;
+  totalProducts: number;
+  pendingArtisans: number;
+  pendingProducts: number;
+  totalOrders?: number;
+  revenue?: number;
+}
+
+export interface AdminArtisanRow {
+  id: number;
+  userId: number;
+  businessName: string;
+  email?: string;
+  category: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface AdminProductRow {
+  id: number;
+  name: string;
+  category: string;
+  artisanName?: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface AdminUserRow {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  emailVerified?: boolean;
+  createdAt: string;
+}
+
+export const adminService = {
+  getDashboard: () => apiGet<AdminDashboardStats>("/admin/dashboard"),
+
+  listArtisans: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
+    apiGet<PaginatedResponse<AdminArtisanRow>>("/admin/artisans", params as Record<string, unknown>),
+  getArtisan: (id: number) => apiGet<AdminArtisanRow>(`/admin/artisans/${id}`),
+  setArtisanStatus: (id: number, status: ApprovalStatus, reason?: string) =>
+    apiPatch<AdminArtisanRow>(`/admin/artisans/${id}/status`, { status, reason }),
+
+  listProducts: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
+    apiGet<PaginatedResponse<AdminProductRow>>("/admin/products", params as Record<string, unknown>),
+  getProduct: (id: number) => apiGet<AdminProductRow>(`/admin/products/${id}`),
+  setProductStatus: (id: number, status: ApprovalStatus, reason?: string) =>
+    apiPatch<AdminProductRow>(`/admin/products/${id}/status`, { status, reason }),
+
+  listUsers: (params?: { page?: number; pageSize?: number }) =>
+    apiGet<PaginatedResponse<AdminUserRow>>("/admin/users", params as Record<string, unknown>),
+  getUser: (id: number) => apiGet<AdminUserRow>(`/admin/users/${id}`),
+};
