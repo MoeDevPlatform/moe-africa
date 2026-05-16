@@ -1066,12 +1066,12 @@ export interface WishlistItemApi {
 }
 
 export const wishlistService = {
-  list: () =>
-    apiGet<PaginatedResponse<WishlistItemApi>>("/customers/me/wishlist"),
+  // Item 5 — switched to JWT-protected /wishlist routes.
+  // POST/DELETE put productId in the URL, not the body. Add is idempotent server-side.
+  list: () => apiGet<PaginatedResponse<WishlistItemApi>>("/wishlist"),
   add: (productId: number) =>
-    apiPost<WishlistItemApi>("/customers/me/wishlist", { productId }),
-  remove: (productId: number) =>
-    apiDelete(`/customers/me/wishlist/${productId}`),
+    apiPost<WishlistItemApi>(`/wishlist/${productId}`),
+  remove: (productId: number) => apiDelete(`/wishlist/${productId}`),
 };
 
 // ─── Cart (API sync for logged-in users) ──────────────────
