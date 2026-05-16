@@ -8,8 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserRole } from "@/lib/apiServices";
-import { User, Palette, Eye, EyeOff } from "lucide-react";
+import { UserRole, authService, filterMetaService } from "@/lib/apiServices";
+import { MoeApiError } from "@/lib/moeApi";
+import { User, Palette, Eye, EyeOff, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useEffect } from "react";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
@@ -31,16 +34,48 @@ const Auth = () => {
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<UserRole>("customer");
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [availableServiceCategories, setAvailableServiceCategories] = useState<string[]>([]);
+
+  // Item 9 — load live service categories for the artisan picker.
+  useEffect(() => {
+    filterMetaService.artisans().then((m) => {
+      const opts = (m.serviceCategories?.length ? m.serviceCategories : m.categories) ?? [];
+      setAvailableServiceCategories(opts);
+    });
+  }, []);
+
+  const toggleServiceCategory = (slug: string) => {
+    setServiceCategories((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
+
+  const handleGoogle = () => {
+    // Full-page redirect — backend handles the OAuth dance and bounces back to /auth/callback.
+    window.location.href = authService.googleOAuthUrl();
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(signInEmail, signInPassword);
+      const result = await login(signInEmail, signInPassword);
+      if (result?.requiresOtp) {
+        // Admin path (shouldn't happen on this screen, but supported).
+        navigate(`/auth/verify?mode=admin&email=${encodeURIComponent(result.email)}`);
+        return;
+      }
       toast.success("Welcome back!");
       navigate("/marketplace");
     } catch (err: any) {
-      toast.error(err?.message || "Invalid email or password");
+      const e = err as MoeApiError;
+      if (e?.code === "EMAIL_NOT_VERIFIED" || e?.status === 403) {
+        toast.message("Please verify your email to continue");
+        navigate(`/auth/verify?email=${encodeURIComponent(signInEmail)}`);
+        return;
+      }
+      toast.error(e?.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -56,10 +91,25 @@ const Auth = () => {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (role === "artisan" && serviceCategories.length === 0) {
+      toast.error("Select at least one service category");
+      return;
+    }
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
-      await register(name, signUpEmail, signUpPassword, role);
+      const result = await register(
+        name,
+        signUpEmail,
+        signUpPassword,
+        role,
+        role === "artisan" ? serviceCategories : undefined,
+      );
+      if (result?.requiresEmailVerification) {
+        toast.success("Account created — check your inbox for a 6-digit code");
+        navigate(`/auth/verify?email=${encodeURIComponent(result.email)}`);
+        return;
+      }
       toast.success("Account created successfully!");
       navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
     } catch (err: any) {
