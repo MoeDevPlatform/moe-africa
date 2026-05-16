@@ -53,6 +53,8 @@ export interface RegisterRequest {
   password: string;
   phone?: string;
   role?: UserRole;
+  /** Required for artisan signup — multi-select of service category slugs. */
+  serviceCategories?: string[];
 }
 
 // Mock auth fallback for offline/dev use
@@ -74,17 +76,38 @@ const mockAuthFallback = (
 });
 
 export const authService = {
-  login: async (data: LoginRequest): Promise<AuthResponse> => {
-    return await apiPost<AuthResponse>("/auth/login", data);
+  login: async (data: LoginRequest): Promise<LoginResult> => {
+    // Backend may return:
+    //  - full AuthResponse (tokens + user) for normal logins
+    //  - { requiresOtp: true, email } for admin logins (item 11)
+    // 403 EMAIL_NOT_VERIFIED is thrown as MoeApiError and handled by the caller (item 9).
+    return await apiPost<LoginResult>("/auth/login", data);
   },
 
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+  register: async (data: RegisterRequest): Promise<RegisterResult> => {
     try {
-      return await apiPost<AuthResponse>("/auth/register", data);
-    } catch {
+      // New email/password signups: backend returns NO tokens — only confirmation an OTP was emailed.
+      // Existing accounts / legacy mode may still return tokens. Caller must check.
+      return await apiPost<RegisterResult>("/auth/register", data);
+    } catch (err) {
+      // Only fall back to mock when the network is unreachable, not on validation errors.
+      if (err instanceof MoeApiError) throw err;
       console.warn("[MOE] Backend unreachable — using mock register");
       return mockAuthFallback(data.name, data.email, data.role);
     }
+  },
+  verifyEmail: (data: { email: string; otp: string }) =>
+    apiPost<AuthResponse>("/auth/verify-email", data),
+  resendOtp: (data: { email: string }) =>
+    apiPost<{ message: string }>("/auth/resend-otp", data),
+  adminVerifyOtp: (data: { email: string; otp: string }) =>
+    apiPost<AuthResponse>("/auth/admin/verify-otp", data),
+  /** Full-page redirect target for Google OAuth (item 9). */
+  googleOAuthUrl: () => {
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    return `${base}/auth/google`;
   },
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
@@ -108,9 +131,24 @@ export const authService = {
       body: formData,
     });
     if (!res.ok) throw new MoeApiError("Upload failed", res.status);
-    return (await res.json()) as { avatarUrl: string };
+    // Backend item 4: Cloudinary uploads return { url }. Older builds may still return { avatarUrl }.
+    const body = (await res.json()) as { url?: string; avatarUrl?: string };
+    return { avatarUrl: body.url ?? body.avatarUrl ?? "" };
   },
 };
+
+// Discriminated unions for login / register so callers can branch safely.
+export type LoginResult =
+  | AuthResponse
+  | { requiresOtp: true; email: string };
+
+export type RegisterResult =
+  | AuthResponse
+  | { requiresEmailVerification: true; email: string; message?: string };
+
+export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthResponse {
+  return typeof (r as AuthResponse).token === "string";
+}
 
 // ─── Artisan Profile ──────────────────────────────────────
 
@@ -132,6 +170,11 @@ export interface ArtisanProfile {
   rating: number;
   verified: boolean;
   featured: boolean;
+  /** Admin approval workflow (item 10). New signups are `pending`. */
+  status?: "pending" | "approved" | "rejected";
+  serviceCategories?: string[];
+  rushOrderEnabled?: boolean;
+  rushOrderSurchargePercent?: number;
   createdAt: string;
 }
 
