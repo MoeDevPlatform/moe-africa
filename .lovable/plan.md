@@ -67,3 +67,25 @@ Update `src/lib/apiServices.ts` + `src/lib/moeApi.ts` first; everything else dep
 2. **Google OAuth redirect URL** — backend uses `GOOGLE_SUCCESS_REDIRECT`. I'll assume it points to `${FRONTEND_URL}/auth/callback`. Is that correct?
 3. **Admin route** — keep existing `/admin/login` URL, or move to `/admin` with nested routes? I'll keep `/admin/login` and add `/admin/verify-otp`, `/admin/dashboard`, etc.
 4. **Scope confirmation** — should I ship all 4 phases in this single pass, or stop after Phase 1+2 (API + auth) for review before touching marketplace + admin?
+
+---
+
+# FRONTEND_HANDOFF — Shipped vs Deferred (this pass)
+
+## Shipped (wired end-to-end)
+- **Item 1** Price range — `priceMin/priceMax` already sent by `AddProductModal`; `normalizeProduct` reads `priceRange.{min,max}` first; stops assuming equality.
+- **Item 3** Live filters — `FilterDrawer` now hydrates style tags + price max from `GET /products/filter-meta` (with fallback constants).
+- **Item 4** Cloud uploads — `authService.uploadAvatar` now reads `url` first, falling back to legacy `avatarUrl`. Other upload services already read `.url`.
+- **Item 5** Wishlist — `wishlistService` switched to JWT `/wishlist`, `/wishlist/:id` (POST + DELETE). `WishlistContext` already hydrates on login.
+- **Item 8** Save Card — already stores raw digits in state and validates MM/YY not past; `CARD_EXPIRED` propagates via `MoeApiError.code` to the existing error banner.
+- **Item 9** OTP + Google — Register returns `{ requiresEmailVerification, email }` path → new `/auth/verify` screen with resend + 30s cooldown. Login 403 `EMAIL_NOT_VERIFIED` redirects to same screen. "Continue with Google" button on both Sign In + Sign Up tabs → `GET ${API}/auth/google`. New `/auth/callback` page reads `token`/`refreshToken` from URL. Artisan signup gets a `serviceCategories` multi-select sourced from `/artisans/filter-meta`.
+- **Item 10** Approval status — Artisan dashboard shows `status` badge on profile header and on each product row; non-approved artisans see an info banner.
+- **Item 11** Admin OTP — Admin Login handles `requiresOtp` and redirects to `/auth/verify?mode=admin`. `adminService` (dashboard, list/get/setStatus for artisans/products, users) added in `apiServices.ts`.
+
+## Deferred (API ready, UI work pending — too large to safely one-shot)
+- **Item 2** Dynamic customisation renderer — `customisationTemplateService.get(category)` is in `apiServices.ts`, but `CustomizationFormModal` and the category-specific step components still use hardcoded fields. Needs a rewrite to render `fields[]` and submit a keyed object on `POST /customers/me/cart` + `POST /orders`. Handle `400 INVALID_CUSTOMISATION`.
+- **Item 6** Rush order pricing — `rushOrderService.getConfig(artisanId)` is in `apiServices.ts`. Checkout still needs a fetch-on-mount, a gated toggle, the `basePrice * (1 + pct/100)` preview, and rendering `basePrice` / `rushSurcharge` from the order response.
+- **Item 7** Wishlist → Cart customisation gating — `Wishlist.tsx` add-to-cart still needs to: omit customisation unless `product.customisationRequired`, and on `CUSTOMISATION_REQUIRED` open the customisation modal. `Product.customisationRequired` is now passed through by `normalizeProduct`.
+- **Item 11** Admin portal UI — Approval tables (Approve/Reject + reason dialog) for `/admin/providers` and `/admin/products`, a new `/admin/users` page, a dashboard fed by `GET /admin/dashboard`, and a `role === "admin"` route guard in `AdminLayout`. API client done.
+
+Open question carried forward: real payment tokenisation (Paystack/Stripe SDK) — currently sending safe metadata only (`brand`, `last4`, `expiry`, `cardholderName`), no `processorToken`. Backend will validate expiry and return `CARD_EXPIRED` cleanly.
