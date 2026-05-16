@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { MoeApiError } from "@/lib/moeApi";
 import logo from "@/assets/logo.png";
 
 const Login = () => {
@@ -19,11 +20,17 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      if (result?.requiresOtp) {
+        // Item 11 — admin login is two-factor.
+        navigate(`/auth/verify?mode=admin&email=${encodeURIComponent(result.email)}`);
+        return;
+      }
       toast.success("Welcome back to MOE!");
       navigate("/admin");
     } catch (err: any) {
-      toast.error(err?.message || "Invalid credentials");
+      const e = err as MoeApiError;
+      toast.error(e?.message || "Invalid credentials");
     } finally {
       setIsLoading(false);
     }
