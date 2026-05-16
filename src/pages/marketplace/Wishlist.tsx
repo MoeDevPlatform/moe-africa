@@ -10,6 +10,8 @@ import { Heart, ShoppingCart, Trash2 } from "lucide-react";
 import { useWishlist, type WishlistItem } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { getProductById } from "@/data/mockData";
+import { productsService } from "@/lib/apiServices";
+import { useCart } from "@/contexts/CartContext";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 
 const formatPrice = (price: number | null | undefined, currency: string | undefined) => {
@@ -20,6 +22,7 @@ const formatPrice = (price: number | null | undefined, currency: string | undefi
 
 const Wishlist = () => {
   const { items, removeItem } = useWishlist();
+  const { addItem: addCartItem } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
@@ -33,19 +36,49 @@ const Wishlist = () => {
     });
   };
 
-  const handleMoveToCart = (item: WishlistItem) => {
+  // Item 7 — wishlist → cart.
+  // Only force the customisation modal when the backend marks the product
+  // as `customisationRequired: true`. Otherwise, add the item directly so
+  // we don't trip a 400 CUSTOMISATION_REQUIRED on the cart endpoint.
+  const handleMoveToCart = async (item: WishlistItem) => {
     if (!item?.productId) return;
-    const product = getProductById(item.productId);
-    if (product) {
-      setSelectedItem(item);
-      setShowCustomizationModal(true);
-    } else {
+    const product =
+      (await productsService.getById(item.productId)) ?? getProductById(item.productId);
+    if (!product) {
       toast({
         title: "Product unavailable",
-        description: "This product is no longer available for customization.",
+        description: "This product is no longer available.",
         variant: "destructive",
       });
+      return;
     }
+
+    if (product.customisationRequired) {
+      setSelectedItem(item);
+      setShowCustomizationModal(true);
+      return;
+    }
+
+    // Direct add — no customisation needed.
+    const price = item.price ?? product.priceRange?.min ?? 0;
+    addCartItem({
+      id: Date.now().toString(),
+      productId: item.productId,
+      productName: item.productName,
+      providerId: item.providerId,
+      providerName: item.providerName,
+      basePrice: price,
+      finalPrice: price,
+      category: (product.category as "tailoring" | "shoemaking" | "canvas") ?? "tailoring",
+      selectedVariants: {},
+      measurements: {},
+      notes: "",
+      quantity: 1,
+    });
+    toast({
+      title: "Added to cart 🎉",
+      description: `${item.productName} is in your cart.`,
+    });
   };
 
   return (
