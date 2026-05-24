@@ -1554,3 +1554,80 @@ export const adminService = {
     ),
   getUser: (id: number) => apiGet<AdminUserDetail>(`/admin/users/${id}`),
 };
+
+// ─── Admin Orders ─────────────────────────────────────────
+
+export type AdminOrderStatus =
+  | "pending"
+  | "confirmed"
+  | "in_progress"
+  | "approved"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "rejected";
+
+export type AdminPaymentStatus = "unpaid" | "paid" | "refunded" | "failed";
+
+export interface AdminOrderRow {
+  id: number;
+  orderNumber: string;
+  status: AdminOrderStatus;
+  productName: string;
+  productImage?: string;
+  providerId: number;
+  providerName: string;
+  customerId: number;
+  customerName: string;
+  customerEmail: string;
+  price: number;
+  currency: string;
+  paymentStatus: AdminPaymentStatus;
+  paymentMethod?: string;
+  isCustomOrder?: boolean;
+  createdAt: string;
+}
+
+export interface AdminOrderPatch {
+  status?: AdminOrderStatus;
+  paymentStatus?: AdminPaymentStatus;
+  paymentReference?: string;
+  paymentMethod?: string;
+}
+
+export const adminOrdersService = {
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: AdminOrderStatus;
+    paymentStatus?: AdminPaymentStatus;
+    q?: string;
+  }) =>
+    apiGet<PaginatedResponse<AdminOrderRow>>(
+      "/admin/orders",
+      params as Record<string, unknown>,
+    ),
+  get: (id: number) => apiGet<AdminOrderRow & Record<string, any>>(`/admin/orders/${id}`),
+  update: (id: number, body: AdminOrderPatch) =>
+    apiPatch<AdminOrderRow & Record<string, any>>(`/admin/orders/${id}`, body),
+};
+
+// ─── Public meta (signup) ─────────────────────────────────
+
+export interface ServiceCategoryOption {
+  id: string;
+  name: string;
+}
+
+export const metaService = {
+  getServiceCategories: async (): Promise<ServiceCategoryOption[]> => {
+    try {
+      const res = await apiGet<{ serviceCategories: ServiceCategoryOption[] }>(
+        "/meta/service-categories",
+      );
+      return Array.isArray(res?.serviceCategories) ? res.serviceCategories : [];
+    } catch {
+      return [];
+    }
+  },
+};
