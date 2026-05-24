@@ -37,7 +37,8 @@ const STYLE_SUGGESTIONS = [
 ];
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+// Backend (local filesystem storage) caps uploads at 2MB.
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_IMAGES = 5;
 
 interface UploadedImage {

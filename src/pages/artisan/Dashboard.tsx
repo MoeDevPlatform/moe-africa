@@ -32,7 +32,8 @@ const CATEGORIES = [
 ];
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+// Backend (local filesystem storage) caps uploads at 2MB.
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
