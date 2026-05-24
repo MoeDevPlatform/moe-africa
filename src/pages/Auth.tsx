@@ -60,21 +60,11 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const result = await login(signInEmail, signInPassword);
-      if (result?.requiresOtp) {
-        // Admin path (shouldn't happen on this screen, but supported).
-        navigate(`/auth/verify?mode=admin&email=${encodeURIComponent(result.email)}`);
-        return;
-      }
+      await login(signInEmail, signInPassword);
       toast.success("Welcome back!");
       navigate("/marketplace");
     } catch (err: any) {
       const e = err as MoeApiError;
-      if (e?.code === "EMAIL_NOT_VERIFIED" || e?.status === 403) {
-        toast.message("Please verify your email to continue");
-        navigate(`/auth/verify?email=${encodeURIComponent(signInEmail)}`);
-        return;
-      }
       toast.error(e?.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
@@ -98,18 +88,13 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
-      const result = await register(
+      await register(
         name,
         signUpEmail,
         signUpPassword,
         role,
         role === "artisan" ? serviceCategories : undefined,
       );
-      if (result?.requiresEmailVerification) {
-        toast.success("Account created — check your inbox for a 6-digit code");
-        navigate(`/auth/verify?email=${encodeURIComponent(result.email)}`);
-        return;
-      }
       toast.success("Account created successfully!");
       navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
     } catch (err: any) {

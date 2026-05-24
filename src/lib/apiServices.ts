@@ -77,18 +77,14 @@ const mockAuthFallback = (
 
 export const authService = {
   login: async (data: LoginRequest): Promise<LoginResult> => {
-    // Backend may return:
-    //  - full AuthResponse (tokens + user) for normal logins
-    //  - { requiresOtp: true, email } for admin logins (item 11)
-    // 403 EMAIL_NOT_VERIFIED is thrown as MoeApiError and handled by the caller (item 9).
-    return await apiPost<LoginResult>("/auth/login", data);
+    // Backend always returns { token, refreshToken, user } — no OTP / verification branches.
+    return await apiPost<AuthResponse>("/auth/login", data);
   },
 
   register: async (data: RegisterRequest): Promise<RegisterResult> => {
     try {
-      // New email/password signups: backend returns NO tokens — only confirmation an OTP was emailed.
-      // Existing accounts / legacy mode may still return tokens. Caller must check.
-      return await apiPost<RegisterResult>("/auth/register", data);
+      // Backend signs the new account in immediately — returns { token, refreshToken, user }.
+      return await apiPost<AuthResponse>("/auth/register", data);
     } catch (err) {
       // Only fall back to mock when the network is unreachable, not on validation errors.
       if (err instanceof MoeApiError) throw err;
@@ -96,12 +92,6 @@ export const authService = {
       return mockAuthFallback(data.name, data.email, data.role);
     }
   },
-  verifyEmail: (data: { email: string; otp: string }) =>
-    apiPost<AuthResponse>("/auth/verify-email", data),
-  resendOtp: (data: { email: string }) =>
-    apiPost<{ message: string }>("/auth/resend-otp", data),
-  adminVerifyOtp: (data: { email: string; otp: string }) =>
-    apiPost<AuthResponse>("/auth/admin/verify-otp", data),
   /** Full-page redirect target for Google OAuth (item 9). */
   googleOAuthUrl: () => {
     const base = (import.meta.env?.VITE_API_BASE_URL ??
@@ -138,14 +128,10 @@ export const authService = {
   },
 };
 
-// Discriminated unions for login / register so callers can branch safely.
-export type LoginResult =
-  | AuthResponse
-  | { requiresOtp: true; email: string };
-
-export type RegisterResult =
-  | AuthResponse
-  | { requiresEmailVerification: true; email: string; message?: string };
+// Email-OTP / admin-OTP flows were removed on the backend; login and register
+// now always resolve to a full AuthResponse.
+export type LoginResult = AuthResponse;
+export type RegisterResult = AuthResponse;
 
 export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthResponse {
   return typeof (r as AuthResponse).token === "string";

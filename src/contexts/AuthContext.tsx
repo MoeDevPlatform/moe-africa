@@ -3,9 +3,6 @@ import {
   authService,
   CustomerProfile,
   UserRole,
-  isAuthResponse,
-  type LoginResult,
-  type RegisterResult,
 } from "@/lib/apiServices";
 
 interface AuthContextType {
@@ -14,16 +11,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isArtisan: boolean;
   isAdmin: boolean;
-  /** Returns `requiresOtp` payload for admin logins; otherwise resolves with `null`. */
-  login: (email: string, password: string) => Promise<{ requiresOtp: true; email: string } | null>;
-  /** Returns `requiresEmailVerification` payload for new accounts; otherwise resolves with `null`. */
+  login: (email: string, password: string) => Promise<void>;
   register: (
     name: string,
     email: string,
     password: string,
     role?: UserRole,
     serviceCategories?: string[],
-  ) => Promise<{ requiresEmailVerification: true; email: string } | null>;
+  ) => Promise<void>;
   /** Persist tokens + hydrate profile (used by OTP verify + Google OAuth callback). */
   loginWithTokens: (token: string, refreshToken: string) => Promise<void>;
   logout: () => void;
@@ -75,16 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res: LoginResult = await authService.login({ email, password });
-    if (isAuthResponse(res)) {
-      clearArtisanStash();
-      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-      setUser(res.user);
-      return null;
-    }
-    // Admin path — caller must redirect to OTP screen.
-    return res;
+    const res = await authService.login({ email, password });
+    clearArtisanStash();
+    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+    setUser(res.user);
   }, []);
 
   const register = useCallback(async (
@@ -94,16 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role?: UserRole,
     serviceCategories?: string[],
   ) => {
-    const res: RegisterResult = await authService.register({ name, email, password, role, serviceCategories });
-    if (isAuthResponse(res)) {
-      clearArtisanStash();
-      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-      setUser(res.user);
-      return null;
-    }
-    // New signup path — caller must redirect to email verification screen.
-    return res;
+    const res = await authService.register({ name, email, password, role, serviceCategories });
+    clearArtisanStash();
+    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+    setUser(res.user);
   }, []);
 
   const logout = useCallback(() => {
