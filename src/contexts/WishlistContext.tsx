@@ -4,6 +4,8 @@ import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
 
 export interface WishlistItem {
   productId: number;
+  /** Optional backend-issued wishlist row id, used as a delete fallback. */
+  wishlistItemId?: number;
   productName: string;
   providerId: number;
   providerName: string;
@@ -76,6 +78,7 @@ function mapApiItem(i: WishlistItemApi): WishlistItem {
 
   return {
     productId: i.productId,
+    wishlistItemId: i.wishlistItemId ?? i.id,
     productName: i.productName,
     providerId: i.providerId,
     providerName: i.providerName,
@@ -127,8 +130,18 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const removeItem = useCallback((productId: number) => {
-    setItems((prev) => prev.filter((item) => item.productId !== productId));
-    if (isAuthenticated()) wishlistService.remove(productId).catch(() => {});
+    let snapshot: WishlistItem | undefined;
+    setItems((prev) => {
+      snapshot = prev.find((i) => i.productId === productId);
+      return prev.filter((item) => item.productId !== productId);
+    });
+    if (!isAuthenticated()) return;
+    wishlistService.remove(productId).catch(() => {
+      const fallbackId = snapshot?.wishlistItemId;
+      if (fallbackId) {
+        wishlistService.removeByItemId(fallbackId).catch(() => {});
+      }
+    });
   }, []);
 
   const isInWishlist = useCallback(
