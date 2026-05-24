@@ -20,12 +20,7 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const result = await login(email, password);
-      if (result?.requiresOtp) {
-        // Item 11 — admin login is two-factor.
-        navigate(`/auth/verify?mode=admin&email=${encodeURIComponent(result.email)}`);
-        return;
-      }
+      await login(email, password);
       toast.success("Welcome back to MOE!");
       navigate("/admin");
     } catch (err: any) {
