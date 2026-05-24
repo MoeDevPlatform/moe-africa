@@ -179,6 +179,7 @@ export interface ArtisanProfile {
 }
 
 async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
+  validateUploadFile(file);
   const formData = new FormData();
   formData.append("file", file);
   const base = (import.meta.env?.VITE_API_BASE_URL ??
@@ -190,6 +191,21 @@ async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
+}
+
+// Backend (local filesystem storage) enforces: JPEG/PNG/WebP, max 2MB.
+// Validate client-side so users get an instant, friendly error instead of a 400.
+export const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
+export const UPLOAD_ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const UPLOAD_ACCEPT_ATTR = UPLOAD_ACCEPTED_TYPES.join(",");
+
+export function validateUploadFile(file: File): void {
+  if (!UPLOAD_ACCEPTED_TYPES.includes(file.type)) {
+    throw new MoeApiError("Only JPEG, PNG or WebP images are allowed", 400);
+  }
+  if (file.size > UPLOAD_MAX_BYTES) {
+    throw new MoeApiError("Image must be 2MB or smaller", 400);
+  }
 }
 
 export const artisanService = {
