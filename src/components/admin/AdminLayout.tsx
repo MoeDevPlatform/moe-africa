@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
@@ -10,9 +10,12 @@ import {
   Menu, 
   X,
   LogOut,
+  Settings as SettingsIcon,
   Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface AdminLayoutProps {
@@ -22,16 +25,25 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
 
   const navigation = [
-    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
-    { name: "Service Providers", href: "/admin/providers", icon: Users },
+    { name: "Artisans", href: "/admin/artisans", icon: Users },
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
     { name: "Media", href: "/admin/media", icon: Package },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Settings", href: "/admin/settings", icon: SettingsIcon },
   ];
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Signed out");
+    navigate("/admin/login");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,13 +100,15 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
           {/* Logout */}
           <div className="border-t border-border p-4">
+            {user && (
+              <p className="mb-2 text-xs text-muted-foreground truncate" title={user.email}>
+                {user.name} · {user.email}
+              </p>
+            )}
             <Button
               variant="ghost"
               className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                // Implement logout logic
-                console.log("Logout");
-              }}
+              onClick={handleLogout}
             >
               <LogOut className="h-5 w-5" />
               Logout
