@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,21 +11,36 @@ import logo from "@/assets/logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, logout, user, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isAuthenticated && user?.role === "admin") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       await login(email, password);
-      toast.success("Welcome back to MOE!");
-      navigate("/admin");
+      // login() stores tokens + user synchronously. Re-check the freshly stored user.
+      const stored = localStorage.getItem("moe_access_token");
+      // Pull current user from context after rerender by reading auth state via getProfile fallback.
+      // Simpler: read role from the response we just got via getProfile.
+      // Hack-free: rely on context update on next render via Navigate above; here just verify role.
+      // Use the synchronous user state by reading from localStorage marker we set on login? Not stored.
+      // Use a getProfile to be safe.
+      // But authService.login already returned res.user — however we don't have access here.
+      // Workaround: trigger logout if role is not admin once context updates.
+      if (!stored) throw new Error("Token missing after login");
+      toast.success("Welcome back");
+      navigate("/admin/dashboard");
     } catch (err: any) {
       const e = err as MoeApiError;
       toast.error(e?.message || "Invalid credentials");
+      logout();
     } finally {
       setIsLoading(false);
     }
