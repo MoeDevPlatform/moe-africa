@@ -345,7 +345,10 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const luhnValid = lengthValid && luhnCheck(digits);
   const expiryValid = validateExpiry(expiry);
   const cvvValid = cvv.length === targetCvv;
-  const formValid = nameValid && luhnValid && expiryValid && cvvValid;
+  // Note: Luhn is shown as a soft warning but not used to gate submission —
+  // the raw PAN never leaves the browser; real validation happens at the
+  // tokenisation provider (Paystack/Flutterwave) on the backend.
+  const formValid = nameValid && lengthValid && expiryValid && cvvValid;
 
   const handleSave = async () => {
     setError("");
