@@ -107,7 +107,7 @@ export const authService = {
     >,
   ) => apiPatch<CustomerProfile>("/auth/profile", data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    apiPost<void>("/auth/change-password", data),
+    apiPatch<{ message?: string }>("/auth/change-password", data),
   uploadAvatar: async (file: File) => {
     validateUploadFile(file);
     const formData = new FormData();
