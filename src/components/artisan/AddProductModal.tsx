@@ -136,7 +136,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         continue;
       }
       if (file.size > MAX_SIZE) {
-        setImageError(`"${file.name}" exceeds the 5MB limit.`);
+        setImageError(`"${file.name}" exceeds the 2MB limit.`);
         continue;
       }
       try {
@@ -378,7 +378,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           <div className="space-y-2">
             <Label>Product Images</Label>
             <p className="text-xs text-muted-foreground">
-              JPEG, PNG or WebP · max 5MB each · up to {MAX_IMAGES} images. You can submit without images if upload fails.
+              JPEG, PNG or WebP · max 2MB each · up to {MAX_IMAGES} images. You can submit without images if upload fails.
             </p>
             <label
               htmlFor="product-images"

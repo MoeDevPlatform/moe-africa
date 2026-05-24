@@ -137,7 +137,7 @@ const ArtisanDashboard = () => {
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setStoreImageError("Image must be 5MB or smaller.");
+      setStoreImageError("Image must be 2MB or smaller.");
       return;
     }
     setStoreImageFile(file);
@@ -154,7 +154,7 @@ const ArtisanDashboard = () => {
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setCoverImageError("Image must be 5MB or smaller.");
+      setCoverImageError("Image must be 2MB or smaller.");
       return;
     }
     setCoverImageFile(file);
