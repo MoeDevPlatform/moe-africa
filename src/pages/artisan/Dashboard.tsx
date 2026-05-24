@@ -32,7 +32,8 @@ const CATEGORIES = [
 ];
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+// Backend (local filesystem storage) caps uploads at 2MB.
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
@@ -136,7 +137,7 @@ const ArtisanDashboard = () => {
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setStoreImageError("Image must be 5MB or smaller.");
+      setStoreImageError("Image must be 2MB or smaller.");
       return;
     }
     setStoreImageFile(file);
@@ -153,7 +154,7 @@ const ArtisanDashboard = () => {
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setCoverImageError("Image must be 5MB or smaller.");
+      setCoverImageError("Image must be 2MB or smaller.");
       return;
     }
     setCoverImageFile(file);

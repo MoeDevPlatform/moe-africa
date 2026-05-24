@@ -183,7 +183,7 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
             Click to upload or drag and drop
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            PNG, JPG, WEBP up to 5MB
+            PNG, JPG, WEBP up to 2MB
           </p>
         </div>
       </div>
