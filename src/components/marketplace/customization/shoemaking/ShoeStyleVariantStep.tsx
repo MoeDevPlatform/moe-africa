@@ -97,6 +97,18 @@ const ShoeStyleVariantStep = ({
           </div>
         </div>
       ))}
+
+      {variants.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-8 text-center">
+          <p className="text-sm font-medium text-foreground mb-1">
+            No style options to configure
+          </p>
+          <p className="text-xs text-muted-foreground">
+            This artisan hasn't added material, color, or sole variants for this product yet. Tap{" "}
+            <span className="font-medium">Next Step</span> to continue.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
