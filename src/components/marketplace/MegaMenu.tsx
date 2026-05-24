@@ -1,6 +1,7 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { metaService, ServiceCategoryOption } from "@/lib/apiServices";
 import { 
   Sparkles, 
   TrendingUp, 
@@ -319,7 +320,38 @@ interface MegaMenuProps {
 
 const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps) => {
   const navigate = useNavigate();
+  const [canonical, setCanonical] = useState<ServiceCategoryOption[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    metaService.getServiceCategories().then((list) => {
+      if (alive) setCanonical(list);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Only show categories the backend exposes via /meta/service-categories so
+  // the mega menu stays in sync with signup, filters, and the rest of the app.
+  const visibleCategories = useMemo<CategoryData[]>(() => {
+    if (!canonical || canonical.length === 0) return categories;
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const allowed = new Set(canonical.map((c) => norm(c.name)));
+    return categories.filter((c) => allowed.has(norm(c.name)));
+  }, [canonical]);
+
   const [activeCategory, setActiveCategory] = useState<CategoryData | null>(categories[0]);
+
+  useEffect(() => {
+    if (visibleCategories.length === 0) {
+      setActiveCategory(null);
+      return;
+    }
+    if (!activeCategory || !visibleCategories.some((c) => c.slug === activeCategory.slug)) {
+      setActiveCategory(visibleCategories[0]);
+    }
+  }, [visibleCategories, activeCategory]);
 
   if (!isOpen) return null;
 
@@ -389,7 +421,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
               Categories
             </h3>
             <nav className="space-y-1">
-              {categories.map((category) => (
+              {visibleCategories.map((category) => (
                 <button
                   key={category.slug}
                   onMouseEnter={() => setActiveCategory(category)}
