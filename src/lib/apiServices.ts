@@ -1422,37 +1422,70 @@ export const rushOrderService = {
   },
 };
 
-// ─── Admin (item 11) ──────────────────────────────────────
-// Approval workflow for artisans/products + paginated user list.
+// ─── Admin ────────────────────────────────────────────────
+// Aligned with adminFrontend.md handoff: /admin/* endpoints.
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ProductStatus = ApprovalStatus | "draft";
 
 export interface AdminDashboardStats {
   totalUsers: number;
   totalArtisans: number;
+  artisansByStatus: { pending: number; approved: number; rejected: number };
   totalProducts: number;
-  pendingArtisans: number;
-  pendingProducts: number;
-  totalOrders?: number;
-  revenue?: number;
+  productsByStatus: { pending: number; approved: number; rejected: number };
+  totalOrders: number;
 }
 
 export interface AdminArtisanRow {
   id: number;
-  userId: number;
-  businessName: string;
-  email?: string;
-  category: string;
   status: ApprovalStatus;
+  name: string;
+  email: string;
+  brandName: string;
+  businessName: string;
   createdAt: string;
+}
+
+export interface AdminArtisanDetail {
+  artisanProfile: {
+    userId: number;
+    brandName: string;
+    status: ApprovalStatus;
+    rejectionReason: string | null;
+    city: string | null;
+    category: string | null;
+    rating: number | null;
+    reviewCount: number | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  businessProfile: {
+    businessName: string;
+    customOrdersEnabled: boolean;
+    rushOrderEnabled: boolean;
+    estimatedDeliveryDays: number | null;
+  } | null;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string | null;
+    avatarUrl: string | null;
+    createdAt: string;
+  };
+  productCount: number;
+  orderCount: number;
 }
 
 export interface AdminProductRow {
   id: number;
+  status: ProductStatus;
   name: string;
   category: string;
-  artisanName?: string;
-  status: ApprovalStatus;
+  price: number;
+  artisan: string;
+  providerId: number;
   createdAt: string;
 }
 
@@ -1460,27 +1493,64 @@ export interface AdminUserRow {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
-  emailVerified?: boolean;
+  roles: UserRole[];
+  artisanStatus: ApprovalStatus | null;
   createdAt: string;
+}
+
+export interface AdminUserDetail {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  googleId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  roles: UserRole[];
+  artisanProfile: {
+    userId: number;
+    brandName: string;
+    businessName: string;
+    status: ApprovalStatus;
+    category: string | null;
+    city: string | null;
+    state: string | null;
+  } | null;
+  customerProfile: { addresses: unknown[] } | null;
 }
 
 export const adminService = {
   getDashboard: () => apiGet<AdminDashboardStats>("/admin/dashboard"),
 
   listArtisans: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
-    apiGet<PaginatedResponse<AdminArtisanRow>>("/admin/artisans", params as Record<string, unknown>),
-  getArtisan: (id: number) => apiGet<AdminArtisanRow>(`/admin/artisans/${id}`),
+    apiGet<PaginatedResponse<AdminArtisanRow>>(
+      "/admin/artisans",
+      params as Record<string, unknown>,
+    ),
+  getArtisan: (id: number) => apiGet<AdminArtisanDetail>(`/admin/artisans/${id}`),
   setArtisanStatus: (id: number, status: ApprovalStatus, reason?: string) =>
-    apiPatch<AdminArtisanRow>(`/admin/artisans/${id}/status`, { status, reason }),
+    apiPatch<{ id: number; status: ApprovalStatus; rejectionReason: string | null; brandName: string; email: string }>(
+      `/admin/artisans/${id}/status`,
+      reason ? { status, reason } : { status },
+    ),
 
-  listProducts: (params?: { page?: number; pageSize?: number; status?: ApprovalStatus }) =>
-    apiGet<PaginatedResponse<AdminProductRow>>("/admin/products", params as Record<string, unknown>),
-  getProduct: (id: number) => apiGet<AdminProductRow>(`/admin/products/${id}`),
-  setProductStatus: (id: number, status: ApprovalStatus, reason?: string) =>
-    apiPatch<AdminProductRow>(`/admin/products/${id}/status`, { status, reason }),
+  listProducts: (params?: { page?: number; pageSize?: number; status?: ProductStatus }) =>
+    apiGet<PaginatedResponse<AdminProductRow>>(
+      "/admin/products",
+      params as Record<string, unknown>,
+    ),
+  getProduct: (id: number) => apiGet<Record<string, any>>(`/admin/products/${id}`),
+  setProductStatus: (id: number, status: ProductStatus, reason?: string) =>
+    apiPatch<{ id: number; status: ProductStatus; rejectionReason: string | null; name: string }>(
+      `/admin/products/${id}/status`,
+      reason ? { status, reason } : { status },
+    ),
 
-  listUsers: (params?: { page?: number; pageSize?: number }) =>
-    apiGet<PaginatedResponse<AdminUserRow>>("/admin/users", params as Record<string, unknown>),
-  getUser: (id: number) => apiGet<AdminUserRow>(`/admin/users/${id}`),
+  listUsers: (params?: { page?: number; pageSize?: number; role?: UserRole }) =>
+    apiGet<PaginatedResponse<AdminUserRow>>(
+      "/admin/users",
+      params as Record<string, unknown>,
+    ),
+  getUser: (id: number) => apiGet<AdminUserDetail>(`/admin/users/${id}`),
 };
