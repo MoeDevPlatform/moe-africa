@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,22 +7,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { MoeApiError } from "@/lib/moeApi";
+import { authService } from "@/lib/apiServices";
 import logo from "@/assets/logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { loginWithTokens, user, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isAuthenticated && user?.role === "admin") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password);
-      toast.success("Welcome back to MOE!");
-      navigate("/admin");
+      const res = await authService.login({ email, password });
+      if (res.user?.role !== "admin") {
+        toast.error("Access denied — admin accounts only");
+        return;
+      }
+      await loginWithTokens(res.token, res.refreshToken);
+      toast.success("Welcome back");
+      navigate("/admin/dashboard");
     } catch (err: any) {
       const e = err as MoeApiError;
       toast.error(e?.message || "Invalid credentials");

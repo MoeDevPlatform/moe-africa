@@ -25,7 +25,9 @@ const ProtectedRoute = ({ children, requiredRole, redirectTo = "/auth" }: Protec
   }
 
   if (requiredRole && user?.role !== requiredRole && user?.role !== "admin") {
-    return <Navigate to="/marketplace" replace />;
+    // For admin-only routes, send unauthorized users back to admin login;
+    // for other roles, send them to the marketplace.
+    return <Navigate to={requiredRole === "admin" ? redirectTo : "/marketplace"} replace />;
   }
 
   return <>{children}</>;

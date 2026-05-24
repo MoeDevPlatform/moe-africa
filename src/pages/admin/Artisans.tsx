@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Check, X, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Check, X, Loader2, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,50 +39,81 @@ import {
   type Pagination,
 } from "@/lib/apiServices";
 
-const statusBadgeVariant = (s: ApprovalStatus) =>
+const statusVariant = (s: ApprovalStatus) =>
   s === "approved" ? "default" : s === "rejected" ? "destructive" : "secondary";
 
-const Providers = () => {
+const Artisans = () => {
+  const [params, setParams] = useSearchParams();
+  const initialStatus = (params.get("status") as ApprovalStatus | null) ?? "all";
+
   const [rows, setRows] = useState<AdminArtisanRow[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 20, totalPages: 1, totalItems: 0 });
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    pageSize: 20,
+    totalPages: 1,
+    totalItems: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">(initialStatus);
   const [search, setSearch] = useState("");
-  const [actionRow, setActionRow] = useState<{ row: AdminArtisanRow; next: ApprovalStatus } | null>(null);
+  const [actionRow, setActionRow] = useState<
+    { row: AdminArtisanRow; next: ApprovalStatus } | null
+  >(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const load = (page = 1, status?: ApprovalStatus | "all") => {
+  const load = (page = 1, status: ApprovalStatus | "all" = statusFilter) => {
     setIsLoading(true);
     adminService
-      .listArtisans({ page, pageSize: 20, status: status && status !== "all" ? status : undefined })
+      .listArtisans({
+        page,
+        pageSize: 20,
+        status: status === "all" ? undefined : status,
+      })
       .then((res) => {
         setRows(res.data ?? []);
-        setPagination(res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 });
+        setPagination(
+          res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 },
+        );
       })
-      .catch(() => toast.error("Failed to load artisans"))
+      .catch((e) => toast.error(e?.message || "Failed to load artisans"))
       .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
+    if (statusFilter === "all") params.delete("status");
+    else params.set("status", statusFilter);
+    setParams(params, { replace: true });
     load(1, statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const filtered = rows.filter((r) =>
-    !search ? true : r.businessName.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = rows.filter((r) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      r.name?.toLowerCase().includes(q) ||
+      r.email?.toLowerCase().includes(q) ||
+      r.brandName?.toLowerCase().includes(q) ||
+      r.businessName?.toLowerCase().includes(q)
+    );
+  });
 
   const handleAction = async () => {
     if (!actionRow) return;
     setIsSubmitting(true);
     try {
-      await adminService.setArtisanStatus(actionRow.row.id, actionRow.next, reason || undefined);
+      await adminService.setArtisanStatus(
+        actionRow.row.id,
+        actionRow.next,
+        reason.trim() || undefined,
+      );
       toast.success(`Artisan ${actionRow.next}`);
       setActionRow(null);
       setReason("");
       load(pagination.page, statusFilter);
-    } catch (e) {
-      toast.error("Status update failed");
+    } catch (e: any) {
+      toast.error(e?.message || "Status update failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -90,7 +123,7 @@ const Providers = () => {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Service Providers</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">Artisans</h1>
           <p className="mt-1 text-muted-foreground">Review and approve artisan accounts</p>
           <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/artisans</p>
         </div>
@@ -99,13 +132,16 @@ const Providers = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search business name…"
+              placeholder="Search name, email or brand…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 border-input bg-card"
             />
           </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ApprovalStatus | "all")}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as ApprovalStatus | "all")}
+          >
             <SelectTrigger className="w-full sm:w-48 bg-card">
               <SelectValue />
             </SelectTrigger>
@@ -118,17 +154,19 @@ const Providers = () => {
           </Select>
         </div>
 
-        <Card className="border-border bg-card">
+        <Card className="border-border bg-card overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-3 p-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Business</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -145,17 +183,26 @@ const Providers = () => {
                 ) : (
                   filtered.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.businessName}</TableCell>
-                      <TableCell>{row.category}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{row.email ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>{row.brandName || row.businessName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {row.email}
+                      </TableCell>
                       <TableCell>
-                        <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                        <Badge variant={statusVariant(row.status)} className="capitalize">
+                          {row.status}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(row.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to={`/admin/artisans/${row.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
                           {row.status !== "approved" && (
                             <Button
                               size="sm"
@@ -196,7 +243,7 @@ const Providers = () => {
                 variant="outline"
                 size="sm"
                 disabled={pagination.page <= 1}
-                onClick={() => load(pagination.page - 1, statusFilter)}
+                onClick={() => load(pagination.page - 1)}
               >
                 Previous
               </Button>
@@ -204,7 +251,7 @@ const Providers = () => {
                 variant="outline"
                 size="sm"
                 disabled={pagination.page >= pagination.totalPages}
-                onClick={() => load(pagination.page + 1, statusFilter)}
+                onClick={() => load(pagination.page + 1)}
               >
                 Next
               </Button>
@@ -213,30 +260,50 @@ const Providers = () => {
         )}
       </div>
 
-      <Dialog open={!!actionRow} onOpenChange={(o) => !o && (setActionRow(null), setReason(""))}>
+      <Dialog
+        open={!!actionRow}
+        onOpenChange={(o) => {
+          if (!o) {
+            setActionRow(null);
+            setReason("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionRow?.next === "approved" ? "Approve" : "Reject"} {actionRow?.row.businessName}
+              {actionRow?.next === "approved" ? "Approve" : "Reject"}{" "}
+              {actionRow?.row.brandName || actionRow?.row.name}
             </DialogTitle>
             <DialogDescription>
               {actionRow?.next === "approved"
                 ? "The artisan will be able to publish products immediately."
-                : "Provide a reason — it will be sent to the artisan via email."}
+                : "Provide a reason — it will be stored on the artisan profile."}
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={actionRow?.next === "rejected" ? "Reason for rejection (required)" : "Optional note"}
+            placeholder={
+              actionRow?.next === "rejected"
+                ? "Reason for rejection (required)"
+                : "Optional note"
+            }
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActionRow(null)} disabled={isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => setActionRow(null)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleAction}
-              disabled={isSubmitting || (actionRow?.next === "rejected" && !reason.trim())}
+              disabled={
+                isSubmitting ||
+                (actionRow?.next === "rejected" && !reason.trim())
+              }
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
             </Button>
@@ -247,4 +314,4 @@ const Providers = () => {
   );
 };
 
-export default Providers;
+export default Artisans;

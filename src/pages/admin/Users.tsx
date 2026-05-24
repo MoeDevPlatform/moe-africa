@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Loader2, CheckCircle2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Eye } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,29 +27,39 @@ import {
   adminService,
   type AdminUserRow,
   type Pagination,
+  type UserRole,
 } from "@/lib/apiServices";
 
 const Users = () => {
   const [rows, setRows] = useState<AdminUserRow[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 20, totalPages: 1, totalItems: 0 });
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    pageSize: 20,
+    totalPages: 1,
+    totalItems: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
 
-  const load = (page = 1) => {
+  const load = (page = 1, role: UserRole | "all" = roleFilter) => {
     setIsLoading(true);
     adminService
-      .listUsers({ page, pageSize: 20 })
+      .listUsers({ page, pageSize: 20, role: role === "all" ? undefined : role })
       .then((res) => {
         setRows(res.data ?? []);
-        setPagination(res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 });
+        setPagination(
+          res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 },
+        );
       })
-      .catch(() => toast.error("Failed to load users"))
+      .catch((e: any) => toast.error(e?.message || "Failed to load users"))
       .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
-    load(1);
-  }, []);
+    load(1, roleFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleFilter]);
 
   const filtered = rows.filter((r) =>
     !search
@@ -58,20 +77,35 @@ const Users = () => {
           <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/users</p>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search name or email…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 border-input bg-card"
-          />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 border-input bg-card"
+            />
+          </div>
+          <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as UserRole | "all")}>
+            <SelectTrigger className="w-full sm:w-48 bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="artisan">Artisan</SelectItem>
+              <SelectItem value="customer">Customer</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <Card className="border-border bg-card">
+        <Card className="border-border bg-card overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-3 p-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
           ) : (
             <Table>
@@ -79,15 +113,16 @@ const Users = () => {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Verified</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead>Artisan status</TableHead>
                   <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                       No users found.
                     </TableCell>
                   </TableRow>
@@ -97,17 +132,41 @@ const Users = () => {
                       <TableCell className="font-medium">{row.name}</TableCell>
                       <TableCell className="text-sm">{row.email}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="capitalize">{row.role}</Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {(row.roles ?? []).map((r) => (
+                            <Badge key={r} variant="outline" className="capitalize">
+                              {r}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {row.emailVerified ? (
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                        {row.artisanStatus ? (
+                          <Badge
+                            variant={
+                              row.artisanStatus === "approved"
+                                ? "default"
+                                : row.artisanStatus === "rejected"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className="capitalize"
+                          >
+                            {row.artisanStatus}
+                          </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">No</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(row.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to={`/admin/users/${row.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -123,7 +182,12 @@ const Users = () => {
               Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} total
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => load(pagination.page - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => load(pagination.page - 1)}
+              >
                 Previous
               </Button>
               <Button

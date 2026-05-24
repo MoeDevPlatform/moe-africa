@@ -11,8 +11,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
-import Providers from "./pages/admin/Providers";
+import Artisans from "./pages/admin/Artisans";
+import ArtisanDetailAdmin from "./pages/admin/ArtisanDetail";
 import Products from "./pages/admin/Products";
+import ProductDetailAdmin from "./pages/admin/ProductDetail";
+import Users from "./pages/admin/Users";
+import UserDetailAdmin from "./pages/admin/UserDetail";
+import AdminSettings from "./pages/admin/Settings";
 import Categories from "./pages/admin/Categories";
 import Orders from "./pages/admin/Orders";
 import Media from "./pages/admin/Media";
@@ -116,12 +121,19 @@ const App = () => (
 
                   {/* Admin Routes */}
                   <Route path="/admin/login" element={<Login />} />
-                  <Route path="/admin" element={<Dashboard />} />
-                  <Route path="/admin/providers" element={<Providers />} />
-                  <Route path="/admin/products" element={<Products />} />
-                  <Route path="/admin/categories" element={<Categories />} />
-                  <Route path="/admin/media" element={<Media />} />
-                  <Route path="/admin/orders" element={<Orders />} />
+                  <Route path="/admin" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Dashboard /></ProtectedRoute>} />
+                  <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Dashboard /></ProtectedRoute>} />
+                  <Route path="/admin/artisans" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Artisans /></ProtectedRoute>} />
+                  <Route path="/admin/artisans/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><ArtisanDetailAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/providers" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Artisans /></ProtectedRoute>} />
+                  <Route path="/admin/products" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Products /></ProtectedRoute>} />
+                  <Route path="/admin/products/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><ProductDetailAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Users /></ProtectedRoute>} />
+                  <Route path="/admin/users/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><UserDetailAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSettings /></ProtectedRoute>} />
+                  <Route path="/admin/categories" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Categories /></ProtectedRoute>} />
+                  <Route path="/admin/media" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Media /></ProtectedRoute>} />
+                  <Route path="/admin/orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Orders /></ProtectedRoute>} />
                   
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
