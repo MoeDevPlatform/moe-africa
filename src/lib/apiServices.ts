@@ -1056,6 +1056,8 @@ export interface WishlistItemApi {
   id: number;
   customerId: number;
   productId: number;
+  /** Backend may return a dedicated wishlist row id used by /wishlist/items/:wishlistItemId */
+  wishlistItemId?: number;
   productName: string;
   providerId: number;
   providerName: string;
@@ -1078,6 +1080,9 @@ export const wishlistService = {
   add: (productId: number) =>
     apiPost<WishlistItemApi>(`/wishlist/${productId}`),
   remove: (productId: number) => apiDelete(`/wishlist/${productId}`),
+  /** Explicit removal by wishlist row id — fallback when /wishlist/:productId fails. */
+  removeByItemId: (wishlistItemId: number) =>
+    apiDelete(`/wishlist/items/${wishlistItemId}`),
 };
 
 // ─── Cart (API sync for logged-in users) ──────────────────
