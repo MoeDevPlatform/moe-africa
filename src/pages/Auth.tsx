@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserRole, authService, filterMetaService } from "@/lib/apiServices";
+import { UserRole, authService, metaService, ServiceCategoryOption } from "@/lib/apiServices";
 import { MoeApiError } from "@/lib/moeApi";
 import { User, Palette, Eye, EyeOff, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -35,14 +35,11 @@ const Auth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<UserRole>("customer");
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
-  const [availableServiceCategories, setAvailableServiceCategories] = useState<string[]>([]);
+  const [availableServiceCategories, setAvailableServiceCategories] = useState<ServiceCategoryOption[]>([]);
 
-  // Item 9 — load live service categories for the artisan picker.
+  // Load canonical service categories for the artisan signup chips.
   useEffect(() => {
-    filterMetaService.artisans().then((m) => {
-      const opts = (m.serviceCategories?.length ? m.serviceCategories : m.categories) ?? [];
-      setAvailableServiceCategories(opts);
-    });
+    metaService.getServiceCategories().then(setAvailableServiceCategories);
   }, []);
 
   const toggleServiceCategory = (slug: string) => {
@@ -232,16 +229,16 @@ const Auth = () => {
                         <p className="text-xs text-muted-foreground italic">Loading categories…</p>
                       ) : (
                         <div className="flex flex-wrap gap-2">
-                          {availableServiceCategories.map((slug) => {
-                            const active = serviceCategories.includes(slug);
+                          {availableServiceCategories.map((cat) => {
+                            const active = serviceCategories.includes(cat.name);
                             return (
                               <Badge
-                                key={slug}
+                                key={cat.id}
                                 variant={active ? "default" : "outline"}
-                                onClick={() => toggleServiceCategory(slug)}
-                                className="cursor-pointer capitalize"
+                                onClick={() => toggleServiceCategory(cat.name)}
+                                className="cursor-pointer"
                               >
-                                {slug}
+                                {cat.name}
                               </Badge>
                             );
                           })}
