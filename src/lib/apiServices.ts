@@ -119,6 +119,7 @@ export const authService = {
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiPost<void>("/auth/change-password", data),
   uploadAvatar: async (file: File) => {
+    validateUploadFile(file);
     const formData = new FormData();
     formData.append("file", file);
     const base = (import.meta.env?.VITE_API_BASE_URL ??
