@@ -166,10 +166,11 @@ const CustomizationFormModal = ({
     if (isShoemaking) {
       if (step === 1) return selectedSize !== "";
       if (step === 2) return selectedFootType !== "";
-      if (step === 3) return Object.keys(selectedVariants).length > 0;
+      // Allow skipping the variants step when the artisan hasn't configured any.
+      if (step === 3) return variants.length === 0 || Object.keys(selectedVariants).length > 0;
       return true;
     } else {
-      if (step === 1) return Object.keys(selectedVariants).length > 0;
+      if (step === 1) return variants.length === 0 || Object.keys(selectedVariants).length > 0;
       if (step === 2) return selectedSize !== "";
       if (step === 3) return selectedBodyType !== "";
       return true;
