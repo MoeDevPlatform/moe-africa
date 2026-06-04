@@ -144,9 +144,30 @@ const FeaturedProducts = () => {
     .slice(0, 8)
     .map(transformProduct);
 
-  // Seasonal Picks
+  // Seasonal Picks — driven by the current West African season (Task 9).
+  // Calendar fallback: if Intl returns "UTC" or is ambiguous, default to the
+  // West African seasonal calendar (Harmattan: Nov–Feb, Rainy: Mar–Oct).
+  const seasonalTags = (() => {
+    const month = new Date().getMonth(); // 0–11
+    let tz = "";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { tz = ""; }
+    const useWestAfrica = !tz || tz === "UTC" || tz.startsWith("Africa/");
+    if (useWestAfrica) {
+      // Nov, Dec, Jan, Feb → Harmattan / festive
+      const isHarmattan = month >= 10 || month <= 1;
+      return isHarmattan
+        ? ["Traditional", "Wedding", "Aso-Ebi", "Festive", "Christmas"]
+        : ["Rainy", "Modern", "Casual", "Lightweight"];
+    }
+    // Generic Northern-hemisphere fallback
+    if (month >= 2 && month <= 4) return ["Spring", "Floral", "Light"];
+    if (month >= 5 && month <= 7) return ["Summer", "Casual", "Lightweight"];
+    if (month >= 8 && month <= 10) return ["Autumn", "Warm", "Earthy"];
+    return ["Winter", "Wedding", "Festive", "Holiday"];
+  })();
+
   const seasonalPicks = products
-    .filter((p) => p.tags.some((t) => ["Traditional", "Wedding", "Aso-Ebi", "Elegant"].includes(t)))
+    .filter((p) => p.tags.some((t) => seasonalTags.includes(t)))
     .slice(0, 8)
     .map(transformProduct);
 
