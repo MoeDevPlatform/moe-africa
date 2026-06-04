@@ -1,6 +1,7 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface WishlistItem {
   productId: number;
@@ -30,11 +31,21 @@ interface WishlistContextType {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-const STORAGE_KEY = "wishlist";
+/**
+ * Guest wishlist key (Sprint Task 3).
+ *
+ * The legacy shared "wishlist" key leaked across users on the same browser —
+ * if User A signed out, User B saw A's wishlist. We now scope guest storage
+ * to its own key and key user-specific fallback storage by userId so the two
+ * never mix.
+ */
+const GUEST_KEY = "moe_wishlist_guest";
+const userKey = (userId: number | string) => `moe_wishlist_user_${userId}`;
+const LEGACY_KEY = "wishlist";
 
-function readLocal(): WishlistItem[] {
+function readLocalKey(key: string): WishlistItem[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     if (!saved) return [];
     const parsed = JSON.parse(saved) as Array<Partial<WishlistItem> & { priceRange?: { min: number } }>;
     // Backwards-compat: legacy localStorage items had `priceRange.min` — promote to `price`.
@@ -55,12 +66,19 @@ function readLocal(): WishlistItem[] {
   }
 }
 
-function writeLocal(items: WishlistItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+function writeLocalKey(key: string, items: WishlistItem[]) {
+  localStorage.setItem(key, JSON.stringify(items));
 }
 
-function isAuthenticated() {
-  return !!localStorage.getItem("moe_access_token");
+function migrateLegacyGuest() {
+  // One-time migration: if the old shared key still exists, fold it into
+  // the guest key and remove the legacy entry so it stops leaking.
+  const legacy = localStorage.getItem(LEGACY_KEY);
+  if (!legacy) return;
+  if (!localStorage.getItem(GUEST_KEY)) {
+    localStorage.setItem(GUEST_KEY, legacy);
+  }
+  localStorage.removeItem(LEGACY_KEY);
 }
 
 /**
@@ -92,42 +110,97 @@ function mapApiItem(i: WishlistItemApi): WishlistItem {
 }
 
 export const WishlistProvider = ({ children }: { children: ReactNode }) => {
-  // For unauthenticated users we hydrate from localStorage; for authenticated
-  // users the API is the source of truth and we wait for it.
-  const [items, setItems] = useState<WishlistItem[]>(() =>
-    isAuthenticated() ? [] : readLocal(),
-  );
+  const { user, isAuthenticated } = useAuth();
+  // Guests hydrate from localStorage; authenticated users wait for the
+  // server probe (or the per-user fallback if the probe fails).
+  const [items, setItems] = useState<WishlistItem[]>(() => {
+    migrateLegacyGuest();
+    return localStorage.getItem("moe_access_token") ? [] : readLocalKey(GUEST_KEY);
+  });
   const [isSyncing, setIsSyncing] = useState(false);
+  // When true, the backend /wishlist probe failed and we fall back to
+  // per-user localStorage as the source of truth.
+  const [serverDown, setServerDown] = useState(false);
 
   useEffect(() => {
-    // Only persist locally for guests; authed users persist via the API.
-    if (!isAuthenticated()) writeLocal(items);
-  }, [items]);
+    // Persist locally for guests under the guest key.
+    if (!isAuthenticated) {
+      writeLocalKey(GUEST_KEY, items);
+      return;
+    }
+    // Authed users with a working server don't need a local mirror.
+    if (!serverDown || !user?.id) return;
+    writeLocalKey(userKey(user.id), items);
+  }, [items, isAuthenticated, serverDown, user?.id]);
 
-  // Sync from backend on mount if authenticated
+  // Sync whenever the user identity flips. Logout → clear in-memory; login →
+  // merge guest items into the server (or per-user fallback), then probe.
   useEffect(() => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated || !user?.id) {
+      // Logout: just clear memory; do NOT touch server data.
+      setItems(readLocalKey(GUEST_KEY));
+      setServerDown(false);
+      return;
+    }
+
+    let cancelled = false;
     setIsSyncing(true);
+    const guestItems = readLocalKey(GUEST_KEY);
+
+    const finish = () => {
+      if (!cancelled) setIsSyncing(false);
+    };
+
+    // Probe the server first. 200 → server is source of truth; anything else
+    // (404 / 401 unexpected / network) → fall back to per-user localStorage.
     wishlistService
       .list()
-      .then((res) => {
-        if (res?.data) {
-          setItems(res.data.map(mapApiItem));
+      .then(async (res) => {
+        if (cancelled) return;
+        setServerDown(false);
+        let merged = res?.data ? res.data.map(mapApiItem) : [];
+
+        // Merge any guest items the user collected before logging in.
+        if (guestItems.length) {
+          const have = new Set(merged.map((m) => m.productId));
+          const newOnes = guestItems.filter((g) => !have.has(g.productId));
+          await Promise.all(
+            newOnes.map((g) =>
+              wishlistService.add(g.productId).catch(() => null),
+            ),
+          );
+          merged = [...merged, ...newOnes];
+          localStorage.removeItem(GUEST_KEY);
         }
+        if (!cancelled) setItems(merged);
       })
       .catch(() => {
-        // Silent — user just sees an empty wishlist if the API is down.
+        if (cancelled) return;
+        // Server probe failed — degrade to per-user localStorage so the
+        // wishlist still works and doesn't leak across accounts.
+        setServerDown(true);
+        const stored = readLocalKey(userKey(user.id));
+        const have = new Set(stored.map((m) => m.productId));
+        const merged = [...stored, ...guestItems.filter((g) => !have.has(g.productId))];
+        setItems(merged);
+        if (guestItems.length) localStorage.removeItem(GUEST_KEY);
       })
-      .finally(() => setIsSyncing(false));
-  }, []);
+      .finally(finish);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.id]);
 
   const addItem = useCallback((item: WishlistItem) => {
     setItems((prev) => {
       if (prev.some((i) => i.productId === item.productId)) return prev;
       return [...prev, item];
     });
-    if (isAuthenticated()) wishlistService.add(item.productId).catch(() => {});
-  }, []);
+    if (isAuthenticated && !serverDown) {
+      wishlistService.add(item.productId).catch(() => {});
+    }
+  }, [isAuthenticated, serverDown]);
 
   const removeItem = useCallback((productId: number) => {
     let snapshot: WishlistItem | undefined;
@@ -135,14 +208,14 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
       snapshot = prev.find((i) => i.productId === productId);
       return prev.filter((item) => item.productId !== productId);
     });
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated || serverDown) return;
     wishlistService.remove(productId).catch(() => {
       const fallbackId = snapshot?.wishlistItemId;
       if (fallbackId) {
         wishlistService.removeByItemId(fallbackId).catch(() => {});
       }
     });
-  }, []);
+  }, [isAuthenticated, serverDown]);
 
   const isInWishlist = useCallback(
     (productId: number) => items.some((item) => item.productId === productId),
