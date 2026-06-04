@@ -1,16 +1,16 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, ShoppingCart, Trash2 } from "lucide-react";
+import { Heart, ShoppingCart, Trash2, Loader2 } from "lucide-react";
 import { useWishlist, type WishlistItem } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
-import { getProductById } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
+import type { Product } from "@/data/mockData";
 import { useCart } from "@/contexts/CartContext";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 
@@ -27,6 +27,49 @@ const Wishlist = () => {
   const navigate = useNavigate();
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
+  // Hydrate fresh product data by id — wishlist storage may be stale or
+  // missing fields ("Untitled product" / "My business" placeholders). On
+  // mount we fetch each /products/:id and remove any that 404.
+  const [fresh, setFresh] = useState<Record<number, Product | null>>({});
+  const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    const idsToFetch = items
+      .map((i) => Number(i.productId))
+      .filter((id) => Number.isFinite(id) && !(id in fresh));
+    if (idsToFetch.length === 0) return;
+    setLoadingIds((s) => {
+      const next = new Set(s);
+      idsToFetch.forEach((id) => next.add(id));
+      return next;
+    });
+    (async () => {
+      const results = await Promise.all(
+        idsToFetch.map((id) =>
+          productsService.getById(id).then((p) => [id, p ?? null] as const).catch(() => [id, null] as const),
+        ),
+      );
+      if (cancelled) return;
+      setFresh((prev) => {
+        const next = { ...prev };
+        results.forEach(([id, p]) => (next[id] = p));
+        return next;
+      });
+      setLoadingIds((s) => {
+        const next = new Set(s);
+        idsToFetch.forEach((id) => next.delete(id));
+        return next;
+      });
+      // Auto-remove items whose product no longer exists.
+      results.forEach(([id, p]) => {
+        if (!p) removeItem(id);
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, fresh, removeItem]);
 
   const handleRemove = (productId: number, productName: string) => {
     removeItem(productId);
@@ -42,8 +85,7 @@ const Wishlist = () => {
   // we don't trip a 400 CUSTOMISATION_REQUIRED on the cart endpoint.
   const handleMoveToCart = async (item: WishlistItem) => {
     if (!item?.productId) return;
-    const product =
-      (await productsService.getById(item.productId)) ?? getProductById(item.productId);
+    const product = fresh[item.productId] ?? (await productsService.getById(item.productId));
     if (!product) {
       toast({
         title: "Product unavailable",
@@ -108,10 +150,33 @@ const Wishlist = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {items.map((item) => {
-                const productName = item?.productName ?? "Untitled product";
-                const providerName = item?.providerName ?? "Unknown artisan";
-                const imageUrl = item?.imageUrl || FALLBACK_IMAGE;
-                const styleTags = Array.isArray(item?.styleTags) ? item.styleTags : [];
+                const hydrated = fresh[item.productId];
+                const isLoading = loadingIds.has(item.productId) && !hydrated;
+                // Prefer fresh server data; fall back to whatever the
+                // wishlist row already had. Never invent placeholder names.
+                const productName = hydrated?.name ?? item?.productName ?? "";
+                const providerName =
+                  hydrated?.providerName ?? item?.providerName ?? "";
+                const imageUrl =
+                  hydrated?.images?.[0] || item?.imageUrl || FALLBACK_IMAGE;
+                const price =
+                  hydrated?.priceRange?.min ?? item?.price ?? null;
+                const styleTags = Array.isArray(hydrated?.tags)
+                  ? (hydrated.tags as string[])
+                  : Array.isArray(item?.styleTags)
+                  ? item.styleTags
+                  : [];
+
+                if (isLoading) {
+                  return (
+                    <Card
+                      key={item.productId}
+                      className="overflow-hidden h-[420px] flex items-center justify-center"
+                    >
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </Card>
+                  );
+                }
 
                 return (
                   <Card
@@ -157,7 +222,7 @@ const Wishlist = () => {
                         <div>
                           <p className="text-xs text-muted-foreground">Starting from</p>
                           <p className="text-xl font-bold text-primary">
-                            {formatPrice(item?.price, item?.currency)}
+                            {formatPrice(price, item?.currency)}
                           </p>
                         </div>
                       </div>
