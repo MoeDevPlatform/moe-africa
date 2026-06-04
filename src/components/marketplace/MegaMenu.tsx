@@ -1,26 +1,18 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { metaService, ServiceCategoryOption } from "@/lib/apiServices";
-import { 
-  Sparkles, 
-  TrendingUp, 
-  Star, 
-  Package, 
-  Users, 
+import {
+  Sparkles,
+  TrendingUp,
+  Star,
+  Package,
+  Users,
   Layers,
   Clock,
   Flame,
   ChevronRight,
-  Scissors,
-  Footprints,
-  Briefcase,
-  Sparkle,
-  Watch,
-  Palette,
-  Gem,
-  Home
 } from "lucide-react";
+import { CATEGORIES, type CategoryDef } from "@/lib/categories";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
