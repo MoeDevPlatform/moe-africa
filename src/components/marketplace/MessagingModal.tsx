@@ -65,9 +65,10 @@ const MessagingModal = ({
     let cancelled = false;
     messagingService
       .listConversations()
-      .then((convos) => {
+      .then((res) => {
         if (cancelled) return;
-        const match = convos?.find?.((c: { providerId?: number; id?: number }) => c.providerId === providerId);
+        const items = Array.isArray(res) ? res : (res as { items?: Array<{ providerId?: number; id?: number }> })?.items ?? [];
+        const match = items.find((c) => c.providerId === providerId);
         if (match?.id) setConversationId(match.id);
       })
       .catch(() => { /* backend not ready — silent */ });
@@ -83,29 +84,26 @@ const MessagingModal = ({
 
     const fetchOnce = () => {
       messagingService
-        .listMessages(conversationId)
-        .then((serverMessages) => {
-          if (cancelled || !Array.isArray(serverMessages)) return;
+        .getMessages(conversationId)
+        .then((res) => {
+          if (cancelled) return;
+          const serverMessages = Array.isArray(res)
+            ? res
+            : (res as { items?: unknown[] })?.items ?? [];
+          if (!Array.isArray(serverMessages)) return;
           setMessages((prev) => {
             const seen = new Set(prev.map((m) => m.id));
             const incoming = serverMessages
-              .filter((m: { id: string | number }) => !seen.has(String(m.id)))
-              .map((m: {
-                id: string | number;
-                senderId?: string;
-                senderName?: string;
-                content?: string;
-                createdAt?: string;
-                isCustomer?: boolean;
-              }) => ({
+              .filter((m: any) => !seen.has(String(m.id)))
+              .map((m: any) => ({
                 id: String(m.id),
-                senderId: m.senderId ?? String(providerId),
+                senderId: m.senderId != null ? String(m.senderId) : String(providerId),
                 senderName: m.senderName ?? providerName,
-                text: m.content ?? "",
-                timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
-                isCustomer: !!m.isCustomer,
+                text: m.content ?? m.text ?? "",
+                timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
+                isCustomer: m.senderType === "customer",
                 type: "text" as const,
-                read: true,
+                read: !!m.readAt,
               }));
             return incoming.length ? [...prev, ...incoming] : prev;
           });
