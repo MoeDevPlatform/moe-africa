@@ -11,7 +11,7 @@ import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tag, Clock } from "lucide-react";
+import { Tag, Clock, Shirt, Palette } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
