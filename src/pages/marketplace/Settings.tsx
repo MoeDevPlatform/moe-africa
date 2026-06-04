@@ -366,7 +366,6 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
     if (!nameValid) return setError("Cardholder name may contain letters, spaces, apostrophes and hyphens only.");
     if (digits.length === 0) return setError("Card number is required.");
     if (!lengthValid) return setError("Card number must be 15 (Amex) or 16 digits.");
-    if (!luhnValid) return setError("Invalid card number.");
     if (!expiryValid) return setError(/^\d{2}\/\d{2}$/.test(expiry) ? "Card has expired." : "Expiry must be MM/YY.");
     if (!cvvValid) return setError(`CVV must be ${targetCvv} digits.`);
 
@@ -481,7 +480,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || !formValid}>
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Card"}
           </Button>
         </DialogFooter>
