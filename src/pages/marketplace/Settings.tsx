@@ -305,6 +305,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const [cardholderName, setCardholderName] = useState(payment?.cardholderName ?? "");
   const [cardNumber, setCardNumber] = useState("");
   const [cardFocused, setCardFocused] = useState(false);
+  const [cardBlurred, setCardBlurred] = useState(false);
   const [expiry, setExpiry] = useState(payment?.expiry ?? "");
   const [expiryTouched, setExpiryTouched] = useState(false);
   const [cvv, setCvv] = useState("");
@@ -328,6 +329,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
       setBillingAddressId(payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? ""));
       setError("");
       setCardFocused(false);
+      setCardBlurred(false);
     }
   }, [open, payment, addresses]);
 
@@ -402,7 +404,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
             <Input
               value={cardFocused ? formatCardNumber(digits) : (digits.length > 4 ? `•••• •••• •••• ${last4}` : formatCardNumber(digits))}
               onFocus={() => setCardFocused(true)}
-              onBlur={() => setCardFocused(false)}
+              onBlur={() => { setCardFocused(false); setCardBlurred(true); }}
               onChange={e => setCardNumber(e.target.value.replace(/\D/g, "").slice(0, 19))}
               placeholder="1234 5678 9012 3456"
               inputMode="numeric"
@@ -411,7 +413,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
             {digits.length > 0 && digits.length === targetLen && !luhnValid && (
               <p className="text-xs text-destructive">Invalid card number.</p>
             )}
-            {digits.length > 0 && digits.length !== targetLen && brand && brand !== "Unknown" && (
+            {cardBlurred && digits.length > 0 && digits.length < 13 && (
               <p className="text-xs text-muted-foreground">
                 {brand === "AMEX" ? "Amex cards are 15 digits." : "Card number must be 16 digits."}
               </p>
