@@ -326,7 +326,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                         key={sub.slug}
                         slug={sub.slug}
                         name={sub.name}
-                        onClick={() => handleSubcategoryClick(activeCategory.slug, sub.slug)}
+                        onClick={() => handleSubcategoryClick(activeCategory.slug, sub.name)}
                       />
                     ))}
                   </nav>
