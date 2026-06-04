@@ -22,14 +22,22 @@ interface AddProductModalProps {
   editProduct?: Product | null;
 }
 
-const CATEGORIES = [
+// Canonical 7 categories (Task 8). Legacy values (`canvas`, `crafts`) are
+// kept valid in the payload so existing products remain editable, but they
+// are hidden from the dropdown unless the product being edited still uses one.
+const CANONICAL_CATEGORIES = [
   { value: "tailoring", label: "Tailoring" },
   { value: "shoemaking", label: "Shoemaking" },
-  { value: "canvas", label: "Canvas & Painting" },
   { value: "leatherwork", label: "Leatherwork" },
   { value: "beauty", label: "Beauty" },
-  { value: "crafts", label: "Art & Crafts" },
+  { value: "accessories", label: "Accessories" },
+  { value: "furniture", label: "Furniture" },
+  { value: "art", label: "Art" },
 ];
+const LEGACY_CATEGORY_LABELS: Record<string, string> = {
+  canvas: "Canvas & Painting (legacy)",
+  crafts: "Art & Crafts (legacy)",
+};
 
 const STYLE_SUGGESTIONS = [
   "Modern", "Traditional", "Afrocentric", "Luxury", "Premium", "Casual",
@@ -280,11 +288,18 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-card">
-                {CATEGORIES.map((c) => (
+                {CANONICAL_CATEGORIES.map((c) => (
                   <SelectItem key={c.value} value={c.value}>
                     {c.label}
                   </SelectItem>
                 ))}
+                {/* Surface the legacy value only when this product still uses it,
+                    so the artisan can save without being forced to remap. */}
+                {form.category && LEGACY_CATEGORY_LABELS[form.category] && (
+                  <SelectItem value={form.category}>
+                    {LEGACY_CATEGORY_LABELS[form.category]}
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

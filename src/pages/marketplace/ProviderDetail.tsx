@@ -15,6 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { getProviderById as mockGetProviderById, getProductsByProviderId as mockGetProductsByProviderId } from "@/data/mockData";
 import { productsService, providersService } from "@/lib/apiServices";
+import { artisanReviewsService } from "@/lib/apiServices";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
 
 // Mock reviews with images
@@ -56,6 +61,12 @@ const ProviderDetail = () => {
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [provider, setProvider] = useState<Provider | undefined>(mockGetProviderById(Number(id)));
   const [products, setProducts] = useState<Product[]>(
@@ -219,6 +230,20 @@ const ProviderDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="reviews" className="mt-6">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast({ title: "Please sign in to leave a review", variant: "destructive" });
+                          return;
+                        }
+                        setShowReviewModal(true);
+                      }}
+                    >
+                      Leave a Review
+                    </Button>
+                  </div>
                   <CustomerReviews 
                     reviews={mockReviews} 
                     averageRating={provider.rating} 
@@ -294,6 +319,73 @@ const ProviderDetail = () => {
         providerId={provider.id}
         providerName={provider.brandName}
       />
+
+      {/* Leave-a-review dialog — POST upserts by (userId, artisanId). */}
+      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review {provider.brandName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <p className="text-sm font-medium mb-2">Rating</p>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setReviewRating(n)}
+                    aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
+                    className="p-1"
+                  >
+                    <Star
+                      className={`h-6 w-6 ${
+                        n <= reviewRating ? "fill-accent text-accent" : "text-muted-foreground/40"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Comment (optional)</p>
+              <Textarea
+                rows={4}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Share details about your experience..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReviewModal(false)} disabled={isSubmittingReview}>
+              Cancel
+            </Button>
+            <Button
+              disabled={isSubmittingReview}
+              onClick={async () => {
+                setIsSubmittingReview(true);
+                try {
+                  await artisanReviewsService.submit(provider.id, {
+                    rating: reviewRating,
+                    comment: reviewComment.trim() || undefined,
+                  });
+                  toast({ title: "Review submitted", description: "Thanks for your feedback." });
+                  setShowReviewModal(false);
+                  setReviewComment("");
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "Failed to submit review";
+                  toast({ title: "Error", description: msg, variant: "destructive" });
+                } finally {
+                  setIsSubmittingReview(false);
+                }
+              }}
+            >
+              {isSubmittingReview ? "Submitting…" : "Submit Review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

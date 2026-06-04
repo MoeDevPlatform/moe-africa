@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
-import { Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
+import { Shirt, Footprints, Gem, Sofa, Palette, Scissors, Sparkles } from "lucide-react";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,13 +33,15 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
     setStep(1);
   }, [open, preferences.categories, preferences.budget, preferences.styles]);
 
+  // Canonical 7 categories (Task 8).
   const categories = [
-    { id: "tailoring", name: "Clothing", icon: Shirt },
-    { id: "shoemaking", name: "Shoes", icon: Footprints },
+    { id: "tailoring", name: "Tailoring", icon: Shirt },
+    { id: "shoemaking", name: "Shoemaking", icon: Footprints },
+    { id: "leatherwork", name: "Leatherwork", icon: Scissors },
+    { id: "beauty", name: "Beauty", icon: Sparkles },
     { id: "accessories", name: "Accessories", icon: Gem },
     { id: "furniture", name: "Furniture", icon: Sofa },
-    { id: "art", name: "Art & Crafts", icon: Palette },
-    { id: "other", name: "Other", icon: Package },
+    { id: "art", name: "Art", icon: Palette },
   ];
 
   const styles = ["Modern", "Afrocentric", "Minimalist", "Traditional", "Vintage", "Contemporary"];

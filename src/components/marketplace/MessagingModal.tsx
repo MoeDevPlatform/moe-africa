@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Image as ImageIcon, Mic, Paperclip, Check, CheckCheck } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { messagingService } from "@/lib/apiServices";
 
 interface Message {
   id: string;
@@ -40,6 +41,7 @@ const MessagingModal = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [conversationId, setConversationId] = useState<number | null>(null);
 
   useEffect(() => {
     // Load conversation from localStorage
@@ -55,6 +57,67 @@ const MessagingModal = ({
       })));
     }
   }, [providerId]);
+
+  // Resolve a server-side conversationId for this provider if available.
+  // Best-effort — failures keep the localStorage simulation working.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    messagingService
+      .listConversations()
+      .then((res) => {
+        if (cancelled) return;
+        const items = Array.isArray(res) ? res : (res as { items?: Array<{ providerId?: number; id?: number }> })?.items ?? [];
+        const match = items.find((c) => c.providerId === providerId);
+        if (match?.id) setConversationId(match.id);
+      })
+      .catch(() => { /* backend not ready — silent */ });
+    return () => { cancelled = true; };
+  }, [open, providerId]);
+
+  // Poll the conversation for new messages while the modal is open.
+  // Cleanup runs on unmount, modal close, or conversation change so we never
+  // leave a stray interval running (Task 6 — explicit cleanup requirement).
+  useEffect(() => {
+    if (!open || !conversationId) return;
+    let cancelled = false;
+
+    const fetchOnce = () => {
+      messagingService
+        .getMessages(conversationId)
+        .then((res) => {
+          if (cancelled) return;
+          const serverMessages = Array.isArray(res)
+            ? res
+            : (res as { items?: unknown[] })?.items ?? [];
+          if (!Array.isArray(serverMessages)) return;
+          setMessages((prev) => {
+            const seen = new Set(prev.map((m) => m.id));
+            const incoming = serverMessages
+              .filter((m: any) => !seen.has(String(m.id)))
+              .map((m: any) => ({
+                id: String(m.id),
+                senderId: m.senderId != null ? String(m.senderId) : String(providerId),
+                senderName: m.senderName ?? providerName,
+                text: m.content ?? m.text ?? "",
+                timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
+                isCustomer: m.senderType === "customer",
+                type: "text" as const,
+                read: !!m.readAt,
+              }));
+            return incoming.length ? [...prev, ...incoming] : prev;
+          });
+        })
+        .catch(() => { /* silent — keep last good state */ });
+    };
+
+    fetchOnce();
+    const intervalId = window.setInterval(fetchOnce, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [open, conversationId, providerId, providerName]);
 
   useEffect(() => {
     // Save conversation to localStorage
