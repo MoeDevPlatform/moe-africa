@@ -304,6 +304,7 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const [cardNumber, setCardNumber] = useState("");
   const [cardFocused, setCardFocused] = useState(false);
   const [expiry, setExpiry] = useState(payment?.expiry ?? "");
+  const [expiryTouched, setExpiryTouched] = useState(false);
   const [cvv, setCvv] = useState("");
   const [billingAddressId, setBillingAddressId] = useState<string>(
     payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? "")
@@ -316,8 +317,11 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
       setCardholderName(payment?.cardholderName ?? "");
       // Store raw digits only — masking is done at render time so validation
       // (length / Luhn) runs against real digits, not bullets.
-      setCardNumber(payment ? payment.last4 : "");
+      // When editing, clear the field so the user enters a fresh PAN
+      // rather than us pre-filling last4 (which made the digit-length check fail).
+      setCardNumber("");
       setExpiry(payment?.expiry ?? "");
+      setExpiryTouched(false);
       setCvv("");
       setBillingAddressId(payment?.billingAddressId ?? (addresses.find(a => a.isDefault)?.id ?? ""));
       setError("");
@@ -343,7 +347,9 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
   const nameValid = /^[A-Za-z\s'-]+$/.test(cardholderName.trim()) && cardholderName.trim().length > 0;
   const lengthValid = digits.length === targetLen;
   const luhnValid = lengthValid && luhnCheck(digits);
+  const expiryFormatComplete = /^\d{2}\/\d{2}$/.test(expiry);
   const expiryValid = validateExpiry(expiry);
+  const expiryExpiredError = expiryTouched && expiryFormatComplete && !expiryValid;
   const cvvValid = cvv.length === targetCvv;
   // Note: Luhn is shown as a soft warning but not used to gate submission —
   // the raw PAN never leaves the browser; real validation happens at the
@@ -418,12 +424,18 @@ const PaymentModal = ({ open, payment, onClose, onSave, addresses }: PaymentModa
                   let v = e.target.value.replace(/\D/g, "").slice(0, 4);
                   if (v.length > 2) v = `${v.slice(0,2)}/${v.slice(2)}`;
                   setExpiry(v);
+                if (expiryTouched) setExpiryTouched(false);
                 }}
+              onBlur={() => setExpiryTouched(true)}
                 placeholder="12/26"
                 maxLength={5}
                 inputMode="numeric"
                 autoComplete="cc-exp"
+              aria-invalid={expiryExpiredError ? true : undefined}
               />
+            {expiryExpiredError && (
+              <p className="text-xs text-destructive">This card has expired.</p>
+            )}
             </div>
             <div className="space-y-2">
               <Label>CVV {brand === "AMEX" ? "(4 digits)" : "(3 digits)"}</Label>
