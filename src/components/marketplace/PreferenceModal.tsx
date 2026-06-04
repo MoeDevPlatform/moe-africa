@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,16 +11,27 @@ import { useToast } from "@/hooks/use-toast";
 interface PreferenceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When true, hides the navigate-to-marketplace redirect on save (edit mode). */
+  editMode?: boolean;
 }
 
-const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
+const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceModalProps) => {
   const [step, setStep] = useState(1);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [budget, setBudget] = useState([50000]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const navigate = useNavigate();
-  const { updatePreferences } = usePreferences();
+  const { updatePreferences, preferences } = usePreferences();
   const { toast } = useToast();
+
+  // Pre-fill from existing preferences whenever the modal opens.
+  useEffect(() => {
+    if (!open) return;
+    setSelectedCategories(preferences.categories ?? []);
+    setBudget([preferences.budget || 50000]);
+    setSelectedStyles(preferences.styles ?? []);
+    setStep(1);
+  }, [open, preferences.categories, preferences.budget, preferences.styles]);
 
   const categories = [
     { id: "tailoring", name: "Clothing", icon: Shirt },
@@ -58,12 +69,12 @@ const PreferenceModal = ({ open, onOpenChange }: PreferenceModalProps) => {
     });
     
     onOpenChange(false);
-    navigate("/marketplace");
+    if (!editMode) navigate("/marketplace");
   };
 
   const handleSkip = () => {
     onOpenChange(false);
-    navigate("/marketplace");
+    if (!editMode) navigate("/marketplace");
   };
 
   return (
