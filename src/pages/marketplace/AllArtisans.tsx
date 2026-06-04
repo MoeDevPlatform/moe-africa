@@ -6,6 +6,7 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import { providers as mockProviders } from "@/data/mockData";
 import { providersService } from "@/lib/apiServices";
+import { getCategory } from "@/lib/categories";
 import type { Provider } from "@/data/mockData";
 
 const AllArtisans = () => {
@@ -16,6 +17,7 @@ const AllArtisans = () => {
   const [description, setDescription] = useState("Discover talented artisans from across Africa");
   
   const featured = searchParams.get("featured");
+  const category = searchParams.get("category");
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -29,6 +31,14 @@ const AllArtisans = () => {
           newTitle = "Featured Artisans";
           newDescription = "Our most acclaimed artisans with exceptional craftsmanship";
         }
+        if (category) {
+          filters.category = category;
+          const cat = getCategory(category);
+          if (cat) {
+            newTitle = `${cat.label} Artisans`;
+            newDescription = `Browse artisans specialising in ${cat.label.toLowerCase()}`;
+          }
+        }
 
         const res = await providersService.list(filters);
         setDisplayProviders(res.data);
@@ -39,12 +49,15 @@ const AllArtisans = () => {
         if (featured === "true") {
           fallback = mockProviders.filter(p => p.featured);
         }
+        if (category) {
+          fallback = fallback.filter(p => (p.category || "").toLowerCase() === category.toLowerCase());
+        }
         setDisplayProviders(fallback);
       }
     };
 
     loadProviders();
-  }, [featured]);
+  }, [featured, category]);
 
   return (
     <div className="min-h-screen bg-background">
