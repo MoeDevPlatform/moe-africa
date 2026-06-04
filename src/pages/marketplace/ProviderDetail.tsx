@@ -15,6 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { getProviderById as mockGetProviderById, getProductsByProviderId as mockGetProductsByProviderId } from "@/data/mockData";
 import { productsService, providersService } from "@/lib/apiServices";
+import { artisanReviewsService } from "@/lib/apiServices";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
 
 // Mock reviews with images
@@ -56,6 +61,12 @@ const ProviderDetail = () => {
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [provider, setProvider] = useState<Provider | undefined>(mockGetProviderById(Number(id)));
   const [products, setProducts] = useState<Product[]>(
@@ -219,6 +230,20 @@ const ProviderDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="reviews" className="mt-6">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast({ title: "Please sign in to leave a review", variant: "destructive" });
+                          return;
+                        }
+                        setShowReviewModal(true);
+                      }}
+                    >
+                      Leave a Review
+                    </Button>
+                  </div>
                   <CustomerReviews 
                     reviews={mockReviews} 
                     averageRating={provider.rating} 
