@@ -6,6 +6,7 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import { products as mockProducts, getProviderById } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
+import { getCategory } from "@/lib/categories";
 import type { Product } from "@/data/mockData";
 
 const AllProducts = () => {
@@ -14,9 +15,12 @@ const AllProducts = () => {
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
   const [title, setTitle] = useState("All Products");
   const [description, setDescription] = useState("Explore our complete collection of handcrafted African products");
-  
+
   const featured = searchParams.get("featured");
   const sort = searchParams.get("sort");
+  const season = searchParams.get("season");
+  const category = searchParams.get("category");
+  const type = searchParams.get("type");
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -25,28 +29,48 @@ const AllProducts = () => {
         let newTitle = "All Products";
         let newDescription = "Explore our complete collection of handcrafted African products";
 
+        if (category) {
+          filters.category = category;
+          const cat = getCategory(category);
+          if (cat) {
+            newTitle = `${cat.label} Products`;
+            newDescription = `Browse all ${cat.label.toLowerCase()} items from our artisans`;
+          }
+        }
+        if (type) {
+          filters.type = type;
+          newTitle = type;
+          newDescription = `Shop ${type}${category ? ` in ${getCategory(category)?.label ?? ""}` : ""}`;
+        }
+
         if (featured === "true") {
           filters.featured = true;
-          newTitle = "Featured Products";
+          newTitle = "Featured Picks";
           newDescription = "Hand-picked selections from our best artisans";
-        } else if (featured === "seasonal") {
-          filters.styleTags = "Traditional,Wedding,Aso-Ebi,Elegant";
-          newTitle = "Seasonal Picks";
-          newDescription = "Perfect items for the current season and celebrations";
-        } else if (featured === "best-sellers") {
-          filters.isBestSeller = true;
-          newTitle = "Best Sellers";
-          newDescription = "Our most popular items loved by customers";
-        } else if (featured === "trending") {
-          filters.isTrending = true;
-          newTitle = "Trending Now";
-          newDescription = "The hottest styles making waves right now";
         }
 
         if (sort === "newest") {
           filters.sort = "newest";
           newTitle = "New Arrivals";
           newDescription = "Fresh additions to our marketplace";
+        } else if (sort === "bestSeller") {
+          filters.sort = "bestSeller";
+          newTitle = "Best Sellers";
+          newDescription = "Our most popular items loved by customers";
+        } else if (sort === "trending") {
+          filters.sort = "trending";
+          newTitle = "Trending Now";
+          newDescription = "The hottest styles making waves right now";
+        }
+
+        if (season === "harmattan") {
+          filters.styleTags = "lightweight,ankara,casual";
+          newTitle = "Harmattan Picks";
+          newDescription = "Lightweight pieces curated for the dry season";
+        } else if (season === "rainy") {
+          filters.styleTags = "layered,leatherwork,home-decor";
+          newTitle = "Rainy Season Picks";
+          newDescription = "Cozy layers and home pieces for the rains";
         }
 
         const res = await productsService.list(filters);
@@ -54,25 +78,25 @@ const AllProducts = () => {
         setTitle(newTitle);
         setDescription(newDescription);
       } catch {
-        // Fallback to mock
         let fallback = [...mockProducts];
         if (featured === "true") {
           fallback = mockProducts.filter(p => {
             const provider = getProviderById(p.providerId);
             return provider?.featured;
           });
-        } else if (featured === "seasonal") {
-          fallback = mockProducts.filter(p => 
-            p.tags.some(t => ["Traditional", "Wedding", "Aso-Ebi", "Elegant"].includes(t))
-          );
-        } else if (featured === "best-sellers") {
+        } else if (sort === "bestSeller") {
           fallback = mockProducts.filter(p => {
             const provider = getProviderById(p.providerId);
             return provider && provider.rating >= 4.7;
           });
-        } else if (featured === "trending") {
-          fallback = mockProducts.filter(p => 
-            p.tags.some(t => ["Modern", "Afrocentric", "Custom"].includes(t))
+        } else if (sort === "trending") {
+          fallback = mockProducts.filter(p =>
+            p.tags.some(t => ["Modern", "Afrocentric", "Custom"].includes(t)),
+          );
+        }
+        if (category) {
+          fallback = fallback.filter(
+            p => (p.category || "").toLowerCase() === category.toLowerCase(),
           );
         }
         setDisplayProducts(fallback);
@@ -80,30 +104,28 @@ const AllProducts = () => {
     };
 
     loadProducts();
-  }, [featured, sort]);
+  }, [featured, sort, season, category, type]);
 
   return (
     <div className="min-h-screen bg-background">
       <MarketplaceNavbar />
-      
+
       <main className="container mx-auto px-4 py-8">
-        {/* Back Link */}
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+          aria-label="Go back"
         >
           <ChevronLeft className="h-4 w-4" />
           Back
         </button>
 
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
           <p className="text-sm text-muted-foreground mt-2">{displayProducts.length} products found</p>
         </div>
 
-        {/* Products Grid */}
         {displayProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {displayProducts.map((product) => (

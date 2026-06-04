@@ -11,7 +11,8 @@ import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shirt, Footprints, Gem, Sofa, Palette, Package, Tag, Clock } from "lucide-react";
+import { Tag, Clock, Shirt, Palette } from "lucide-react";
+import { CATEGORIES } from "@/lib/categories";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
 import type { Product, Provider } from "@/data/mockData";
@@ -57,20 +58,14 @@ const MarketplaceHome = () => {
     ]).finally(() => setIsLoading(false));
   }, [hasPreferences, preferences.budget, preferences.categories, preferences.styles]);
 
-  // Dynamic category counts from actual provider data
+  // Canonical categories (src/lib/categories.ts) with live artisan counts.
   const categories = useMemo(() => {
-    const defs = [
-      { id: "tailoring", name: "Tailoring", icon: Shirt },
-      { id: "shoemaking", name: "Shoemaking", icon: Footprints },
-      { id: "accessories", name: "Accessories", icon: Gem },
-      { id: "canvas", name: "Canvas & Painting", icon: Palette },
-      { id: "furniture", name: "Home & Decor", icon: Sofa },
-      { id: "art", name: "Art & Crafts", icon: Package },
-    ];
-    return defs.map((d) => ({
-      ...d,
+    return CATEGORIES.map((d) => ({
+      id: d.value,
+      name: d.label,
+      icon: d.icon,
       count: allProviders.filter(
-        (p) => (p.category || "").toLowerCase() === d.id.toLowerCase()
+        (p) => (p.category || "").toLowerCase() === d.value.toLowerCase(),
       ).length,
     }));
   }, [allProviders]);
@@ -189,22 +184,24 @@ const MarketplaceHome = () => {
 
         {/* Categories Section */}
         <section className="mb-8 md:mb-12">
-          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Service</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 lg:gap-4">
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Category</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {
               const Icon = category.icon;
               return (
                 <button
                   key={category.id}
-                  onClick={() => navigate(`/marketplace/category/${category.id}`)}
+                  onClick={() => navigate(`/marketplace/products?category=${category.id}`)}
                   className="p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
-                  aria-label={`Browse ${category.name} category with ${category.count} artisans`}
+                  aria-label={`Browse ${category.name} category`}
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
                   <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
-                  <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
-                    {category.count} {category.count === 1 ? "artisan" : "artisans"}
-                  </p>
+                  {category.count > 0 && (
+                    <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
+                      {category.count} {category.count === 1 ? "artisan" : "artisans"}
+                    </p>
+                  )}
                 </button>
               );
             })}

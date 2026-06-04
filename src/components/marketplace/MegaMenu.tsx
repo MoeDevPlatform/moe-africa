@@ -1,26 +1,18 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { metaService, ServiceCategoryOption } from "@/lib/apiServices";
-import { 
-  Sparkles, 
-  TrendingUp, 
-  Star, 
-  Package, 
-  Users, 
+import {
+  Sparkles,
+  TrendingUp,
+  Star,
+  Package,
+  Users,
   Layers,
   Clock,
   Flame,
   ChevronRight,
-  Scissors,
-  Footprints,
-  Briefcase,
-  Sparkle,
-  Watch,
-  Palette,
-  Gem,
-  Home
 } from "lucide-react";
+import { CATEGORIES, type CategoryDef } from "@/lib/categories";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -94,188 +86,46 @@ const categoryThumbnails: Record<string, string> = {
 
 const defaultThumbnail = "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=100&h=100&fit=crop";
 
-interface SubCategory {
-  name: string;
-  slug: string;
-}
-
+/**
+ * Mega-menu category view-model built from the canonical CATEGORIES list
+ * (src/lib/categories.ts). Sub-items are static realistic product types per
+ * category — backend does not yet expose this data.
+ */
 interface CategoryData {
   name: string;
   slug: string;
   icon: React.ReactNode;
   featured: { name: string; slug: string }[];
-  subcategories: SubCategory[];
+  subcategories: { name: string; slug: string }[];
 }
 
-const categories: CategoryData[] = [
-  {
-    name: "Tailoring",
-    slug: "tailoring",
-    icon: <Scissors className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Kaftans", slug: "kaftans" },
-      { name: "Ankara Jackets", slug: "ankara-jackets" },
-      { name: "Agbada", slug: "agbada" },
-      { name: "Ankara Pants", slug: "ankara-pants" },
-      { name: "Kaftan Sets", slug: "kaftan-sets" },
-      { name: "Traditional Wear", slug: "traditional-wear" },
-      { name: "Customized Outfits", slug: "customized-outfits" },
-      { name: "Ready-to-wear", slug: "ready-to-wear" },
-    ],
-  },
-  {
-    name: "Shoemaking",
-    slug: "shoemaking",
-    icon: <Footprints className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Leather Sandals", slug: "leather-sandals" },
-      { name: "Loafers", slug: "loafers" },
-      { name: "Sneakers", slug: "sneakers" },
-      { name: "Custom Boots", slug: "custom-boots" },
-      { name: "Handmade Slides", slug: "handmade-slides" },
-      { name: "Luxury Shoes", slug: "luxury-shoes" },
-      { name: "Occasion Footwear", slug: "occasion-footwear" },
-    ],
-  },
-  {
-    name: "Leatherworks",
-    slug: "leatherwork",
-    icon: <Briefcase className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Bags", slug: "bags" },
-      { name: "Wallets", slug: "wallets" },
-      { name: "Belts", slug: "belts" },
-      { name: "Laptop Sleeves", slug: "laptop-sleeves" },
-      { name: "Travel Cases", slug: "travel-cases" },
-    ],
-  },
-  {
-    name: "Hair & Beauty",
-    slug: "beauty",
-    icon: <Sparkle className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Hair Extensions", slug: "hair-extensions" },
-      { name: "Wigs", slug: "wigs" },
-      { name: "Braiding", slug: "braiding" },
-      { name: "Natural Hair Care", slug: "natural-hair-care" },
-      { name: "Beauty Products", slug: "beauty-products" },
-    ],
-  },
-  {
-    name: "Accessories",
-    slug: "accessories",
-    icon: <Watch className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Hats & Caps", slug: "hats-caps" },
-      { name: "Scarves", slug: "scarves" },
-      { name: "Ties & Bowties", slug: "ties-bowties" },
-      { name: "Cufflinks", slug: "cufflinks" },
-      { name: "Sunglasses", slug: "sunglasses" },
-    ],
-  },
-  {
-    name: "Crafts",
-    slug: "art",
-    icon: <Palette className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Pottery", slug: "pottery" },
-      { name: "Woodwork", slug: "woodwork" },
-      { name: "Textiles", slug: "textiles" },
-      { name: "Beadwork", slug: "beadwork" },
-      { name: "Sculptures", slug: "sculptures" },
-    ],
-  },
-  {
-    name: "Canvas & Painting",
-    slug: "canvas",
-    icon: <Palette className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Canvas Paintings", slug: "canvas-paintings" },
-      { name: "Printed Canvas", slug: "printed-canvas" },
-      { name: "Portrait Paintings", slug: "portrait-paintings" },
-      { name: "Abstract Art", slug: "abstract-art" },
-      { name: "Pop Art", slug: "pop-art" },
-    ],
-  },
-  {
-    name: "Jewelry",
-    slug: "jewelry",
-    icon: <Gem className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Necklaces", slug: "necklaces" },
-      { name: "Earrings", slug: "earrings" },
-      { name: "Bracelets", slug: "bracelets" },
-      { name: "Rings", slug: "rings" },
-      { name: "Anklets", slug: "anklets" },
-    ],
-  },
-  {
-    name: "Home & Decor",
-    slug: "furniture",
-    icon: <Home className="h-4 w-4" />,
-    featured: [
-      { name: "Featured Styles", slug: "featured-styles" },
-      { name: "Best Sellers", slug: "best-sellers" },
-      { name: "Seasonal Picks", slug: "seasonal-picks" },
-      { name: "Trending Pieces", slug: "trending-pieces" },
-    ],
-    subcategories: [
-      { name: "Wall Art", slug: "wall-art" },
-      { name: "Furniture", slug: "furniture" },
-      { name: "Lighting", slug: "lighting" },
-      { name: "Rugs & Carpets", slug: "rugs-carpets" },
-      { name: "Cushions & Throws", slug: "cushions-throws" },
-    ],
-  },
+const toTypeSlug = (s: string) =>
+  s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+const FEATURED_RAILS = [
+  { name: "Featured Styles", slug: "featured-styles" },
+  { name: "Best Sellers", slug: "best-sellers" },
+  { name: "Seasonal Picks", slug: "seasonal-picks" },
+  { name: "Trending Pieces", slug: "trending-pieces" },
 ];
+
+const categories: CategoryData[] = CATEGORIES.map((c: CategoryDef) => {
+  const Icon = c.icon;
+  return {
+    name: c.label,
+    slug: c.value,
+    icon: <Icon className="h-4 w-4" />,
+    featured: FEATURED_RAILS,
+    subcategories: c.types.map((t) => ({ name: t, slug: toTypeSlug(t) })),
+  };
+});
+
+// Derive Seasonal Picks season from the current month (West Africa default).
+// Nov–Apr = Harmattan, May–Oct = Rainy.
+const currentSeason = (): "harmattan" | "rainy" => {
+  const m = new Date().getMonth();
+  return m >= 10 || m <= 3 ? "harmattan" : "rainy";
+};
 
 const quickLinks = [
   { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace" },
@@ -283,9 +133,9 @@ const quickLinks = [
   { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
   { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?featured=true", badge: "New" },
   { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace/products?sort=newest" },
-  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: "/marketplace/products?featured=seasonal" },
-  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace/products?featured=best-sellers" },
-  { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace/products?featured=trending" },
+  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: `/marketplace/products?season=${currentSeason()}` },
+  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace/products?sort=bestSeller" },
+  { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace/products?sort=trending" },
 ];
 
 // Mini image card component for subcategories
@@ -320,26 +170,8 @@ interface MegaMenuProps {
 
 const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps) => {
   const navigate = useNavigate();
-  const [canonical, setCanonical] = useState<ServiceCategoryOption[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    metaService.getServiceCategories().then((list) => {
-      if (alive) setCanonical(list);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Only show categories the backend exposes via /meta/service-categories so
-  // the mega menu stays in sync with signup, filters, and the rest of the app.
-  const visibleCategories = useMemo<CategoryData[]>(() => {
-    if (!canonical || canonical.length === 0) return categories;
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const allowed = new Set(canonical.map((c) => norm(c.name)));
-    return categories.filter((c) => allowed.has(norm(c.name)));
-  }, [canonical]);
+  // Always show all canonical categories — they are the source of truth.
+  const visibleCategories = useMemo<CategoryData[]>(() => categories, []);
 
   const [activeCategory, setActiveCategory] = useState<CategoryData | null>(categories[0]);
 
@@ -357,27 +189,31 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
 
   const handleCategoryClick = (categorySlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}`);
+    navigate(`/marketplace/products?category=${categorySlug}`);
   };
 
   const handleBrowseAllProductsClick = (categorySlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}/products`);
+    navigate(`/marketplace/products?category=${categorySlug}`);
   };
 
   const handleArtisansClick = (categorySlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}`);
+    navigate(`/marketplace/artisans?category=${categorySlug}`);
   };
 
-  const handleSubcategoryClick = (categorySlug: string, subcategorySlug: string) => {
+  const handleSubcategoryClick = (categorySlug: string, subItemName: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}/products?subcategory=${subcategorySlug}`);
+    navigate(`/marketplace/products?category=${categorySlug}&type=${encodeURIComponent(subItemName)}`);
   };
 
   const handleFeaturedClick = (categorySlug: string, featuredSlug: string) => {
     onClose();
-    navigate(`/marketplace/category/${categorySlug}/products?featured=${featuredSlug}`);
+    // Map featured rails to product list query params.
+    if (featuredSlug === "best-sellers") return navigate(`/marketplace/products?category=${categorySlug}&sort=bestSeller`);
+    if (featuredSlug === "trending-pieces") return navigate(`/marketplace/products?category=${categorySlug}&sort=trending`);
+    if (featuredSlug === "seasonal-picks") return navigate(`/marketplace/products?category=${categorySlug}&season=${currentSeason()}`);
+    return navigate(`/marketplace/products?category=${categorySlug}&featured=true`);
   };
 
   return (
@@ -490,7 +326,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                         key={sub.slug}
                         slug={sub.slug}
                         name={sub.name}
-                        onClick={() => handleSubcategoryClick(activeCategory.slug, sub.slug)}
+                        onClick={() => handleSubcategoryClick(activeCategory.slug, sub.name)}
                       />
                     ))}
                   </nav>
