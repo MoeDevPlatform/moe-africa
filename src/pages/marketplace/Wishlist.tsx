@@ -155,8 +155,7 @@ const Wishlist = () => {
                 // Prefer fresh server data; fall back to whatever the
                 // wishlist row already had. Never invent placeholder names.
                 const productName = hydrated?.name ?? item?.productName ?? "";
-                const providerName =
-                  hydrated?.providerName ?? item?.providerName ?? "";
+                const providerName = item?.providerName ?? "";
                 const imageUrl =
                   hydrated?.images?.[0] || item?.imageUrl || FALLBACK_IMAGE;
                 const price =
