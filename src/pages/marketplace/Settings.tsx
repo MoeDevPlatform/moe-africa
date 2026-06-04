@@ -743,6 +743,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, updateUser, refreshProfile } = useAuth();
+  const { preferences, hasPreferences, clearPreferences } = usePreferences();
+  const [preferenceModalOpen, setPreferenceModalOpen] = useState(false);
 
   // Account form state seeded from auth user
   const [accountForm, setAccountForm] = useState({
@@ -1116,6 +1118,69 @@ const Settings = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* My Preferences — personalization */}
+          <TabsContent value="preferences">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><SettingsIcon className="h-5 w-5 text-primary" />My Preferences</CardTitle>
+                <CardDescription>Personalize your marketplace recommendations</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {hasPreferences ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">Categories</p>
+                      <div className="flex flex-wrap gap-2">
+                        {preferences.categories.length > 0
+                          ? preferences.categories.map(c => <Badge key={c} variant="secondary" className="capitalize">{c}</Badge>)
+                          : <span className="text-sm text-muted-foreground">None selected</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">Budget</p>
+                      <p className="text-sm">Up to ₦{(preferences.budget || 0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">Styles</p>
+                      <div className="flex flex-wrap gap-2">
+                        {preferences.styles.length > 0
+                          ? preferences.styles.map(s => <Badge key={s} variant="outline">{s}</Badge>)
+                          : <span className="text-sm text-muted-foreground">None selected</span>}
+                      </div>
+                    </div>
+                    {preferences.updatedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last updated {new Date(preferences.updatedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    You haven't set any personalization preferences yet. Set them to get tailored recommendations on the marketplace.
+                  </p>
+                )}
+                <Separator />
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => setPreferenceModalOpen(true)}>
+                    {hasPreferences ? "Edit Preferences" : "Set Preferences"}
+                  </Button>
+                  {hasPreferences && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        clearPreferences();
+                        toast({ title: "Preferences cleared" });
+                      }}
+                    >
+                      Clear All
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            <PreferenceModal open={preferenceModalOpen} onOpenChange={setPreferenceModalOpen} editMode />
           </TabsContent>
 
           {/* Addresses — API-backed CRUD */}
