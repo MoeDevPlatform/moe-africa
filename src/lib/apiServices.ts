@@ -1427,6 +1427,35 @@ export const rushOrderService = {
   },
 };
 
+// ─── Artisan Reviews (Task 7) ────────────────────────────
+// Single POST endpoint upserts by (userId, artisanId). PATCH path intentionally
+// omitted — server treats repeat POSTs from the same customer as an update.
+
+export interface ArtisanReviewPayload {
+  rating: number;
+  comment?: string;
+}
+
+export interface ArtisanReviewApi {
+  id: number;
+  artisanId: number;
+  customerId: number;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const artisanReviewsService = {
+  list: (artisanId: number) =>
+    apiGet<ArtisanReviewApi[] | PaginatedResponse<ArtisanReviewApi>>(
+      `/artisans/${artisanId}/reviews`,
+    ),
+  /** Upsert a review for the authenticated customer. */
+  submit: (artisanId: number, payload: ArtisanReviewPayload) =>
+    apiPost<ArtisanReviewApi>(`/artisans/${artisanId}/reviews`, payload),
+};
+
 // ─── Admin ────────────────────────────────────────────────
 // Aligned with adminFrontend.md handoff: /admin/* endpoints.
 
