@@ -26,6 +26,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authService, addressesService, artisanService, paymentMethodsService, type AddressApi, type PaymentMethodApi } from "@/lib/apiServices";
 import { MoeApiError } from "@/lib/moeApi";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
+import { usePreferences } from "@/contexts/PreferencesContext";
+import PreferenceModal from "@/components/marketplace/PreferenceModal";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -959,6 +961,9 @@ const Settings = () => {
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2 flex-1 min-w-[120px]">
               <Bell className="h-4 w-4" /><span className="hidden sm:inline">Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="flex items-center gap-2 flex-1 min-w-[120px]">
+              <SettingsIcon className="h-4 w-4" /><span className="hidden sm:inline">Preferences</span>
             </TabsTrigger>
             <TabsTrigger value="addresses" className="flex items-center gap-2 flex-1 min-w-[120px]">
               <MapPin className="h-4 w-4" /><span className="hidden sm:inline">Addresses</span>
