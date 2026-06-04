@@ -34,11 +34,28 @@ const MarketplaceHome = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Pass preferences to product/artisan APIs so server-side filtering
+    // does the heavy lifting. Budget thresholds match the marketing copy:
+    // low=50k, mid=200k, high=∞ (anything above 200k).
+    const budget = preferences.budget;
+    const maxPrice =
+      hasPreferences && budget && budget > 0 && budget < 500000 ? budget : undefined;
+    const styleTags = hasPreferences && preferences.styles.length
+      ? preferences.styles.join(",")
+      : undefined;
+    const productFilters = hasPreferences
+      ? {
+          category: preferences.categories[0],
+          styleTags,
+          priceMax: maxPrice,
+        }
+      : undefined;
+
     Promise.allSettled([
-      productsService.list().then((res) => setAllProducts(res.data)),
+      productsService.list(productFilters).then((res) => setAllProducts(res.data)),
       providersService.list().then((res) => setAllProviders(res.data)),
     ]).finally(() => setIsLoading(false));
-  }, []);
+  }, [hasPreferences, preferences.budget, preferences.categories, preferences.styles]);
 
   // Dynamic category counts from actual provider data
   const categories = useMemo(() => {
@@ -148,6 +165,23 @@ const MarketplaceHome = () => {
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">
+        {/* Preference Banner — visible when the user has saved preferences. */}
+        {hasPreferences && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border bg-card/60 px-4 py-3 text-sm">
+            <span className="text-muted-foreground">
+              Showing results based on your preferences.
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate("/marketplace/settings?section=preferences")}
+              className="text-primary font-medium hover:underline"
+              aria-label="Update your marketplace preferences"
+            >
+              Update preferences
+            </button>
+          </div>
+        )}
+
         {/* Hero Banner */}
         <section className="mb-8 md:mb-12">
           <HeroBanner />
