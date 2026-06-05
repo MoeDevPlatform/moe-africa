@@ -87,3 +87,81 @@ timezone (with West African calendar fallback when `Intl` returns
 `UTC` or no zone). If the backend later supports
 `GET /products?featured=true&season=<harmattan|rainy|...>`, the client
 can swap to it without UI changes.
+
+## Product & Category Fix Sprint — Backend Requirements
+
+### estimatedDelivery — String Field (BREAKING CHANGE)
+**Status:** 🔴 BACKEND CHANGE REQUIRED
+**What frontend now does:** Sends `estimatedDelivery` as a free-text string (e.g. "5-7 days") instead of `estimatedDeliveryDays` as a number.
+**Backend must:**
+1. Add `estimatedDelivery?: string` (max length 50) to `CreateArtisanProductDto` and `UpdateArtisanProductDto` with `@IsOptional() @IsString() @MaxLength(50)`
+2. Add `estimatedDelivery String?` to the `Product` model in `prisma/schema.prisma`
+3. Run migration: `npx prisma migrate dev --name add_estimated_delivery_string`
+4. In `createProduct` and `patchProduct` service methods, persist `dto.estimatedDelivery` to the new field
+5. In `toProductDto` and all other product mapper functions (productToDto in products.service.ts, search.service.ts, listProductsByProvider in service-providers.service.ts), include `estimatedDelivery: p.estimatedDelivery ?? null` in the response
+6. Keep the existing `estimatedDeliveryDays` number field — do not remove it. Legacy products still have it.
+**User-facing consequence if not built:** Delivery text entered by artisans does not save or display. All products show "Contact artisan for delivery time."
+
+### Category Value Alignment
+**Status:** 🔴 ACTION REQUIRED
+**Problem:** Products saved with `category: "accessories"` exist in the database from when the Add Product form incorrectly included "Accessories" as an option.
+**Backend must:**
+1. Run a one-time data migration to update all products where `category = 'accessories'` to `category = 'jewellery'`
+2. Confirm the backend category enum/validation accepts all 7 canonical values: `tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`, `jewellery`, `home_and_decor`
+3. Reject any value not in this list with `400 Bad Request`
+**User-facing consequence if not built:** Products added under old "Accessories" category are invisible on the marketplace and not counted in Browse by Category.
+
+### Product Reviews
+**Status:** 🔴 NOT YET BUILT
+**Endpoints required:**
+
+**GET /products/:id/reviews**
+Auth: None (public)
+Query params: page (default 1), pageSize (default 5)
+Response:
+```
+{
+  "data": [
+    {
+      "id": 0,
+      "rating": 5,
+      "review": "string or null",
+      "reviewerName": "Frank A.",
+      "createdAt": "ISO string",
+      "updatedAt": "ISO string"
+    }
+  ],
+  "averageRating": 4.5,
+  "totalReviews": 12,
+  "pagination": { "page": 1, "pageSize": 5, "totalPages": 3, "totalItems": 12 }
+}
+```
+Note: `reviewerName` must be first name + last initial only — never full name for privacy.
+
+**GET /products/:id/reviews/mine**
+Auth: JWT required
+Response: `{ "id": 0, "rating": 5, "review": "string or null" }` or 404 if not yet reviewed
+
+**POST /products/:id/reviews**
+Auth: JWT required — customer role only. Artisan who owns the product must be rejected with 403.
+Body: `{ "rating": number (1-5 required), "review": string (optional, max 500 chars) }`
+Behaviour: upsert by userId — if review already exists, update it
+Response: `{ "id": 0, "rating": 5, "review": "string or null", "createdAt": "ISO string" }`
+Error: 403 if the authenticated user is the artisan who owns this product
+Error: 400 if rating is outside 1-5
+
+**PATCH /products/:id/reviews/mine**
+Auth: JWT required
+Body: `{ "rating": number (1-5), "review": string (optional, max 500 chars) }`
+Response: updated review object
+Error: 404 if no existing review to update
+
+**After a review is submitted, the backend must recalculate and update `ArtisanProfile.rating` and `ArtisanProfile.reviewCount` as the average of all approved product reviews for that artisan.**
+**User-facing consequence if not built:** Reviews tab shows no data. Users cannot rate products. Product page shows "No reviews yet" permanently.
+
+### Service Providers Category Filter
+**Status:** ⚠️ NEEDS VERIFICATION
+**Endpoint:** `GET /service-providers/public-info?category={value}`
+**Required:** The category query param must filter artisans by their profile category. The response `pagination.totalItems` must reflect the filtered count.
+**Canonical values to support:** `tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`, `jewellery`, `home_and_decor`
+**User-facing consequence if not built:** Browse by Category shows no artisan counts for any category.
