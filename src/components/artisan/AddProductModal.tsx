@@ -28,15 +28,16 @@ interface AddProductModalProps {
 const CANONICAL_CATEGORIES = [
   { value: "tailoring", label: "Tailoring" },
   { value: "shoemaking", label: "Shoemaking" },
-  { value: "leatherwork", label: "Leatherwork" },
-  { value: "beauty", label: "Beauty" },
   { value: "accessories", label: "Accessories" },
-  { value: "furniture", label: "Furniture" },
-  { value: "art", label: "Art" },
+  { value: "canvas", label: "Canvas & Painting" },
+  { value: "home_decor", label: "Home & Decor" },
+  { value: "crafts", label: "Art & Crafts" },
 ];
 const LEGACY_CATEGORY_LABELS: Record<string, string> = {
-  canvas: "Canvas & Painting (legacy)",
-  crafts: "Art & Crafts (legacy)",
+  leatherwork: "Leatherwork (legacy)",
+  beauty: "Beauty (legacy)",
+  furniture: "Furniture (legacy)",
+  art: "Art (legacy)",
 };
 
 const STYLE_SUGGESTIONS = [
