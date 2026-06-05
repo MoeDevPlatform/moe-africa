@@ -67,7 +67,7 @@ const Categories = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4 flex-1">
                     <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${category.color} text-3xl transition-transform duration-300 group-hover:scale-110`}>
-                      {category.icon}
+                      <category.icon className="h-7 w-7 text-foreground" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">
