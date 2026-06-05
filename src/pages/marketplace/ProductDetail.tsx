@@ -8,23 +8,28 @@ import DynamicCustomizationModal from "@/components/marketplace/DynamicCustomiza
 import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
+import ProductReviews from "@/components/marketplace/ProductReviews";
+import MessagingModal from "@/components/marketplace/MessagingModal";
+import ProviderCard from "@/components/marketplace/ProviderCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Star,
-  Shield,
   Clock,
   Heart,
   CheckCircle,
   ArrowLeft,
-  ShoppingCart,
   Sliders,
+  MessageCircle,
+  MapPin,
 } from "lucide-react";
 import {
   getProductById as mockGetProductById,
   getProviderById as mockGetProviderById,
 } from "@/data/mockData";
-import { productsService, providersService } from "@/lib/apiServices";
+import { productsService, providersService, productReviewsService } from "@/lib/apiServices";
 import type { Product, Provider } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +45,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
@@ -54,6 +60,13 @@ const ProductDetail = () => {
   const [provider, setProvider] = useState<Provider | undefined>(
     product ? mockGetProviderById(product.providerId) : undefined,
   );
+  // Lightweight product-level rating summary used in the right column.
+  // The full reviews list/form lives inside the Reviews tab component.
+  const [ratingSummary, setRatingSummary] = useState<{ avg: number; count: number }>({
+    avg: 0,
+    count: 0,
+  });
+  const [otherProducts, setOtherProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -81,6 +94,13 @@ const ProductDetail = () => {
             featured: false,
           } as Provider);
         }
+        // Rating summary + sibling products (best-effort, fail soft).
+        productReviewsService.list(productId, 1, 1).then((res) =>
+          setRatingSummary({ avg: res.averageRating, count: res.totalReviews }),
+        );
+        productsService.getByProvider(p.providerId).then((list) =>
+          setOtherProducts((list ?? []).filter((x) => x.id !== p.id).slice(0, 6)),
+        );
       }
       setIsLoading(false);
     };
@@ -131,112 +151,190 @@ const ProductDetail = () => {
     return null;
   }
 
+  // Free-text delivery preferred; legacy numeric fallback. Never invent a default.
+  const deliveryDisplay =
+    product.estimatedDelivery && product.estimatedDelivery.trim()
+      ? product.estimatedDelivery.trim()
+      : product.estimatedDeliveryDays
+        ? `${product.estimatedDeliveryDays} days`
+        : null;
+
+  const priceMin = product.priceRange?.min ?? 0;
+  const priceMax = product.priceRange?.max ?? priceMin;
+  const priceLabel =
+    priceMin === priceMax
+      ? `₦${priceMin.toLocaleString()}`
+      : `₦${priceMin.toLocaleString()} – ₦${priceMax.toLocaleString()}`;
+
+  const categoryLabel = product.category
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const ActionButtons = (
+    <>
+      <Button
+        size="lg"
+        className="w-full bg-primary hover:bg-primary-dark"
+        onClick={() => setShowCustomizationForm(true)}
+      >
+        <Sliders className="h-4 w-4 mr-2" />
+        Customise &amp; Order
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        className="w-full"
+        onClick={handleWishlistToggle}
+        aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+      >
+        <Heart
+          className={`h-4 w-4 mr-2 ${inWishlist ? "fill-primary text-primary" : ""}`}
+        />
+        {inWishlist ? "In Wishlist" : "Add to Wishlist"}
+      </Button>
+      <Button
+        size="lg"
+        variant="ghost"
+        className="w-full"
+        onClick={() => setShowMessaging(true)}
+      >
+        <MessageCircle className="h-4 w-4 mr-2" />
+        Message Artisan
+      </Button>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
 
-      <main className="container mx-auto px-4 py-8 md:py-12">
+      <main className="container mx-auto px-4 py-8 md:py-12 pb-32 lg:pb-12">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+          aria-label="Go back"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Back
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Image Gallery */}
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Left — Image Gallery (60%) */}
+          <div className="lg:col-span-3">
             <ProductImageGallery
               images={product.images}
               productName={product.name}
             />
           </div>
 
-          {/* Product Info */}
-          <div className="space-y-6">
+          {/* Right — Product Info (40%) */}
+          <div className="lg:col-span-2 p-0 lg:p-6 flex flex-col gap-6">
+            {/* 1. Category badge */}
             <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">
-                {product.name}
-              </h1>
-              <Link
-                to={`/marketplace/provider/${provider.id}`}
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-              >
-                by {provider.brandName}
+              <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-none">
+                {categoryLabel}
+              </Badge>
+            </div>
+
+            {/* 2. Product name */}
+            <h1 className="text-2xl font-bold leading-tight">{product.name}</h1>
+
+            {/* 3. Artisan name with avatar */}
+            <Link
+              to={`/marketplace/provider/${provider.id}`}
+              className="inline-flex items-center gap-3 group"
+              aria-label={`View ${provider.brandName}'s storefront`}
+            >
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={provider.heroImage} alt={provider.brandName} />
+                <AvatarFallback>
+                  {provider.brandName?.slice(0, 2).toUpperCase() ?? "AR"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors inline-flex items-center gap-1.5">
+                by <span className="font-medium text-foreground">{provider.brandName}</span>
                 {provider.verified && (
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger asChild>
                         <CheckCircle className="h-4 w-4 text-primary fill-primary/20" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">
-                          Verified artisan — quality checked by MOE
-                        </p>
+                        <p className="text-xs">Verified artisan — quality checked by MOE</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
-              </Link>
+              </span>
+            </Link>
+
+            {/* 4. Star rating + review count */}
+            <div className="flex items-center gap-2 text-sm">
+              {ratingSummary.count > 0 ? (
+                <>
+                  <Star className="h-4 w-4 fill-accent text-accent" />
+                  <span className="font-semibold">{ratingSummary.avg.toFixed(1)}</span>
+                  <span className="text-muted-foreground">
+                    · {ratingSummary.count} review{ratingSummary.count === 1 ? "" : "s"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">No reviews yet</span>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <Star className="h-5 w-5 fill-accent text-accent" />
-                <span className="font-semibold">{provider.rating}</span>
-              </div>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">
-                {provider.city}, {provider.state}
+            {/* 5. Price */}
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                Price
+              </p>
+              <p className="text-2xl font-bold text-primary">{priceLabel}</p>
+              {rushOrderCost > 0 && (
+                <p className="text-sm text-accent mt-1">
+                  +₦{rushOrderCost.toLocaleString()} rush order fee
+                </p>
+              )}
+            </div>
+
+            {/* 6. Delivery */}
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-primary flex-shrink-0" aria-hidden="true" />
+              <span className="text-muted-foreground">
+                Est. delivery:{" "}
+                <span className="text-foreground font-medium">
+                  {deliveryDisplay ?? "Contact artisan for delivery time"}
+                </span>
               </span>
             </div>
 
-            <div className="border-y py-6">
-              <div className="mb-2">
-                <p className="text-sm text-muted-foreground mb-1">
-                  Price Range
-                </p>
-                <p className="text-3xl font-bold text-primary">
-                  ₦{product.priceRange.min.toLocaleString()} - ₦
-                  {product.priceRange.max.toLocaleString()}
-                </p>
-                {rushOrderCost > 0 && (
-                  <p className="text-sm text-accent mt-1">
-                    +₦{rushOrderCost.toLocaleString()} rush order fee
-                  </p>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Final price depends on customization options
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-3">Description</h3>
-              <p className="text-muted-foreground leading-relaxed">
+            {/* 7. Description */}
+            {product.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {product.description}
               </p>
-            </div>
+            )}
 
-            <div>
-              <h3 className="font-semibold mb-3">Materials</h3>
-              <p className="text-muted-foreground">{product.materials}</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-3">Style Tags</h3>
+            {/* 8. Tags */}
+            {product.tags.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 {product.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
+                  <Badge key={tag} variant="secondary" className="text-xs">
                     {tag}
                   </Badge>
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* Delivery Estimate Module */}
+            {/* 9. Materials */}
+            {product.materials && (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Materials:</span>{" "}
+                {product.materials}
+              </p>
+            )}
+
+            {/* Detailed delivery / rush-order module */}
             <DeliveryEstimate
               estimatedDeliveryDays={product.estimatedDeliveryDays}
               artisanId={provider.id}
@@ -244,76 +342,93 @@ const ProductDetail = () => {
               onRushOrderChange={handleRushOrderChange}
             />
 
-            <div className="grid grid-cols-2 gap-2 py-2">
-              <div className="text-center">
-                <Shield
-                  className="h-6 w-6 mx-auto mb-2 text-primary"
-                  aria-hidden="true"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Quality Guaranteed
-                </p>
-              </div>
-              <div className="text-center">
-                <Clock
-                  className="h-6 w-6 mx-auto mb-2 text-primary"
-                  aria-hidden="true"
-                />
-                <p className="text-xs text-muted-foreground">Made to Order</p>
-              </div>
-            </div>
-
-            {/* Action Buttons — generous spacing from trust badges */}
-            <div className="pt-8 mt-6 mb-6 flex gap-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="lg"
-                      className="flex-1 bg-primary hover:bg-primary-dark"
-                      onClick={() => setShowCustomizationForm(true)}
-                    >
-                      <Sliders className="h-4 w-4 mr-2" />
-                      Customize This Product
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">Customize size, color & more</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="aspect-square p-0"
-                      onClick={handleWishlistToggle}
-                      aria-label={
-                        inWishlist ? "Remove from wishlist" : "Add to wishlist"
-                      }
-                    >
-                      <Heart
-                        className={`h-6 w-6 transition-colors ${inWishlist ? "fill-primary text-primary" : ""}`}
-                      />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">
-                      {inWishlist ? "Remove from wishlist" : "Save to wishlist"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+            {/* 10. Action buttons (desktop only — mobile uses sticky bar below) */}
+            <div className="hidden lg:flex flex-col gap-2">{ActionButtons}</div>
           </div>
         </div>
 
-        {/* Complete Your Look Section */}
-        <CompleteYourLook currentProduct={product} />
+        {/* Tabs */}
+        <section className="mt-12">
+          <Tabs defaultValue="reviews" className="w-full">
+            <TabsList className="w-full justify-start overflow-x-auto">
+              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="about">About the Artisan</TabsTrigger>
+              <TabsTrigger value="more">More from this Artisan</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="reviews" className="pt-6">
+              <ProductReviews
+                productId={product.id}
+                productOwnerProfileId={product.providerId}
+              />
+            </TabsContent>
+
+            <TabsContent value="about" className="pt-6">
+              <div className="space-y-4 max-w-3xl">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-14 w-14">
+                    <AvatarImage src={provider.heroImage} alt={provider.brandName} />
+                    <AvatarFallback>
+                      {provider.brandName?.slice(0, 2).toUpperCase() ?? "AR"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-display font-semibold text-lg">
+                      {provider.brandName}
+                    </h3>
+                    {(provider.city || provider.state) && (
+                      <p className="text-sm text-muted-foreground inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {[provider.city, provider.state].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {provider.about && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {provider.about}
+                  </p>
+                )}
+                <div className="flex gap-6 text-sm pt-2">
+                  <div>
+                    <p className="font-semibold text-lg">
+                      {provider.rating ? provider.rating.toFixed(1) : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Rating</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-lg">
+                      {provider.reviewCount ?? 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Reviews</p>
+                  </div>
+                </div>
+                <Link
+                  to={`/marketplace/provider/${provider.id}`}
+                  className="inline-block text-sm font-medium text-primary hover:underline"
+                >
+                  Visit storefront →
+                </Link>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="more" className="pt-6">
+              {otherProducts.length > 0 ? (
+                <CompleteYourLook currentProduct={product} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No other products from this artisan yet.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
+        </section>
       </main>
+
+      {/* Mobile sticky action bar — bg + border avoid floating-over-content */}
+      <div className="lg:hidden sticky bottom-0 left-0 right-0 z-30 bg-background border-t p-4 flex flex-col gap-2 shadow-lg">
+        {ActionButtons}
+      </div>
 
       <MarketplaceFooter />
 
@@ -352,6 +467,13 @@ const ProductDetail = () => {
           category={product.category}
         />
       )}
+
+      <MessagingModal
+        open={showMessaging}
+        onOpenChange={setShowMessaging}
+        providerId={provider.id}
+        providerName={provider.brandName}
+      />
     </div>
   );
 };

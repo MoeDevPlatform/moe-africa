@@ -508,6 +508,15 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     currency: raw.currency ?? "NGN",
     estimatedDeliveryDays:
       typeof raw.estimatedDeliveryDays === "number" ? raw.estimatedDeliveryDays : 0,
+    // Free-text delivery estimate (preferred). Falls back to formatting the
+    // legacy numeric `estimatedDeliveryDays` so older products still render
+    // something useful. Null when neither field is present.
+    estimatedDelivery:
+      typeof raw.estimatedDelivery === "string" && raw.estimatedDelivery.trim()
+        ? raw.estimatedDelivery.trim()
+        : typeof raw.estimatedDeliveryDays === "number" && raw.estimatedDeliveryDays > 0
+          ? `${raw.estimatedDeliveryDays} days`
+          : null,
     materials: raw.materials ?? "",
     tags,
     images,
@@ -763,6 +772,83 @@ export const reviewsService = {
     providerId: number,
     data: { rating: number; comment: string; orderId?: string },
   ) => apiPost<Review>(`/service-providers/${providerId}/reviews`, data),
+};
+
+// ─── Product Reviews ──────────────────────────────────────
+// New per-product review endpoints (see backendRequirements.md).
+// All methods fail soft so the UI can render an empty state rather than crash.
+
+export interface ProductReview {
+  id: number;
+  rating: number;
+  review: string | null;
+  reviewerName: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductReviewsResponse {
+  data: ProductReview[];
+  averageRating: number;
+  totalReviews: number;
+  pagination: Pagination;
+}
+
+export interface MyProductReview {
+  id: number;
+  rating: number;
+  review: string | null;
+}
+
+export const productReviewsService = {
+  list: async (
+    productId: number,
+    page = 1,
+    pageSize = 5,
+  ): Promise<ProductReviewsResponse> => {
+    try {
+      const res = await apiGet<ProductReviewsResponse>(
+        `/products/${productId}/reviews`,
+        { page, pageSize },
+      );
+      return {
+        data: Array.isArray(res?.data) ? res.data : [],
+        averageRating: typeof res?.averageRating === "number" ? res.averageRating : 0,
+        totalReviews: typeof res?.totalReviews === "number" ? res.totalReviews : 0,
+        pagination:
+          res?.pagination ?? { page, pageSize, totalPages: 0, totalItems: 0 },
+      };
+    } catch {
+      return {
+        data: [],
+        averageRating: 0,
+        totalReviews: 0,
+        pagination: { page, pageSize, totalPages: 0, totalItems: 0 },
+      };
+    }
+  },
+
+  mine: async (productId: number): Promise<MyProductReview | null> => {
+    try {
+      const res = await apiGet<MyProductReview>(
+        `/products/${productId}/reviews/mine`,
+      );
+      return res ?? null;
+    } catch (err) {
+      // 404 → user has not reviewed yet. Any other error → treat as no review.
+      return null;
+    }
+  },
+
+  submit: (
+    productId: number,
+    data: { rating: number; review?: string },
+  ) => apiPost<MyProductReview>(`/products/${productId}/reviews`, data),
+
+  update: (
+    productId: number,
+    data: { rating: number; review?: string },
+  ) => apiPatch<MyProductReview>(`/products/${productId}/reviews/mine`, data),
 };
 
 // ─── Orders ───────────────────────────────────────────────

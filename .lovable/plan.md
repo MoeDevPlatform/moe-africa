@@ -1,91 +1,81 @@
+# Product Detail, Category, Rating & Delivery Fix Sprint (v3)
 
-# FRONTEND_HANDOFF Implementation Plan
+Four sequential fixes per the spec. Backend dependencies appended to `backendRequirements.md`.
 
-Big sprint — 11 backend changes, each with required frontend work. I'll group them into 4 phases so we can review/ship incrementally. Each item maps 1:1 to a section of `FRONTEND_HANDOFF.md`.
+## Fix 1 — Category cleanup (canonical 7)
 
-## Phase 1 — API service layer (foundation)
+**`src/components/artisan/AddProductModal.tsx`**
+- Category options come exclusively from `CATEGORIES` in `src/lib/categories.ts` (no `accessories`, `canvas`, `crafts`, `furniture`, `art`). Label = `c.label`, submitted value = `c.value`.
 
-Update `src/lib/apiServices.ts` + `src/lib/moeApi.ts` first; everything else depends on this.
+**Browse by Category (`src/pages/marketplace/Home.tsx`)**
+- Iterate `CATEGORIES`, `Promise.all` 7 calls to `GET /service-providers/public-info?category={value}`.
+- `count > 0` → render "{n} artisan(s)"; 0 or failure → render nothing. Card layout untouched.
 
-- **authService**: add `verifyEmail({email, otp})`, `resendOtp({email})`, `adminVerifyOtp({email, otp})`, `googleOAuthUrl()`. Change `register` to no longer assume tokens come back; return `{ requiresVerification, email }` when absent. Login now also handles `requiresOtp` (admin) and `403 EMAIL_NOT_VERIFIED`.
-- **artisanService**: add `getRushConfig(id)`, accept `serviceCategories` on register, accept `rushOrderEnabled`/`rushOrderSurchargePercent` on `updateProfile`. Status field on profile/products.
-- **productsService**: add `getFilterMeta()`, `getCustomisationTemplate(category)`. Send `priceMin`/`priceMax` on create/update. Pass `styleTags` as comma string. Reflect `status` in returned product type.
-- **providersService**: add `getFilterMeta()`, accept `category`/`location`/`serviceCategories` filters.
-- **wishlistService**: switch to `/wishlist` JWT routes (`GET`, `POST /:id`, `DELETE /:id`); legacy fallback kept.
-- **cartService**: send customisation payload only when product requires; surface `CUSTOMISATION_REQUIRED` error.
-- **paymentMethodsService**: handle `CARD_EXPIRED`. Send `processorToken` field (placeholder for now if no Paystack/Stripe SDK yet — see open question).
-- **adminService** (new): `getDashboard`, `listArtisans`, `getArtisan`, `setArtisanStatus`, `listProducts`, `getProduct`, `setProductStatus`, `listUsers`, `getUser`.
-- **Image uploads**: already read `body.url` first — verify all 4 endpoints align.
+## Fix 2 — Estimated delivery as free-text string
 
-## Phase 2 — Auth & onboarding UI (items 9, 11)
+**`src/components/artisan/AddProductModal.tsx`**
+- Replace numeric input with text input: optional, `maxLength={50}`, placeholder `e.g. 5-7 days`. Submit as `estimatedDelivery` (string). Block submit if length > 50.
 
-- `src/pages/Auth.tsx`: 
-  - Artisan signup adds `serviceCategories` multi-select (use options from `/artisans/filter-meta.serviceCategories`).
-  - Register no-token path → route to new OTP screen.
-  - "Continue with Google" button → full-page redirect to `${API_BASE}/auth/google`.
-  - Login 403 `EMAIL_NOT_VERIFIED` → OTP screen; login `requiresOtp` (admin) → admin OTP screen.
-- New `src/pages/VerifyEmail.tsx`: 6-digit OTP input + "Resend code".
-- New `src/pages/AuthCallback.tsx`: reads `token`/`refreshToken` from URL query, stores via AuthContext, redirects.
-- `AuthContext`: add `loginWithTokens(token, refreshToken)` helper to support OTP + OAuth flows.
-- Admin OTP screen: same component, calls `adminVerifyOtp`.
-- `App.tsx`: add `/verify-email`, `/auth/callback`, `/admin/login` (already exists), `/admin/verify-otp` routes.
+**`src/lib/apiServices.ts`**
+- In `normalizeProduct`: `estimatedDelivery: raw.estimatedDelivery ?? (raw.estimatedDeliveryDays ? \`${raw.estimatedDeliveryDays} days\` : null)`. Keep `estimatedDeliveryDays` in output.
 
-## Phase 3 — Marketplace UX (items 1, 2, 3, 5, 6, 7, 8)
+**Product type — update EVERY definition**
+- Grep `interface Product` / `type Product` / `estimatedDeliveryDays` across `src/` (`mockData.ts`, `apiServices.ts`, any `src/types/*`). Add `estimatedDelivery?: string | null` to every match so all consumers typecheck.
 
-- **Item 1 — Price range**: `AddProductModal` & `admin/ProductForm` send `priceMin`/`priceMax`; product cards already read `priceRange.min/max` — audit and stop forcing equality.
-- **Item 2 — Customisation templates**: replace hardcoded forms in `CustomizationFormModal` (and category-specific steps) with dynamic renderer driven by `/products/customisation-template?category=`. Cart/order payloads send the keyed object. Display `400 INVALID_CUSTOMISATION` errors.
-- **Item 3 — Live filters**: `FilterDrawer` (products) and any provider filter UI fetch `/products/filter-meta` and `/artisans/filter-meta` on mount; render chips from response. Pass `styleTags` comma-separated.
-- **Item 5 — Wishlist sync**: `WishlistContext` hydrates from `GET /wishlist` on login; add/remove call backend; localStorage remains for guests only.
-- **Item 6 — Rush order pricing**: `Checkout.tsx` fetches `/artisans/{id}/rush-order-config`, shows toggle only if enabled, computes `final = base * (1 + pct/100)` preview, sends `rushOrder: true` + `basePrice`, renders returned `rushSurcharge` in summary.
-- **Item 7 — Wishlist → Cart**: `Wishlist.tsx` "Add to Cart" omits customisation unless `product.customisationRequired`; on `CUSTOMISATION_REQUIRED` open customisation modal.
-- **Item 8 — Save Card**: `Settings.tsx` card form — store raw digits in state, mask in render, validate MM/YY not past, show `CARD_EXPIRED` error inline. (Aligns with existing Bug 8 in plan.md.)
+**All display sites** (grep `estimatedDeliveryDays`)
+- `deliveryDisplay = product.estimatedDelivery ?? (product.estimatedDeliveryDays ? \`${product.estimatedDeliveryDays} days\` : null)`.
+- null → "Contact artisan for delivery time". Else render the string as-is. Remove any hardcoded `21` fallback.
 
-## Phase 4 — Status badges & Admin portal (items 4, 10, 11)
+## Fix 3 — Product detail redesign (`src/pages/marketplace/ProductDetail.tsx`)
 
-- **Item 4**: confirm all image upload responses use `.url` (already done; spot-check `auth.uploadAvatar` to read `url` first, falling back to `avatarUrl`).
-- **Item 10**: artisan `Dashboard.tsx` shows `status` badge on profile header and each product row. Banner: "New listings require admin approval."
-- **Item 11 — Admin portal**: rebuild/extend `src/pages/admin/*`:
-  - `Login.tsx`: integrate password + OTP flow via `requiresOtp` response.
-  - `Dashboard.tsx`: stats from `/admin/dashboard`.
-  - `Providers.tsx`: paginated artisans table + status PATCH with optional reason textarea (Approve/Reject buttons + dialog).
-  - `Products.tsx`: same pattern for products.
-  - New `Users.tsx`: paginated users table.
-  - `AdminLayout.tsx`: guard by `user.role === "admin"`; redirect otherwise.
+Data unchanged; only layout/spacing.
 
-## Files touched (estimate)
+Desktop two-column (`grid lg:grid-cols-5 gap-8`):
+- Left col-span-3: existing `ProductImageGallery`.
+- Right col-span-2, `p-6 flex flex-col gap-6`:
+  1. Category badge (`bg-primary/10 text-primary` pill)
+  2. Product name (`text-2xl font-bold`)
+  3. Artisan avatar + "by {brandName}" → provider page
+  4. Star rating + review count (from Fix 4; "No reviews yet" when empty)
+  5. Price — `text-2xl font-bold text-primary`, range or single
+  6. Delivery — clock icon + "Est. delivery: {deliveryDisplay}"
+  7. Description — `text-sm text-muted-foreground leading-relaxed`
+  8. Tags — wrapping pill badges
+  9. Materials (if present) — small muted
+  10. Action buttons stacked full-width: Customise & Order (primary), Add to Wishlist (outline), Message Artisan (ghost)
 
-| Area | Files |
-|------|-------|
-| API layer | `src/lib/apiServices.ts`, `src/lib/moeApi.ts` |
-| Auth | `src/pages/Auth.tsx`, `src/contexts/AuthContext.tsx`, new `src/pages/VerifyEmail.tsx`, new `src/pages/AuthCallback.tsx`, `src/App.tsx` |
-| Marketplace | `FilterDrawer.tsx`, `CustomizationFormModal.tsx`, `Wishlist.tsx`, `WishlistContext.tsx`, `Checkout.tsx`, `Settings.tsx`, `AddProductModal.tsx`, `admin/ProductForm.tsx`, `ProductCard.tsx` audit |
-| Status/Admin | `artisan/Dashboard.tsx`, `admin/Login.tsx`, `admin/Dashboard.tsx`, `admin/Providers.tsx`, `admin/Products.tsx`, new `admin/Users.tsx`, `admin/AdminLayout.tsx` |
+Below: full-width Tabs — Reviews / About the Artisan / More from this Artisan.
 
-## Open questions before I start
+Mobile: single column. Action bar:
+`sticky bottom-0 bg-background border-t p-4 flex flex-col gap-2 lg:static lg:border-0 lg:p-0`.
 
-1. **Payment tokenization (item 8)** — The handoff says "send `processorToken` from Paystack/Stripe tokenization — never send full card number." Do you have a Paystack/Stripe public key + SDK choice yet, or should I stub `processorToken` (e.g. send `"manual_unverified"` placeholder) until you wire in real tokenization?
-2. **Google OAuth redirect URL** — backend uses `GOOGLE_SUCCESS_REDIRECT`. I'll assume it points to `${FRONTEND_URL}/auth/callback`. Is that correct?
-3. **Admin route** — keep existing `/admin/login` URL, or move to `/admin` with nested routes? I'll keep `/admin/login` and add `/admin/verify-otp`, `/admin/dashboard`, etc.
-4. **Scope confirmation** — should I ship all 4 phases in this single pass, or stop after Phase 1+2 (API + auth) for review before touching marketplace + admin?
+## Fix 4 — Product reviews (Reviews tab)
 
----
+**`src/lib/apiServices.ts` — new `productReviewsService`:**
+- `list(productId, page=1, pageSize=5)` → `GET /products/:id/reviews`
+- `mine(productId)` → `GET /products/:id/reviews/mine` (404 → null)
+- `submit(productId, { rating, review })` → `POST /products/:id/reviews`
+- `update(productId, { rating, review })` → `PATCH /products/:id/reviews/mine`
 
-# FRONTEND_HANDOFF — Shipped vs Deferred (this pass)
+**New `src/components/marketplace/ProductReviews.tsx`:**
+- Header: big average + stars + "Based on {n} reviews"; empty-state copy otherwise.
+- List: reviewer name (already first + last initial from API), star row, text, relative date via `date-fns` `formatDistanceToNow` — confirmed installed as `^3.6.0`, import: `import { formatDistanceToNow } from "date-fns"`. 5/page; "Show more" paginates.
+- Write-a-review card shown only when: user authenticated AND role is customer AND not the product owner.
+  - **Ownership check:** `product.providerId` is the artisan profile id, not user id. Read `AuthContext` to find the user→artisan-profile id mapping (e.g. `user.artisanProfile?.id` or `user.providerId`), compare to `product.providerId`. If the mapping is ambiguous, hide the form (safer than letting an artisan review their own product).
+- Required star selector; textarea ≤500 chars optional. Submit disabled until rating set.
+- If `mine()` returns existing review → prefill, button "Update Review", `PATCH`. Else `POST`.
+- Success → toast + refetch list + refetch mine. Network errors render empty state (no crash).
 
-## Shipped (wired end-to-end)
-- **Item 1** Price range — `priceMin/priceMax` already sent by `AddProductModal`; `normalizeProduct` reads `priceRange.{min,max}` first; stops assuming equality.
-- **Item 3** Live filters — `FilterDrawer` now hydrates style tags + price max from `GET /products/filter-meta` (with fallback constants).
-- **Item 4** Cloud uploads — `authService.uploadAvatar` now reads `url` first, falling back to legacy `avatarUrl`. Other upload services already read `.url`.
-- **Item 5** Wishlist — `wishlistService` switched to JWT `/wishlist`, `/wishlist/:id` (POST + DELETE). `WishlistContext` already hydrates on login.
-- **Item 8** Save Card — already stores raw digits in state and validates MM/YY not past; `CARD_EXPIRED` propagates via `MoeApiError.code` to the existing error banner.
-- **Item 9** OTP + Google — Register returns `{ requiresEmailVerification, email }` path → new `/auth/verify` screen with resend + 30s cooldown. Login 403 `EMAIL_NOT_VERIFIED` redirects to same screen. "Continue with Google" button on both Sign In + Sign Up tabs → `GET ${API}/auth/google`. New `/auth/callback` page reads `token`/`refreshToken` from URL. Artisan signup gets a `serviceCategories` multi-select sourced from `/artisans/filter-meta`.
-- **Item 10** Approval status — Artisan dashboard shows `status` badge on profile header and on each product row; non-approved artisans see an info banner.
-- **Item 11** Admin OTP — Admin Login handles `requiresOtp` and redirects to `/auth/verify?mode=admin`. `adminService` (dashboard, list/get/setStatus for artisans/products, users) added in `apiServices.ts`.
+## Fix 5 — `backendRequirements.md`
 
-## Deferred (API ready, UI work pending — too large to safely one-shot)
-- **Item 2** Dynamic customisation renderer — `customisationTemplateService.get(category)` is in `apiServices.ts`, but `CustomizationFormModal` and the category-specific step components still use hardcoded fields. Needs a rewrite to render `fields[]` and submit a keyed object on `POST /customers/me/cart` + `POST /orders`. Handle `400 INVALID_CUSTOMISATION`.
-- **Item 6** Rush order pricing — `rushOrderService.getConfig(artisanId)` is in `apiServices.ts`. Checkout still needs a fetch-on-mount, a gated toggle, the `basePrice * (1 + pct/100)` preview, and rendering `basePrice` / `rushSurcharge` from the order response.
-- **Item 7** Wishlist → Cart customisation gating — `Wishlist.tsx` add-to-cart still needs to: omit customisation unless `product.customisationRequired`, and on `CUSTOMISATION_REQUIRED` open the customisation modal. `Product.customisationRequired` is now passed through by `normalizeProduct`.
-- **Item 11** Admin portal UI — Approval tables (Approve/Reject + reason dialog) for `/admin/providers` and `/admin/products`, a new `/admin/users` page, a dashboard fed by `GET /admin/dashboard`, and a `role === "admin"` route guard in `AdminLayout`. API client done.
+Append the full spec block verbatim: `estimatedDelivery` string field, category alignment + `accessories → jewellery` migration, product reviews endpoints, service-providers category filter verification.
 
-Open question carried forward: real payment tokenisation (Paystack/Stripe SDK) — currently sending safe metadata only (`brand`, `last4`, `expiry`, `cardholderName`), no `processorToken`. Backend will validate expiry and return `CARD_EXPIRED` cleanly.
+## Technical notes
+
+- `src/lib/categories.ts` is the single source of truth — no inline category arrays.
+- `estimatedDeliveryDays` stays in types and `normalizeProduct` output for legacy products; display logic uses `deliveryDisplay`.
+- `estimatedDelivery` added to every Product/ProductDto type found.
+- Reviews ownership uses the user's artisan-profile id, not `user.id`.
+- Mobile sticky action bar needs `bg-background border-t` to avoid floating over content.
+- `date-fns` v3.6.0 is in `package.json` — no new dependency required.
+- Semantic tokens only (`bg-primary/10`, `text-primary`, `text-muted-foreground`, `bg-background`, `border-t`).

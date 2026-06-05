@@ -15,6 +15,7 @@ import { Tag, Clock, Shirt, Palette } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
+import { apiGet } from "@/lib/moeApi";
 import type { Product, Provider } from "@/data/mockData";
 
 const MarketplaceHome = () => {
@@ -33,6 +34,8 @@ const MarketplaceHome = () => {
   const [allProviders, setAllProviders] = useState<Provider[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  /** Per-category artisan counts (canonical value → number). */
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Pass preferences to product/artisan APIs so server-side filtering
@@ -58,17 +61,50 @@ const MarketplaceHome = () => {
     ]).finally(() => setIsLoading(false));
   }, [hasPreferences, preferences.budget, preferences.categories, preferences.styles]);
 
-  // Canonical categories (src/lib/categories.ts) with live artisan counts.
+  // Fetch artisan counts for each canonical category concurrently. We rely on
+  // the backend's pagination.totalItems for an accurate filtered count (the
+  // `allProviders` list is paginated and would under-count). Failures silently
+  // produce 0 so the card renders without a misleading "0 artisans" label.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      CATEGORIES.map(async (c) => {
+        try {
+          const res = await apiGet<{ pagination?: { totalItems?: number }; data?: unknown[] }>(
+            "/service-providers/public-info",
+            { category: c.value, page: 1, pageSize: 1 },
+          );
+          const total =
+            typeof res?.pagination?.totalItems === "number"
+              ? res.pagination.totalItems
+              : Array.isArray(res?.data)
+                ? res.data.length
+                : 0;
+          return [c.value, total] as const;
+        } catch {
+          return [c.value, 0] as const;
+        }
+      }),
+    ).then((pairs) => {
+      if (cancelled) return;
+      setCategoryCounts(Object.fromEntries(pairs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Canonical category cards. Count comes from per-category public-info calls;
+  // falls back to the local providers list when the API count is missing.
   const categories = useMemo(() => {
-    return CATEGORIES.map((d) => ({
-      id: d.value,
-      name: d.label,
-      icon: d.icon,
-      count: allProviders.filter(
+    return CATEGORIES.map((d) => {
+      const localCount = allProviders.filter(
         (p) => (p.category || "").toLowerCase() === d.value.toLowerCase(),
-      ).length,
-    }));
-  }, [allProviders]);
+      ).length;
+      const count = categoryCounts[d.value] ?? localCount;
+      return { id: d.value, name: d.label, icon: d.icon, count };
+    });
+  }, [allProviders, categoryCounts]);
 
   // Apply filters to products
   const filteredProducts = useMemo(() => {
