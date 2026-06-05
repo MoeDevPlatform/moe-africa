@@ -49,13 +49,15 @@ category). Response shape (example):
 `AddProductModal` now sends these optional fields when present:
 
 - `materials: string`
-- `estimatedDeliveryDays: number`
+- `estimatedDelivery: string` (free-text, max 50 chars — see Product & Category Fix Sprint section below). The legacy `estimatedDeliveryDays: number` is no longer sent by the form but the backend should keep accepting it for older clients.
 - `tags: string` (comma-separated)
 
-Category enum migration (Task 8): canonical values are
-`tailoring | shoemaking | leatherwork | beauty | accessories | furniture | art`.
-The DTO must still accept the legacy values `canvas` and `crafts` until the
-backend confirms migration of existing rows.
+Category enum (superseded — see "Category Value Alignment" below).
+Canonical values are now:
+`tailoring | arts_and_crafts | shoemaking | beauty | leatherwork | jewellery | home_and_decor`.
+Any legacy values (`accessories`, `furniture`, `art`, `canvas`, `crafts`) must
+be migrated to the closest canonical value (see migration notes below) and
+rejected on new writes.
 
 ## 5. Delivery + rush-order (Task 5) — REQUIRED
 
