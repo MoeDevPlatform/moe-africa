@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Upload } from "lucide-react";
+import { CATEGORIES } from "@/lib/categories";
 
 interface ProductFormProps {
   product?: any;
@@ -39,13 +40,8 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
     { id: 9, name: "ArtPrint Naija" },
   ];
 
-  const categories = [
-    { id: 1, name: "Clothing" },
-    { id: 2, name: "Accessories" },
-    { id: 3, name: "Home Decor" },
-    { id: 4, name: "Furniture" },
-    { id: 5, name: "Canvas & Painting" },
-  ];
+  // Canonical categories — single source of truth in src/lib/categories.ts.
+  const categories = CATEGORIES.map((c, idx) => ({ id: idx + 1, name: c.label, value: c.value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
