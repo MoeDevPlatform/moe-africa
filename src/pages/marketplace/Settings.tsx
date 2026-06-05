@@ -884,14 +884,15 @@ const Settings = () => {
         setPayments(prev => prev.map(p => p.id === paymentModal.payment!.id ? { ...p, ...data } : p));
         toast({ title: "Payment method updated" });
       } else {
-        // Item 8 — derive MM/YY parts and forward a processorToken placeholder.
-        // In production this will be the token returned by Paystack/Stripe tokenisation.
-        const [mm, yy] = data.expiry.split("/");
+        // Backend spec (§6) accepts a single `expiry` MM/YY string — sending
+        // split expiryMonth/expiryYear trips NestJS forbidNonWhitelisted and
+        // returns "property expiryMonth should not exist".
         const created = await paymentMethodsService.create({
-          ...data,
-          expiryMonth: Number(mm),
-          expiryYear: 2000 + Number(yy),
-          processorToken: "manual_unverified",
+          brand: data.brand,
+          last4: data.last4,
+          expiry: data.expiry,
+          cardholderName: data.cardholderName,
+          billingAddressId: data.billingAddressId,
         } as Parameters<typeof paymentMethodsService.create>[0]);
         const newPm = mapPaymentApi({ ...created, isDefault: payments.length === 0 } as PaymentMethodApi);
         setPayments(prev => [...prev, newPm]);
