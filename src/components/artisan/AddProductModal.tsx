@@ -62,7 +62,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     priceMin: "",
     priceMax: "",
     materials: "",
-    estimatedDeliveryDays: "",
+    estimatedDelivery: "",
     tags: [] as string[],
   });
   const [tagInput, setTagInput] = useState("");
@@ -89,17 +89,19 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             ? String(editProduct.priceRange.max)
             : "",
         materials: (editProduct as unknown as { materials?: string }).materials ?? "",
-        estimatedDeliveryDays:
-          (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays != null
-            ? String((editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays)
-            : "",
+        estimatedDelivery:
+          typeof editProduct.estimatedDelivery === "string" && editProduct.estimatedDelivery
+            ? editProduct.estimatedDelivery
+            : (editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays
+              ? `${(editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays} days`
+              : "",
         tags: Array.isArray(editProduct.tags) ? editProduct.tags : [],
       });
       setImages(
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
       );
     } else {
-      setForm({ name: "", description: "", category: "", priceMin: "", priceMax: "", materials: "", estimatedDeliveryDays: "", tags: [] });
+      setForm({ name: "", description: "", category: "", priceMin: "", priceMax: "", materials: "", estimatedDelivery: "", tags: [] });
       setImages([]);
     }
     setSubmitError("");
@@ -184,6 +186,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (Number(form.priceMax) < Number(form.priceMin)) {
       return "Maximum price must be greater than or equal to minimum price.";
     }
+    if (form.estimatedDelivery && form.estimatedDelivery.length > 50) {
+      return "Estimated delivery must be 50 characters or fewer.";
+    }
     return "";
   };
 
@@ -208,7 +213,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         priceMin: Number(form.priceMin),
         priceMax: Number(form.priceMax),
         materials: form.materials.trim() || undefined,
-        estimatedDeliveryDays: form.estimatedDeliveryDays ? Number(form.estimatedDeliveryDays) : undefined,
+        estimatedDelivery: form.estimatedDelivery.trim() || undefined,
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
       };
       // Only include `images` when we have uploaded URLs — omit entirely
@@ -234,7 +239,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setImages([]);
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
-        materials: "", estimatedDeliveryDays: "", tags: [],
+        materials: "", estimatedDelivery: "", tags: [],
       });
       setSubmitError("");
     } catch (err: unknown) {
@@ -340,11 +345,15 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             <Label htmlFor="delivery">Estimated Delivery (days)</Label>
             <Input
               id="delivery"
-              type="number"
-              placeholder="e.g. 7"
-              value={form.estimatedDeliveryDays}
-              onChange={(e) => updateForm("estimatedDeliveryDays", e.target.value)}
+              type="text"
+              placeholder="e.g. 5-7 days"
+              maxLength={50}
+              value={form.estimatedDelivery}
+              onChange={(e) => updateForm("estimatedDelivery", e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Free text — describe in your own words. Max 50 characters.
+            </p>
           </div>
 
           <div className="space-y-2">

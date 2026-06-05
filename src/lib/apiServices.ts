@@ -508,6 +508,15 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     currency: raw.currency ?? "NGN",
     estimatedDeliveryDays:
       typeof raw.estimatedDeliveryDays === "number" ? raw.estimatedDeliveryDays : 0,
+    // Free-text delivery estimate (preferred). Falls back to formatting the
+    // legacy numeric `estimatedDeliveryDays` so older products still render
+    // something useful. Null when neither field is present.
+    estimatedDelivery:
+      typeof raw.estimatedDelivery === "string" && raw.estimatedDelivery.trim()
+        ? raw.estimatedDelivery.trim()
+        : typeof raw.estimatedDeliveryDays === "number" && raw.estimatedDeliveryDays > 0
+          ? `${raw.estimatedDeliveryDays} days`
+          : null,
     materials: raw.materials ?? "",
     tags,
     images,

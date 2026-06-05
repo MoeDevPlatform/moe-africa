@@ -12,10 +12,17 @@ export interface Product {
   priceRange: { min: number; max: number };
   currency: string;
   estimatedDeliveryDays: number;
+  /**
+   * Free-text delivery estimate (e.g. "5-7 days"). Optional. When present
+   * it supersedes the legacy numeric `estimatedDeliveryDays`. New products
+   * use this field; legacy products fall back to the numeric value via the
+   * display-side `deliveryDisplay` helper.
+   */
+  estimatedDelivery?: string | null;
   materials: string;
   tags: string[];
   images: string[];
-  category: "tailoring" | "shoemaking" | "beauty" | "leatherwork" | "crafts" | "canvas";
+  category: string;
   providerId: number;
   /** Admin approval status (item 10) — only present on backend-sourced products. */
   status?: "pending" | "approved" | "rejected" | "draft";
