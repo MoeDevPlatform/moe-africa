@@ -22,21 +22,18 @@ interface AddProductModalProps {
   editProduct?: Product | null;
 }
 
-// Canonical 7 categories (Task 8). Legacy values (`canvas`, `crafts`) are
-// kept valid in the payload so existing products remain editable, but they
-// are hidden from the dropdown unless the product being edited still uses one.
-const CANONICAL_CATEGORIES = [
-  { value: "tailoring", label: "Tailoring" },
-  { value: "shoemaking", label: "Shoemaking" },
-  { value: "leatherwork", label: "Leatherwork" },
-  { value: "beauty", label: "Beauty" },
-  { value: "accessories", label: "Accessories" },
-  { value: "furniture", label: "Furniture" },
-  { value: "art", label: "Art" },
-];
+// Canonical 7 categories — single source of truth in src/lib/categories.ts.
+// Legacy values are kept valid in the payload so existing products remain
+// editable, but they are hidden from the dropdown unless the product being
+// edited still uses one.
+import { CATEGORIES } from "@/lib/categories";
+const CANONICAL_CATEGORIES = CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
 const LEGACY_CATEGORY_LABELS: Record<string, string> = {
   canvas: "Canvas & Painting (legacy)",
   crafts: "Art & Crafts (legacy)",
+  accessories: "Accessories (legacy)",
+  furniture: "Furniture (legacy)",
+  art: "Art (legacy)",
 };
 
 const STYLE_SUGGESTIONS = [

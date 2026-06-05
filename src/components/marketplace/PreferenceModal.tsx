@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
-import { Shirt, Footprints, Gem, Sofa, Palette, Scissors, Sparkles } from "lucide-react";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { useToast } from "@/hooks/use-toast";
+import { CATEGORIES } from "@/lib/categories";
 
 interface PreferenceModalProps {
   open: boolean;
@@ -33,16 +33,8 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
     setStep(1);
   }, [open, preferences.categories, preferences.budget, preferences.styles]);
 
-  // Canonical 7 categories (Task 8).
-  const categories = [
-    { id: "tailoring", name: "Tailoring", icon: Shirt },
-    { id: "shoemaking", name: "Shoemaking", icon: Footprints },
-    { id: "leatherwork", name: "Leatherwork", icon: Scissors },
-    { id: "beauty", name: "Beauty", icon: Sparkles },
-    { id: "accessories", name: "Accessories", icon: Gem },
-    { id: "furniture", name: "Furniture", icon: Sofa },
-    { id: "art", name: "Art", icon: Palette },
-  ];
+  // Canonical categories — single source of truth in src/lib/categories.ts.
+  const categories = CATEGORIES.map((c) => ({ id: c.value, name: c.label, icon: c.icon }));
 
   const styles = ["Modern", "Afrocentric", "Minimalist", "Traditional", "Vintage", "Contemporary"];
 
