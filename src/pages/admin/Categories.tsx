@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, MoreVertical, FolderTree } from "lucide-react";
+import { CATEGORIES } from "@/lib/categories";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +15,16 @@ import {
 const Categories = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories = [
-    { id: 1, name: "Tailoring", products: 45, icon: "👔", color: "bg-primary/10" },
-    { id: 2, name: "Leather Goods", products: 32, icon: "👜", color: "bg-secondary/10" },
-    { id: 3, name: "Home Decor", products: 58, icon: "🏺", color: "bg-accent/10" },
-    { id: 4, name: "Furniture", products: 27, icon: "🪑", color: "bg-primary/10" },
-    { id: 5, name: "Accessories", products: 64, icon: "💍", color: "bg-secondary/10" },
-    { id: 6, name: "Footwear", products: 38, icon: "👞", color: "bg-accent/10" },
-  ];
+  // Canonical categories — single source of truth in src/lib/categories.ts.
+  const palette = ["bg-primary/10", "bg-secondary/10", "bg-accent/10"];
+  const categories = CATEGORIES.map((c, idx) => ({
+    id: idx + 1,
+    name: c.label,
+    value: c.value,
+    icon: c.icon,
+    color: palette[idx % palette.length],
+    products: 0,
+  }));
 
   return (
     <AdminLayout>
