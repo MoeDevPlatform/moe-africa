@@ -205,17 +205,19 @@ const ProviderDetail = () => {
                 </div>
               </div>
               <div className="flex gap-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Message
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p className="text-xs">Send a message to this artisan</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {!isOwnStorefront && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Message
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">Send a message to this artisan</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
