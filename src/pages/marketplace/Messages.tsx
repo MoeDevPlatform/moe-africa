@@ -26,24 +26,57 @@ const Messages = () => {
   const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
 
   useEffect(() => {
-    const loadConversations = async () => {
+    let cancelled = false;
+
+    const readLocal = (): Conversation[] => {
       try {
-        const res = await messagingService.listConversations();
-        setConversations(
-          res.data.map((c) => ({
-            providerId: c.providerId,
-            providerName: c.providerName,
-            lastMessage: c.lastMessage,
-            lastMessageTime: c.lastMessageTime,
-            unread: c.unreadCount > 0,
-          }))
-        );
+        const raw = localStorage.getItem(listKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((c: any) => ({
+          providerId: c.providerId,
+          providerName: c.providerName,
+          lastMessage: c.lastMessage,
+          lastMessageTime: c.lastMessageTime,
+          unread: !!c.unread,
+        }));
       } catch {
-        // Backend unreachable — no fallback (avoid cross-user leakage from stale localStorage)
-        setConversations([]);
+        return [];
       }
     };
+
+    const loadConversations = async () => {
+      const local = readLocal();
+      try {
+        const res = await messagingService.listConversations();
+        if (cancelled) return;
+        const server = res.data.map((c) => ({
+          providerId: c.providerId,
+          providerName: c.providerName,
+          lastMessage: c.lastMessage,
+          lastMessageTime: c.lastMessageTime,
+          unread: c.unreadCount > 0,
+        }));
+        // Merge: server wins per providerId; locally-cached threads that the
+        // server hasn't returned yet (newly created) still appear.
+        const seen = new Set(server.map((c) => c.providerId));
+        const merged = [...server, ...local.filter((c) => !seen.has(c.providerId))];
+        setConversations(merged);
+      } catch {
+        if (!cancelled) setConversations(local);
+      }
+    };
+
     loadConversations();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadConversations();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [selectedProvider, listKey]);
 
   const handleOpenConversation = (providerId: number, providerName: string) => {
