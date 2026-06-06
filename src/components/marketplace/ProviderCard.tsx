@@ -81,14 +81,11 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           {provider.reviewCount && provider.reviewCount > 0 ? (
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
-              <span className="font-medium text-foreground">{provider.rating}</span>
+              <span className="font-medium text-foreground">{Number(provider.rating).toFixed(1)}</span>
               <span>({provider.reviewCount})</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">New</span>
-            </div>
+            <span className="text-muted-foreground italic">No Reviews Yet</span>
           )}
           <div className="flex items-center gap-1">
             <MapPin className="h-4 w-4" />

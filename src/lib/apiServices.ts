@@ -661,6 +661,26 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
         : Array.isArray(raw.products)
           ? raw.products.length
           : undefined;
+  // Issue #5 — accept aliases until backend standardises on
+  // `averageRating` + `reviewCount` (tracked in backendRequirements.md).
+  const ratingValue =
+    typeof raw.averageRating === "number"
+      ? raw.averageRating
+      : typeof raw.rating === "number"
+        ? raw.rating
+        : typeof raw.avgRating === "number"
+          ? raw.avgRating
+          : 0;
+  const reviewCountValue =
+    typeof raw.reviewCount === "number"
+      ? raw.reviewCount
+      : typeof raw.reviewsCount === "number"
+        ? raw.reviewsCount
+        : typeof raw.numReviews === "number"
+          ? raw.numReviews
+          : typeof raw._count?.reviews === "number"
+            ? raw._count.reviews
+            : 0;
   return {
     ...(raw as Provider),
     brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
@@ -677,8 +697,8 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     state: raw.state ?? raw.businessState ?? raw.businessAddress?.state ?? "",
     category: raw.category ?? "",
     styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
-    rating: typeof raw.rating === "number" ? raw.rating : 0,
-    reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+    rating: ratingValue,
+    reviewCount: reviewCountValue,
     ...(productCount !== undefined ? { productCount } : {}),
   };
 };
@@ -1204,6 +1224,8 @@ export interface CartItemApi {
   measurements: Record<string, string>;
   notes?: string;
   quantity: number;
+  /** Issue #7 — primary product image, echoed back so cart can render it. */
+  imageUrl?: string;
 }
 
 export const cartService = {
