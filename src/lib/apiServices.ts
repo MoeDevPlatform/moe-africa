@@ -700,6 +700,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     rating: ratingValue,
     reviewCount: reviewCountValue,
     ...(productCount !== undefined ? { productCount } : {}),
+    ...(raw.userId != null ? { userId: raw.userId } : {}),
   };
 };
 
