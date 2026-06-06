@@ -63,36 +63,27 @@ const MarketplaceHome = () => {
     ]).finally(() => setIsLoading(false));
   }, [hasPreferences, preferences.budget, preferences.categories, preferences.styles]);
 
-  // Fetch artisan counts for each canonical category concurrently. We rely on
-  // the backend's pagination.totalItems for an accurate filtered count (the
-  // `allProviders` list is paginated and would under-count). Failures silently
-  // produce 0 so the card renders without a misleading "0 artisans" label.
+  // Count the number of *distinct artisans* who actually have at least one
+  // product listed in each category. This keeps the card label consistent
+  // ("N artisans") across all categories and reflects the true system state
+  // rather than the artisan's self-declared primary category.
   useEffect(() => {
     let cancelled = false;
     Promise.all(
       CATEGORIES.map(async (c) => {
         try {
-          const res = await apiGet<{ pagination?: { totalItems?: number }; data?: unknown[] }>(
-            "/service-providers/public-info",
-            { category: c.value, page: 1, pageSize: 1 },
+          // Pull all products in the category (large page size to cover most
+          // catalogs in one round trip) and count unique providerIds.
+          const pr = await productsService.list({ category: c.value, pageSize: 200 });
+          const rows = Array.isArray(pr?.data) ? pr.data : [];
+          const uniqueArtisans = new Set(
+            rows
+              .map((p: { providerId?: string; provider?: { id?: string } }) =>
+                p.providerId ?? p.provider?.id,
+              )
+              .filter(Boolean),
           );
-          const artisanTotal =
-            typeof res?.pagination?.totalItems === "number"
-              ? res.pagination.totalItems
-              : Array.isArray(res?.data)
-                ? res.data.length
-                : 0;
-          if (artisanTotal > 0) {
-            return [c.value, artisanTotal, "artisan" as const] as const;
-          }
-          // Fallback: count products in this category so the card isn't blank.
-          try {
-            const pr = await productsService.list({ category: c.value, pageSize: 1 });
-            const productTotal = pr.pagination?.totalItems ?? 0;
-            return [c.value, productTotal, "product" as const] as const;
-          } catch {
-            return [c.value, 0, "artisan" as const] as const;
-          }
+          return [c.value, uniqueArtisans.size, "artisan" as const] as const;
         } catch {
           return [c.value, 0, "artisan" as const] as const;
         }
