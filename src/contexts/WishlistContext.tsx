@@ -2,6 +2,7 @@ import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export interface WishlistItem {
   productId: number;
@@ -71,14 +72,11 @@ function writeLocalKey(key: string, items: WishlistItem[]) {
 }
 
 function migrateLegacyGuest() {
-  // One-time migration: if the old shared key still exists, fold it into
-  // the guest key and remove the legacy entry so it stops leaking.
-  const legacy = localStorage.getItem(LEGACY_KEY);
-  if (!legacy) return;
-  if (!localStorage.getItem(GUEST_KEY)) {
-    localStorage.setItem(GUEST_KEY, legacy);
-  }
+  // Wishlist is now strictly per-authenticated-user. Wipe any legacy or
+  // guest-shared storage so two accounts on the same browser can never
+  // see each other's items.
   localStorage.removeItem(LEGACY_KEY);
+  localStorage.removeItem(GUEST_KEY);
 }
 
 /**
@@ -111,11 +109,11 @@ function mapApiItem(i: WishlistItemApi): WishlistItem {
 
 export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
-  // Guests hydrate from localStorage; authenticated users wait for the
+  // Guests have no wishlist at all. Authenticated users hydrate from the
   // server probe (or the per-user fallback if the probe fails).
   const [items, setItems] = useState<WishlistItem[]>(() => {
     migrateLegacyGuest();
-    return localStorage.getItem("moe_access_token") ? [] : readLocalKey(GUEST_KEY);
+    return [];
   });
   const [isSyncing, setIsSyncing] = useState(false);
   // When true, the backend /wishlist probe failed and we fall back to
@@ -123,9 +121,10 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   const [serverDown, setServerDown] = useState(false);
 
   useEffect(() => {
-    // Persist locally for guests under the guest key.
+    // Guests never persist. Always wipe the shared/legacy keys defensively.
     if (!isAuthenticated) {
-      writeLocalKey(GUEST_KEY, items);
+      localStorage.removeItem(GUEST_KEY);
+      localStorage.removeItem(LEGACY_KEY);
       return;
     }
     // Authed users with a working server don't need a local mirror.
@@ -134,18 +133,20 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   }, [items, isAuthenticated, serverDown, user?.id]);
 
   // Sync whenever the user identity flips. Logout → clear in-memory; login →
-  // merge guest items into the server (or per-user fallback), then probe.
+  // load the user's own wishlist from server (or per-user fallback). Guest
+  // items are never merged because guests cannot add items.
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
-      // Logout: just clear memory; do NOT touch server data.
-      setItems(readLocalKey(GUEST_KEY));
+      // Logout / guest: clear in-memory wishlist completely.
+      setItems([]);
       setServerDown(false);
+      localStorage.removeItem(GUEST_KEY);
+      localStorage.removeItem(LEGACY_KEY);
       return;
     }
 
     let cancelled = false;
     setIsSyncing(true);
-    const guestItems = readLocalKey(GUEST_KEY);
 
     const finish = () => {
       if (!cancelled) setIsSyncing(false);
@@ -155,35 +156,18 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     // (404 / 401 unexpected / network) → fall back to per-user localStorage.
     wishlistService
       .list()
-      .then(async (res) => {
+      .then((res) => {
         if (cancelled) return;
         setServerDown(false);
-        let merged = res?.data ? res.data.map(mapApiItem) : [];
-
-        // Merge any guest items the user collected before logging in.
-        if (guestItems.length) {
-          const have = new Set(merged.map((m) => m.productId));
-          const newOnes = guestItems.filter((g) => !have.has(g.productId));
-          await Promise.all(
-            newOnes.map((g) =>
-              wishlistService.add(g.productId).catch(() => null),
-            ),
-          );
-          merged = [...merged, ...newOnes];
-          localStorage.removeItem(GUEST_KEY);
-        }
-        if (!cancelled) setItems(merged);
+        const serverItems = res?.data ? res.data.map(mapApiItem) : [];
+        if (!cancelled) setItems(serverItems);
       })
       .catch(() => {
         if (cancelled) return;
         // Server probe failed — degrade to per-user localStorage so the
         // wishlist still works and doesn't leak across accounts.
         setServerDown(true);
-        const stored = readLocalKey(userKey(user.id));
-        const have = new Set(stored.map((m) => m.productId));
-        const merged = [...stored, ...guestItems.filter((g) => !have.has(g.productId))];
-        setItems(merged);
-        if (guestItems.length) localStorage.removeItem(GUEST_KEY);
+        setItems(readLocalKey(userKey(user.id)));
       })
       .finally(finish);
 
@@ -193,22 +177,27 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated, user?.id]);
 
   const addItem = useCallback((item: WishlistItem) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to save items to your wishlist");
+      return;
+    }
     setItems((prev) => {
       if (prev.some((i) => i.productId === item.productId)) return prev;
       return [...prev, item];
     });
-    if (isAuthenticated && !serverDown) {
+    if (!serverDown) {
       wishlistService.add(item.productId).catch(() => {});
     }
   }, [isAuthenticated, serverDown]);
 
   const removeItem = useCallback((productId: number) => {
+    if (!isAuthenticated) return;
     let snapshot: WishlistItem | undefined;
     setItems((prev) => {
       snapshot = prev.find((i) => i.productId === productId);
       return prev.filter((item) => item.productId !== productId);
     });
-    if (!isAuthenticated || serverDown) return;
+    if (serverDown) return;
     wishlistService.remove(productId).catch(() => {
       const fallbackId = snapshot?.wishlistItemId;
       if (fallbackId) {

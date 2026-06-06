@@ -60,10 +60,17 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                     </div>
                     <p className="text-sm text-muted-foreground">{provider.city}, {provider.state}</p>
                   </div>
-                  <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
-                    <Star className="h-4 w-4 fill-accent text-accent" />
-                    <span className="font-semibold text-sm">{provider.rating}</span>
-                  </div>
+                  {provider.reviewCount && provider.reviewCount > 0 ? (
+                    <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
+                      <Star className="h-4 w-4 fill-accent text-accent" />
+                      <span className="font-semibold text-sm">{provider.rating}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full">
+                      <Star className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold text-sm text-muted-foreground">New</span>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{provider.about}</p>
