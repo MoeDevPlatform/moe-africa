@@ -95,6 +95,12 @@ const Wishlist = () => {
       return;
     }
 
+    // Always prefer freshly-hydrated data for the display name so the toast
+    // never says "undefined is in your cart" when the wishlist row was saved
+    // without a productName.
+    const resolvedName = product.name || item.productName || "Item";
+    const resolvedProviderName = item.providerName || "Artisan";
+
     if (product.customisationRequired) {
       setSelectedItem(item);
       setShowCustomizationModal(true);
@@ -106,9 +112,9 @@ const Wishlist = () => {
     addCartItem({
       id: Date.now().toString(),
       productId: item.productId,
-      productName: item.productName,
+      productName: resolvedName,
       providerId: item.providerId,
-      providerName: item.providerName,
+      providerName: resolvedProviderName,
       basePrice: price,
       finalPrice: price,
       category: (product.category as "tailoring" | "shoemaking" | "canvas") ?? "tailoring",
@@ -116,10 +122,13 @@ const Wishlist = () => {
       measurements: {},
       notes: "",
       quantity: 1,
+      imageUrl: product.images?.[0] ?? item.imageUrl,
     });
+    // Item leaves the wishlist once it's in the cart.
+    removeItem(item.productId);
     toast({
       title: "Added to cart 🎉",
-      description: `${item.productName} is in your cart.`,
+      description: `${resolvedName} is in your cart.`,
     });
   };
 
