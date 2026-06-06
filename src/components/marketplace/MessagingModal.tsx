@@ -215,13 +215,35 @@ const MessagingModal = ({
       if (conversationId) {
         serverMsg = await messagingService.sendMessage(conversationId, content);
       } else {
-        const conv = await messagingService.startConversation(providerId, content);
-        if (conv?.id) setConversationId(conv.id);
-        // Some backends return the conversation; others return the first message.
-        // Try to fetch the new message list so we get the canonical row.
-        if (conv?.id) {
+        let adoptedId: number | null = null;
+        try {
+          const conv = await messagingService.startConversation(providerId, content);
+          if (conv?.id) {
+            adoptedId = conv.id;
+            setConversationId(conv.id);
+          }
+        } catch {
+          // Likely 409/400 because the conversation already exists. Recover by
+          // looking it up in the conversation list and re-sending against it.
           try {
-            const res = await messagingService.getMessages(conv.id);
+            const listed = await messagingService.listConversations();
+            const match = (listed?.data ?? []).find((c) => c.providerId === providerId);
+            if (match?.id) {
+              adoptedId = match.id;
+              setConversationId(match.id);
+              serverMsg = await messagingService.sendMessage(match.id, content);
+            } else {
+              throw new Error("no_existing_conversation");
+            }
+          } catch {
+            throw new Error("start_and_recover_failed");
+          }
+        }
+        // If startConversation succeeded but didn't return the message body,
+        // fetch it so the optimistic row can adopt the real id/sentAt/readAt.
+        if (!serverMsg && adoptedId) {
+          try {
+            const res = await messagingService.getMessages(adoptedId);
             const last = (res?.data ?? []).find((m: any) => (m.content ?? m.text) === content && m.senderType === "customer");
             if (last) serverMsg = last as any;
           } catch { /* fall through */ }
