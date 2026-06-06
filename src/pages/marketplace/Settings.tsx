@@ -1116,15 +1116,21 @@ const Settings = () => {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
                     <span>In-app notifications</span>
-                    <Badge variant="secondary">Enabled</Badge>
+                    <Badge variant={notificationSettings.inApp ? "secondary" : "outline"}>
+                      {notificationSettings.inApp ? "Enabled" : "Disabled"}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span>SMS alerts</span>
-                    <Badge variant="outline">Set up</Badge>
+                    <Badge variant="outline">Coming soon</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span>Email confirmations</span>
-                    <Badge variant="secondary">Enabled</Badge>
+                    <Badge variant="outline">Coming soon</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Push notifications</span>
+                    <Badge variant="outline">Coming soon</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -1140,19 +1146,29 @@ const Settings = () => {
                     <div className="space-y-3">
                       {[
                         { key: "inApp" as const, Icon: Bell, label: "In-App Notifications", desc: "Get notified within the app" },
-                        { key: "email" as const, Icon: Mail, label: "Email Notifications", desc: "Receive updates via email" },
-                        { key: "sms" as const, Icon: Phone, label: "SMS Alerts", desc: "Get text message updates" },
-                        { key: "push" as const, Icon: MessageSquare, label: "Push Notifications", desc: "Browser push notifications" },
-                      ].map(({ key, Icon, label, desc }) => (
+                        { key: "email" as const, Icon: Mail, label: "Email Notifications", desc: "Receive updates via email", locked: true },
+                        { key: "sms" as const, Icon: Phone, label: "SMS Alerts", desc: "Get text message updates", locked: true },
+                        { key: "push" as const, Icon: MessageSquare, label: "Push Notifications", desc: "Browser push notifications", locked: true },
+                      ].map(({ key, Icon, label, desc, locked }) => (
                         <div key={key} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <Icon className="h-4 w-4 text-muted-foreground" />
                             <div>
-                              <p className="font-medium text-sm">{label}</p>
+                              <p className="font-medium text-sm flex items-center gap-2">
+                                {label}
+                                {locked && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">Coming soon</Badge>
+                                )}
+                              </p>
                               <p className="text-xs text-muted-foreground">{desc}</p>
                             </div>
                           </div>
-                          <Switch checked={notificationSettings[key]} onCheckedChange={() => handleToggle(key)} />
+                          <Switch
+                            checked={notificationSettings[key]}
+                            disabled={!!locked}
+                            onCheckedChange={() => handleToggle(key)}
+                            aria-label={`Toggle ${label}`}
+                          />
                         </div>
                       ))}
                     </div>
@@ -1177,7 +1193,7 @@ const Settings = () => {
                       ))}
                     </div>
                   </div>
-                  <Button className="w-full sm:w-auto" onClick={() => toast({ title: "Preferences saved" })}>Save Preferences</Button>
+                  <Button className="w-full sm:w-auto" onClick={handleSaveNotificationPreferences}>Save Preferences</Button>
                 </CardContent>
               </Card>
             </div>
