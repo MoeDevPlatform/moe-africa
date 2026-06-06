@@ -76,12 +76,16 @@ const MarketplaceHome = () => {
           // catalogs in one round trip) and count unique providerIds.
           const pr = await productsService.list({ category: c.value, pageSize: 200 });
           const rows = Array.isArray(pr?.data) ? pr.data : [];
-          const uniqueArtisans = new Set(
+          const uniqueArtisans = new Set<string | number>(
             rows
-              .map((p: { providerId?: string; provider?: { id?: string } }) =>
-                p.providerId ?? p.provider?.id,
-              )
-              .filter(Boolean),
+              .map((p) => {
+                const anyP = p as unknown as {
+                  providerId?: string | number;
+                  provider?: { id?: string | number };
+                };
+                return anyP.providerId ?? anyP.provider?.id;
+              })
+              .filter((v): v is string | number => v !== undefined && v !== null),
           );
           return [c.value, uniqueArtisans.size, "artisan" as const] as const;
         } catch {
