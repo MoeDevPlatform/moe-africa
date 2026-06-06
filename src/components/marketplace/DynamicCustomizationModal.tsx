@@ -100,6 +100,7 @@ const DynamicCustomizationModal = ({
           ? (customisation.notes as string)
           : "",
       quantity: 1,
+      imageUrl: productImage,
       // Stash the raw payload so checkout/orders can forward it as `customisation`.
       ...(Object.keys(customisation).length
         ? ({ customisation } as unknown as Record<string, unknown>)

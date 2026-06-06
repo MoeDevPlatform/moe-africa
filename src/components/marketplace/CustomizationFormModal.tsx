@@ -66,6 +66,7 @@ const CustomizationFormModal = ({
   basePrice,
   estimatedDeliveryDays: _estimatedDeliveryDays,
   category,
+  productImage,
   existingCustomization,
   editingCartItemId,
 }: CustomizationFormModalProps) => {
@@ -146,6 +147,7 @@ const CustomizationFormModal = ({
           ? (customisation.notes as string)
           : "",
       quantity: 1,
+      imageUrl: productImage,
       // Forward the keyed customisation payload to the backend via cart/order.
       ...(Object.keys(customisation).length
         ? ({ customisation } as unknown as Record<string, unknown>)

@@ -48,6 +48,7 @@ const CanvasCustomizationModal = ({
   basePrice,
   estimatedDeliveryDays,
   editingCartItemId,
+  productImage,
 }: CanvasCustomizationModalProps) => {
   const [step, setStep] = useState(1);
   const [canvasType, setCanvasType] = useState("");
@@ -133,6 +134,7 @@ const CanvasCustomizationModal = ({
       },
       notes,
       quantity: 1,
+      imageUrl: productImage,
     };
 
     if (editingCartItemId) {

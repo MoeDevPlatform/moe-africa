@@ -204,6 +204,7 @@ const Cart = () => {
           basePrice={editingItem.basePrice}
           estimatedDeliveryDays={7}
           category={editingItem.category}
+          productImage={editingItem.imageUrl}
           existingCustomization={editingItem}
           editingCartItemId={editingItem.id}
         />

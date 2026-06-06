@@ -442,6 +442,7 @@ const ProductDetail = () => {
           providerName={provider.brandName}
           basePrice={product.priceRange.min + rushOrderCost}
           estimatedDeliveryDays={product.estimatedDeliveryDays}
+          productImage={product.images?.[0]}
         />
       ) : product.category === "tailoring" || product.category === "shoemaking" ? (
         <CustomizationFormModal
@@ -454,6 +455,7 @@ const ProductDetail = () => {
           basePrice={product.priceRange.min + rushOrderCost}
           estimatedDeliveryDays={product.estimatedDeliveryDays}
           category={product.category}
+          productImage={product.images?.[0]}
         />
       ) : (
         <DynamicCustomizationModal
@@ -465,6 +467,7 @@ const ProductDetail = () => {
           providerName={provider.brandName}
           basePrice={product.priceRange.min + rushOrderCost}
           category={product.category}
+          productImage={product.images?.[0]}
         />
       )}
 
