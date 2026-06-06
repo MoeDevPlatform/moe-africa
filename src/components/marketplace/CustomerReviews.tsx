@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Star, ThumbsUp, CheckCircle, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,28 @@ const StarRating = ({ rating, size = "sm" }: { rating: number; size?: "sm" | "md
 };
 
 const ReviewCard = ({ review, onImageClick }: { review: Review; onImageClick: (images: string[], index: number) => void }) => {
-  const [isHelpful, setIsHelpful] = useState(false);
+  // Persist "helpful" votes locally so they survive reloads. Real cross-device
+  // persistence requires a backend endpoint (see backendRequirements.md).
+  const storageKey = "moe_review_helpful_votes";
+  const readVotes = (): Record<string, boolean> => {
+    try { return JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch { return {}; }
+  };
+  const [isHelpful, setIsHelpful] = useState<boolean>(() => !!readVotes()[review.id]);
+
+  const toggleHelpful = () => {
+    const votes = readVotes();
+    const next = !isHelpful;
+    if (next) votes[review.id] = true; else delete votes[review.id];
+    localStorage.setItem(storageKey, JSON.stringify(votes));
+    // Also bump the aggregate cache so the count survives reloads.
+    try {
+      const counts = JSON.parse(localStorage.getItem("moe_review_helpful") || "{}") as Record<string, number>;
+      counts[review.id] = (counts[review.id] ?? review.helpful) + (next ? 1 : -1);
+      if (counts[review.id] < 0) counts[review.id] = 0;
+      localStorage.setItem("moe_review_helpful", JSON.stringify(counts));
+    } catch { /* ignore */ }
+    setIsHelpful(next);
+  };
 
   return (
     <div className="border-b pb-6 last:border-b-0">
@@ -105,7 +126,7 @@ const ReviewCard = ({ review, onImageClick }: { review: Review; onImageClick: (i
               variant="ghost"
               size="sm"
               className={cn("text-xs gap-1", isHelpful && "text-primary")}
-              onClick={() => setIsHelpful(!isHelpful)}
+              onClick={toggleHelpful}
             >
               <ThumbsUp className={cn("h-3 w-3", isHelpful && "fill-primary")} />
               Helpful ({review.helpful + (isHelpful ? 1 : 0)})
