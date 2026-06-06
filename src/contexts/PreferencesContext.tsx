@@ -26,31 +26,53 @@ const defaultPreferences: UserPreferences = {
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
-const STORAGE_KEY = "moe_user_preferences";
+// Per-user storage so two accounts on the same browser don't share preferences.
+// Guests get no persistence at all — their selections live only in memory and
+// disappear on reload / new tab.
+const STORAGE_PREFIX = "moe_user_preferences:";
+const LEGACY_STORAGE_KEY = "moe_user_preferences";
+const keyFor = (userId: number | string) => `${STORAGE_PREFIX}${userId}`;
 
 export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
 
-  // Load preferences from localStorage on mount
+  // One-time cleanup of the legacy shared key so a stale value from a previous
+  // session doesn't leak into a different account.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setPreferences({
-          ...parsed,
-          updatedAt: parsed.updatedAt ? new Date(parsed.updatedAt) : null,
-        });
-      } catch (e) {
-        console.error("Error parsing preferences:", e);
-      }
-    }
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   }, []);
 
-  // Save preferences to localStorage whenever they change.
+  // Load the current user's stored preferences whenever auth identity changes.
+  // Guests are reset to defaults so the previous user's choices don't carry over.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setPreferences(defaultPreferences);
+      return;
+    }
+    const stored = localStorage.getItem(keyFor(user.id));
+    if (!stored) {
+      setPreferences(defaultPreferences);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored);
+      setPreferences({
+        ...defaultPreferences,
+        ...parsed,
+        updatedAt: parsed.updatedAt ? new Date(parsed.updatedAt) : null,
+      });
+    } catch (e) {
+      console.error("Error parsing preferences:", e);
+      setPreferences(defaultPreferences);
+    }
+  }, [isAuthenticated, user?.id]);
+
+  // Save preferences to localStorage under the current user's key.
+  // No-op for guests — preferences are session-only until they sign in.
   const savePreferences = (prefs: UserPreferences) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    if (!isAuthenticated || !user?.id) return;
+    localStorage.setItem(keyFor(user.id), JSON.stringify(prefs));
   };
 
   // Mirror to backend (best-effort). Fails silently so guests + unbuilt
@@ -110,7 +132,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
 
   const clearPreferences = () => {
     setPreferences(defaultPreferences);
-    localStorage.removeItem(STORAGE_KEY);
+    if (user?.id) localStorage.removeItem(keyFor(user.id));
     if (isAuthenticated) preferencesService.clear().catch(() => {});
   };
 
