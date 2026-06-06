@@ -63,12 +63,11 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                   {provider.reviewCount && provider.reviewCount > 0 ? (
                     <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
                       <Star className="h-4 w-4 fill-accent text-accent" />
-                      <span className="font-semibold text-sm">{provider.rating}</span>
+                      <span className="font-semibold text-sm">{Number(provider.rating).toFixed(1)}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full">
-                      <Star className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold text-sm text-muted-foreground">New</span>
+                    <div className="bg-muted px-2 py-1 rounded-full">
+                      <span className="font-medium text-xs text-muted-foreground italic">No Reviews Yet</span>
                     </div>
                   )}
                 </div>

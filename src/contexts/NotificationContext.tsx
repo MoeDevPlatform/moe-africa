@@ -39,6 +39,18 @@ const mapType = (t: ApiNotification["type"]): Notification["type"] => {
   }
 };
 
+// Issue #3 — backend currently emits `/messages/:id` for message notifications,
+// but our router only knows `/marketplace/messages/:id`. Rewrite the link
+// client-side so clicking a notification no longer 404s.
+// TODO(backend): remove this shim once notification rows ship the
+// `/marketplace/messages/:id` link directly. Tracked in backendRequirements.md.
+const rewriteLink = (link?: string): string | undefined => {
+  if (!link) return link;
+  const match = link.match(/^\/messages\/(\d+)(.*)$/);
+  if (match) return `/marketplace/messages/${match[1]}${match[2] ?? ""}`;
+  return link;
+};
+
 const fromApi = (n: ApiNotification): Notification => ({
   id: String(n.id),
   type: mapType(n.type),
@@ -46,7 +58,7 @@ const fromApi = (n: ApiNotification): Notification => ({
   message: n.body,
   timestamp: new Date(n.createdAt),
   read: n.read,
-  link: n.link,
+  link: rewriteLink(n.link),
 });
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {

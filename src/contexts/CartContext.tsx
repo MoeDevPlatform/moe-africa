@@ -16,6 +16,8 @@ export interface CartItem {
   measurements: Record<string, string>;
   notes: string;
   quantity: number;
+  /** Issue #7 — primary product image stashed at add-time so cart can render it. */
+  imageUrl?: string;
 }
 
 interface CartContextType {
@@ -82,6 +84,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             measurements: i.measurements || {},
             notes: i.notes || "",
             quantity: i.quantity,
+            imageUrl: i.imageUrl,
           }));
           setItems(mapped);
         }

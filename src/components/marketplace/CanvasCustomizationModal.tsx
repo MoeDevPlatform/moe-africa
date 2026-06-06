@@ -24,6 +24,7 @@ interface CanvasCustomizationModalProps {
   basePrice: number;
   estimatedDeliveryDays: number;
   editingCartItemId?: string;
+  productImage?: string;
 }
 
 const TOTAL_STEPS = 6;
@@ -47,6 +48,7 @@ const CanvasCustomizationModal = ({
   basePrice,
   estimatedDeliveryDays,
   editingCartItemId,
+  productImage,
 }: CanvasCustomizationModalProps) => {
   const [step, setStep] = useState(1);
   const [canvasType, setCanvasType] = useState("");
@@ -132,6 +134,7 @@ const CanvasCustomizationModal = ({
       },
       notes,
       quantity: 1,
+      imageUrl: productImage,
     };
 
     if (editingCartItemId) {
@@ -139,7 +142,7 @@ const CanvasCustomizationModal = ({
       toast({ title: "Cart updated! 🎨", description: "Your canvas order has been updated." });
     } else {
       addItem(cartItem);
-      toast({ title: "Added to cart! 🎨", description: `Your custom ${productName} has been added to your cart.` });
+      toast({ title: "Added to cart! 🎨", description: `Your custom ${productName ?? "canvas"} has been added to your cart.` });
     }
 
     onOpenChange(false);

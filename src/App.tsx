@@ -28,6 +28,7 @@ import ProductDetail from "./pages/marketplace/ProductDetail";
 import Cart from "./pages/marketplace/Cart";
 import Checkout from "./pages/marketplace/Checkout";
 import Messages from "./pages/marketplace/Messages";
+import MessageThread from "./pages/marketplace/MessageThread";
 import Wishlist from "./pages/marketplace/Wishlist";
 import CategoryProviders from "./pages/marketplace/CategoryProviders";
 import CategoryProducts from "./pages/marketplace/CategoryProducts";
@@ -101,6 +102,7 @@ const App = () => (
                   <Route path="/marketplace/cart" element={<Cart />} />
                   <Route path="/marketplace/checkout" element={<Checkout />} />
                   <Route path="/marketplace/messages" element={<Messages />} />
+                  <Route path="/marketplace/messages/:conversationId" element={<MessageThread />} />
                   <Route path="/marketplace/wishlist" element={<Wishlist />} />
                   <Route path="/marketplace/orders" element={<CustomerOrders />} />
                   <Route path="/marketplace/orders/:orderId" element={<OrderDetail />} />

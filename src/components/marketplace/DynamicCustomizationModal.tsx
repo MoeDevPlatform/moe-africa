@@ -33,6 +33,7 @@ interface Props {
   providerName: string;
   basePrice: number;
   category: string;
+  productImage?: string;
 }
 
 const DynamicCustomizationModal = ({
@@ -44,6 +45,7 @@ const DynamicCustomizationModal = ({
   providerName,
   basePrice,
   category,
+  productImage,
 }: Props) => {
   const [fields, setFields] = useState<CustomisationField[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +100,7 @@ const DynamicCustomizationModal = ({
           ? (customisation.notes as string)
           : "",
       quantity: 1,
+      imageUrl: productImage,
       // Stash the raw payload so checkout/orders can forward it as `customisation`.
       ...(Object.keys(customisation).length
         ? ({ customisation } as unknown as Record<string, unknown>)
@@ -105,7 +108,7 @@ const DynamicCustomizationModal = ({
     } as never);
     toast({
       title: "Added to cart! 🎉",
-      description: `${productName} has been customised and added to your cart.`,
+      description: `${productName ?? "Item"} has been customised and added to your cart.`,
     });
     onOpenChange(false);
     setValues({});

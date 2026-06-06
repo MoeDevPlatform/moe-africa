@@ -35,6 +35,7 @@ interface CustomizationFormModalProps {
   basePrice: number;
   estimatedDeliveryDays: number;
   category: string;
+  productImage?: string;
   existingCustomization?: any;
   editingCartItemId?: string;
 }
@@ -65,6 +66,7 @@ const CustomizationFormModal = ({
   basePrice,
   estimatedDeliveryDays: _estimatedDeliveryDays,
   category,
+  productImage,
   existingCustomization,
   editingCartItemId,
 }: CustomizationFormModalProps) => {
@@ -145,6 +147,7 @@ const CustomizationFormModal = ({
           ? (customisation.notes as string)
           : "",
       quantity: 1,
+      imageUrl: productImage,
       // Forward the keyed customisation payload to the backend via cart/order.
       ...(Object.keys(customisation).length
         ? ({ customisation } as unknown as Record<string, unknown>)
@@ -158,7 +161,7 @@ const CustomizationFormModal = ({
       addItem(cartItem);
       toast({
         title: "Added to cart! 🎉",
-        description: `Your custom ${productName} has been added to your cart.`,
+        description: `Your custom ${productName ?? "item"} has been added to your cart.`,
       });
     }
     onOpenChange(false);
