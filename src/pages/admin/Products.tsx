@@ -367,6 +367,28 @@ const Products = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!removeRow} onOpenChange={(o) => { if (!o) setRemoveRow(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove "{removeRow?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the product from the marketplace, the artisan's storefront,
+              search, wishlists, and all other surfaces. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleRemove(); }}
+              disabled={isRemoving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
