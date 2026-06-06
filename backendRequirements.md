@@ -231,8 +231,8 @@ No endpoint exposes whether a user is currently connected. To show an online dot
 Until then the modal omits the online indicator (no faked state).
 
 ### Artisan reviews — include reviewer name
-**Status:** 🔴 REQUIRED
-`GET /artisans/:id/reviews` must return each review with an embedded `customer: { name }` (first name + last initial is sufficient for privacy).
+**Status:** ⚠️ FRONTEND MAPPING GAP — verify before escalating
+The typed DTO (`ArtisanReviewApi` in `src/lib/apiServices.ts`) only exposes `customerId`; the frontend currently reads `customer?.name` via a loose cast and falls back to "Anonymous". Before asking backend to add `customer: { name }`, capture a live `GET /artisans/:id/reviews` response and confirm no name field is present (it may already ship as `customerName`, `customer.name`, or `author.name` and just be missing from our type). If the field truly isn't there, request `customer: { name }` (first name + last initial for privacy) and re-escalate to 🔴 REQUIRED.
 **User-facing consequence if not built:** Every review on the artisan profile renders the author as "Anonymous", which hurts review credibility and trust.
 
 ### Product / provider filter params for preferences
