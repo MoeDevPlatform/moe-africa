@@ -40,9 +40,19 @@ const ProviderDetail = () => {
   const [notFound, setNotFound] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
 
+  // Robust self-view detection — hide "Message" so artisans can't message themselves.
+  // We compare against three independent signals because the public-info endpoint
+  // sometimes omits userId and /auth/profile sometimes omits artisanProfile.
+  const selfArtisanIdRaw = typeof window !== "undefined" ? localStorage.getItem("moe_self_artisan_id") : null;
+  const selfArtisanId = selfArtisanIdRaw ? Number(selfArtisanIdRaw) : undefined;
+  const urlProviderId = Number(id);
   const isOwnStorefront =
     user?.role === "artisan" &&
-    (user?.artisanProfile?.id === provider?.id || provider?.userId === user?.id);
+    (
+      (user?.artisanProfile?.id != null && user.artisanProfile.id === provider?.id) ||
+      (provider?.userId != null && provider.userId === user?.id) ||
+      (selfArtisanId != null && (selfArtisanId === provider?.id || selfArtisanId === urlProviderId))
+    );
 
   const mapReview = (
     r: ArtisanReviewApi & { customer?: { name?: string }; customerName?: string; orderId?: string },

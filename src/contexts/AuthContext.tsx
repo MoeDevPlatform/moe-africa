@@ -3,6 +3,7 @@ import {
   authService,
   CustomerProfile,
   UserRole,
+  artisanService,
 } from "@/lib/apiServices";
 
 interface AuthContextType {
@@ -38,6 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     try {
       const profile = await authService.getProfile();
+      // Hydrate artisanProfile if backend `/auth/profile` doesn't embed it.
+      // We rely on artisanProfile.id elsewhere to detect self-views and hide
+      // the "Message" button on the artisan's own storefront/products.
+      if (profile && profile.role === "artisan" && !profile.artisanProfile?.id) {
+        try {
+          const ap = await artisanService.getMyProfile();
+          if (ap?.id) {
+            profile.artisanProfile = { ...(profile.artisanProfile ?? {}), ...ap } as typeof profile.artisanProfile;
+            try { localStorage.setItem("moe_self_artisan_id", String(ap.id)); } catch { /* noop */ }
+          }
+        } catch { /* non-fatal */ }
+      } else if (profile?.artisanProfile?.id) {
+        try { localStorage.setItem("moe_self_artisan_id", String(profile.artisanProfile.id)); } catch { /* noop */ }
+      }
       setUser(profile);
     } catch {
       localStorage.removeItem(ACCESS_TOKEN_KEY);

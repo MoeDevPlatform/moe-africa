@@ -42,6 +42,28 @@ const Messages = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
+  const scope = user?.id != null ? String(user.id) : "guest";
+  const tombstoneKey = `conversations_tombstones_${scope}`;
+  const clearedAtKey = `conversations_cleared_at_${scope}`;
+
+  const readTombstones = (): Set<number> => {
+    try {
+      const raw = localStorage.getItem(tombstoneKey);
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(arr) ? arr.map((n: unknown) => Number(n)).filter((n) => Number.isFinite(n)) : []);
+    } catch { return new Set(); }
+  };
+  const writeTombstones = (set: Set<number>) => {
+    try { localStorage.setItem(tombstoneKey, JSON.stringify([...set])); } catch { /* noop */ }
+  };
+  const addTombstone = (id: number) => {
+    const s = readTombstones();
+    s.add(id);
+    writeTombstones(s);
+  };
+  const readClearedAt = (): number => {
+    try { return Number(localStorage.getItem(clearedAtKey)) || 0; } catch { return 0; }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +93,16 @@ const Messages = () => {
       try {
         const res = await messagingService.listConversations();
         if (cancelled) return;
-        const server: Conversation[] = res.data.map((c) => ({
+        const tombstones = readTombstones();
+        const clearedAt = readClearedAt();
+        const server: Conversation[] = res.data
+          .filter((c) => !tombstones.has(c.id))
+          .filter((c) => {
+            if (!clearedAt) return true;
+            const t = new Date(c.lastMessageTime).getTime();
+            return Number.isFinite(t) ? t > clearedAt : true;
+          })
+          .map((c) => ({
           id: c.id,
           providerId: c.providerId,
           providerName: c.providerName,
@@ -139,6 +170,12 @@ const Messages = () => {
     try {
       const res = await messagingService.deleteAllConversations();
       clearLocalConversationCache();
+      try { localStorage.setItem(clearedAtKey, String(Date.now())); } catch { /* noop */ }
+      // Also tombstone every currently-known server id in case the backend
+      // returns the same rows again before the cleared-at filter would help.
+      const s = readTombstones();
+      conversations.forEach((c) => { if (c.id != null) s.add(c.id); });
+      writeTombstones(s);
       setConversations([]);
       toast({
         title: "Conversations cleared",
@@ -147,6 +184,10 @@ const Messages = () => {
     } catch (err: any) {
       // Even if backend endpoint isn't deployed yet, wipe local cache so QA can proceed.
       clearLocalConversationCache();
+      try { localStorage.setItem(clearedAtKey, String(Date.now())); } catch { /* noop */ }
+      const s = readTombstones();
+      conversations.forEach((c) => { if (c.id != null) s.add(c.id); });
+      writeTombstones(s);
       setConversations([]);
       toast({
         title: "Local cache cleared",
@@ -163,7 +204,6 @@ const Messages = () => {
     if (!conversation.id) {
       setConversations((prev) => prev.filter((c) => c.providerId !== conversation.providerId));
       try {
-        const scope = user?.id != null ? String(user.id) : "guest";
         localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
       } catch { /* noop */ }
       return;
@@ -171,17 +211,23 @@ const Messages = () => {
     setDeletingId(conversation.id);
     try {
       await messagingService.deleteConversation(conversation.id);
+      addTombstone(conversation.id);
       setConversations((prev) => prev.filter((c) => c.id !== conversation.id));
       try {
-        const scope = user?.id != null ? String(user.id) : "guest";
         localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
       } catch { /* noop */ }
       toast({ title: "Conversation deleted" });
     } catch {
+      // Backend may not yet implement DELETE — tombstone locally so the row
+      // doesn't reappear on refresh and QA can keep testing.
+      addTombstone(conversation.id);
+      setConversations((prev) => prev.filter((c) => c.id !== conversation.id));
+      try {
+        localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
+      } catch { /* noop */ }
       toast({
-        title: "Could not delete conversation",
-        description: "Please try again.",
-        variant: "destructive",
+        title: "Conversation hidden",
+        description: "Removed from your inbox (backend delete pending).",
       });
     } finally {
       setDeletingId(null);

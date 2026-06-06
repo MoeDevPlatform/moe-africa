@@ -113,10 +113,16 @@ const ProductDetail = () => {
   const inWishlist = product ? isInWishlist(product.id) : false;
 
   const isOwnProduct = useMemo(() => {
+    const selfArtisanIdRaw = typeof window !== "undefined" ? localStorage.getItem("moe_self_artisan_id") : null;
+    const selfArtisanId = selfArtisanIdRaw ? Number(selfArtisanIdRaw) : undefined;
     return (
       user?.role === "artisan" &&
       !!provider &&
-      (user?.artisanProfile?.id === provider.id || provider.userId === user?.id)
+      (
+        (user?.artisanProfile?.id != null && user.artisanProfile.id === provider.id) ||
+        (provider.userId != null && provider.userId === user?.id) ||
+        (selfArtisanId != null && selfArtisanId === provider.id)
+      )
     );
   }, [user, provider]);
 
