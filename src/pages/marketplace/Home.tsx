@@ -36,6 +36,8 @@ const MarketplaceHome = () => {
   const [isLoading, setIsLoading] = useState(true);
   /** Per-category artisan counts (canonical value → number). */
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  /** Per-category labels indicating what the count represents. */
+  const [categoryCountKind, setCategoryCountKind] = useState<Record<string, "artisan" | "product">>({});
 
   useEffect(() => {
     // Pass preferences to product/artisan APIs so server-side filtering
@@ -74,20 +76,31 @@ const MarketplaceHome = () => {
             "/service-providers/public-info",
             { category: c.value, page: 1, pageSize: 1 },
           );
-          const total =
+          const artisanTotal =
             typeof res?.pagination?.totalItems === "number"
               ? res.pagination.totalItems
               : Array.isArray(res?.data)
                 ? res.data.length
                 : 0;
-          return [c.value, total] as const;
+          if (artisanTotal > 0) {
+            return [c.value, artisanTotal, "artisan" as const] as const;
+          }
+          // Fallback: count products in this category so the card isn't blank.
+          try {
+            const pr = await productsService.list({ category: c.value, pageSize: 1 });
+            const productTotal = pr.pagination?.totalItems ?? 0;
+            return [c.value, productTotal, "product" as const] as const;
+          } catch {
+            return [c.value, 0, "artisan" as const] as const;
+          }
         } catch {
-          return [c.value, 0] as const;
+          return [c.value, 0, "artisan" as const] as const;
         }
       }),
-    ).then((pairs) => {
+    ).then((triples) => {
       if (cancelled) return;
-      setCategoryCounts(Object.fromEntries(pairs));
+      setCategoryCounts(Object.fromEntries(triples.map(([v, n]) => [v, n])));
+      setCategoryCountKind(Object.fromEntries(triples.map(([v, , k]) => [v, k])));
     });
     return () => {
       cancelled = true;
@@ -102,9 +115,10 @@ const MarketplaceHome = () => {
         (p) => (p.category || "").toLowerCase() === d.value.toLowerCase(),
       ).length;
       const count = categoryCounts[d.value] ?? localCount;
-      return { id: d.value, name: d.label, icon: d.icon, count };
+      const kind = categoryCountKind[d.value] ?? "artisan";
+      return { id: d.value, name: d.label, icon: d.icon, count, kind };
     });
-  }, [allProviders, categoryCounts]);
+  }, [allProviders, categoryCounts, categoryCountKind]);
 
   // Apply filters to products
   const filteredProducts = useMemo(() => {
@@ -235,7 +249,10 @@ const MarketplaceHome = () => {
                   <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
                   {category.count > 0 && (
                     <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
-                      {category.count} {category.count === 1 ? "artisan" : "artisans"}
+                      {category.count}{" "}
+                      {category.kind === "product"
+                        ? category.count === 1 ? "product" : "products"
+                        : category.count === 1 ? "artisan" : "artisans"}
                     </p>
                   )}
                 </button>
