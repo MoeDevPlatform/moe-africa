@@ -767,13 +767,74 @@ const Settings = () => {
     }
   }, [user]);
 
-  // Notifications
-  const [notificationSettings, setNotificationSettings] = useState({
-    inApp: true, email: true, sms: false, push: true,
+  // Notifications — persisted per-user. Email/SMS/Push aren't wired to a
+  // delivery backend yet, so those toggles are locked off until they ship.
+  const LOCKED_CHANNELS = ["email", "sms", "push"] as const;
+  type NotificationSettings = {
+    inApp: boolean; email: boolean; sms: boolean; push: boolean;
+    orderUpdates: boolean; promotions: boolean; wishlistAlerts: boolean; newMessages: boolean;
+  };
+  const defaultNotificationSettings: NotificationSettings = {
+    inApp: true, email: false, sms: false, push: false,
     orderUpdates: true, promotions: false, wishlistAlerts: true, newMessages: true,
-  });
-  const handleToggle = (key: keyof typeof notificationSettings) => {
-    setNotificationSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+  const notifKey = user?.id != null
+    ? `moe_notification_settings_${user.id}`
+    : null;
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+
+  useEffect(() => {
+    if (!notifKey) {
+      setNotificationSettings(defaultNotificationSettings);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(notifKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
+        setNotificationSettings({
+          ...defaultNotificationSettings,
+          ...parsed,
+          // Force locked channels off regardless of what was stored.
+          email: false, sms: false, push: false,
+        });
+      } else {
+        setNotificationSettings(defaultNotificationSettings);
+      }
+    } catch {
+      setNotificationSettings(defaultNotificationSettings);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifKey]);
+
+  const handleToggle = (key: keyof NotificationSettings) => {
+    if ((LOCKED_CHANNELS as readonly string[]).includes(key)) {
+      toast({
+        title: "Coming soon",
+        description: "This delivery channel isn't connected yet.",
+      });
+      return;
+    }
+    setNotificationSettings(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (notifKey) {
+        try { localStorage.setItem(notifKey, JSON.stringify(next)); } catch { /* ignore */ }
+      }
+      return next;
+    });
+  };
+
+  const handleSaveNotificationPreferences = () => {
+    if (!notifKey) {
+      toast({ title: "Sign in to save preferences", variant: "destructive" });
+      return;
+    }
+    try {
+      localStorage.setItem(notifKey, JSON.stringify(notificationSettings));
+      toast({ title: "Preferences saved" });
+    } catch {
+      toast({ title: "Could not save preferences", variant: "destructive" });
+    }
   };
 
   // Addresses — API-backed
