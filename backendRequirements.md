@@ -207,3 +207,37 @@ Required to filter by canonical category value. Where the artisan count is zero,
 
 ### GET /products/customisation-template?category=…
 Returns `{ fields: CustomisationField[] }` keyed by `category`. The customisation modal posts the keyed `customisation` object on the cart payload via `addItem` / `updateItem` — no separate API call for confirm.
+
+---
+
+## Messaging, Reviews & Personalization — Backend Gaps (June 2026)
+
+Captured while wiring real send/receipt behaviour in `MessagingModal`, persistent review display in `ProviderDetail`, and visible preference filtering on `Home`.
+
+### Messaging — three-state read receipts
+**Status:** 🔴 NOT YET BUILT
+The frontend currently renders two tick states derived from `readAt`:
+- single grey tick → message sent, not yet read
+- double blue tick → recipient has read it (`readAt != null`)
+
+To support WhatsApp-style "delivered vs read", the `Message` DTO should include a `deliveredAt` timestamp set when the recipient's client first pulls the message. Frontend will then render double-grey for delivered + double-blue for read.
+
+### Messaging — presence / online indicator
+**Status:** 🔴 NOT YET BUILT
+No endpoint exposes whether a user is currently connected. To show an online dot in the chat header, expose either:
+- `GET /users/:id/presence` → `{ online: boolean, lastSeen: ISO }`, or
+- a WebSocket presence channel.
+
+Until then the modal omits the online indicator (no faked state).
+
+### Artisan reviews — include reviewer name
+**Status:** ⚠️ NEEDS VERIFICATION
+`GET /artisans/:id/reviews` should return each review with an embedded `customer: { name }` (first name + last initial is sufficient for privacy). Without it the frontend renders "Customer" as the author, which is misleading.
+
+### Product / provider filter params for preferences
+**Status:** ⚠️ NEEDS VERIFICATION
+Frontend now applies a client-side filter on the marketplace home so saved preferences visibly shape the listing. To remove that client-side fallback the following query params must be honoured server-side:
+- `GET /products?category=…&styleTags=a,b&priceMax=…&budget=…`
+- `GET /service-providers/public-info?category=…&styleTags=a,b`
+
+`pagination.totalItems` on both endpoints must reflect the filtered total so the "Picked for you" sections render accurate counts.
