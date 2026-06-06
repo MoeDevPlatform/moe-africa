@@ -235,41 +235,55 @@ const MessagingModal = ({
 
     try {
       let serverMsg;
-      if (conversationId) {
-        serverMsg = await messagingService.sendMessage(conversationId, content);
+      const existingConvId = conversationIdRef.current ?? conversationId;
+      if (existingConvId) {
+        serverMsg = await messagingService.sendMessage(existingConvId, content);
       } else {
-        let adoptedId: number | null = null;
-        try {
-          const conv = await messagingService.startConversation(providerId, content);
-          if (conv?.id) {
-            adoptedId = conv.id;
-            setConversationId(conv.id);
-          }
-        } catch {
-          // Likely 409/400 because the conversation already exists. Recover by
-          // looking it up in the conversation list and re-sending against it.
-          try {
-            const listed = await messagingService.listConversations();
-            const match = (listed?.data ?? []).find((c) => c.providerId === providerId);
-            if (match?.id) {
-              adoptedId = match.id;
-              setConversationId(match.id);
-              serverMsg = await messagingService.sendMessage(match.id, content);
-            } else {
-              throw new Error("no_existing_conversation");
+        // Dedupe rapid double-sends: only one startConversation in flight.
+        if (!startInFlightRef.current) {
+          startInFlightRef.current = (async () => {
+            try {
+              const conv: any = await messagingService.startConversation(providerId, content);
+              // Backend may return `id`, `conversationId`, or nested under `data`.
+              const cid =
+                Number(conv?.id ?? conv?.conversationId ?? conv?.data?.id ?? conv?.data?.conversationId) || null;
+              if (cid) return cid;
+              throw new Error("missing_conversation_id");
+            } catch (err) {
+              // 409/400/missing-id → look up existing conversation.
+              const listed = await messagingService.listConversations();
+              const match = (listed?.data ?? []).find((c: any) => {
+                const pid = c.providerId ?? c.provider?.id;
+                return Number(pid) === Number(providerId);
+              });
+              if (match?.id) return Number(match.id);
+              throw err instanceof Error ? err : new Error("start_and_recover_failed");
             }
-          } catch {
-            throw new Error("start_and_recover_failed");
-          }
+          })().finally(() => {
+            // Release the in-flight slot once resolved/rejected.
+            // eslint-disable-next-line no-multi-assign
+            startInFlightRef.current = null;
+          });
         }
+        const adoptedId = await startInFlightRef.current;
+        if (!adoptedId) throw new Error("no_conversation_id");
+        adoptConversationId(adoptedId);
         // If startConversation succeeded but didn't return the message body,
         // fetch it so the optimistic row can adopt the real id/sentAt/readAt.
-        if (!serverMsg && adoptedId) {
-          try {
-            const res = await messagingService.getMessages(adoptedId);
-            const last = (res?.data ?? []).find((m: any) => (m.content ?? m.text) === content && m.senderType === "customer");
-            if (last) serverMsg = last as any;
-          } catch { /* fall through */ }
+        try {
+          const res = await messagingService.getMessages(adoptedId);
+          const last = (res?.data ?? []).find(
+            (m: any) => (m.content ?? m.text) === content && m.senderType === "customer",
+          );
+          if (last) {
+            serverMsg = last as any;
+          } else {
+            // No matching message means startConversation didn't create one
+            // (or matched an existing conversation). Send explicitly.
+            serverMsg = await messagingService.sendMessage(adoptedId, content);
+          }
+        } catch {
+          serverMsg = await messagingService.sendMessage(adoptedId, content);
         }
       }
       setMessages((prev) =>
@@ -288,7 +302,13 @@ const MessagingModal = ({
             : m,
         ),
       );
-    } catch {
+    } catch (err) {
+      console.error("[MessagingModal] send failed", err);
+      const message =
+        (err as any)?.message && typeof (err as any).message === "string"
+          ? (err as any).message
+          : "Could not send message";
+      toast({ title: "Message not sent", description: message, variant: "destructive" });
       setMessages((prev) =>
         prev.map((m) => (m.id === localId ? { ...m, status: "failed" } : m)),
       );
