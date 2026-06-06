@@ -73,7 +73,7 @@ const MessagingModal = ({
       .listConversations()
       .then((res) => {
         if (cancelled) return;
-        const items = Array.isArray(res) ? res : (res as { items?: Array<{ providerId?: number; id?: number }> })?.items ?? [];
+        const items = res?.data ?? [];
         const match = items.find((c) => c.providerId === providerId);
         if (match?.id) setConversationId(match.id);
       })
@@ -93,9 +93,7 @@ const MessagingModal = ({
         .getMessages(conversationId)
         .then((res) => {
           if (cancelled) return;
-          const serverMessages = Array.isArray(res)
-            ? res
-            : (res as { items?: unknown[] })?.items ?? [];
+          const serverMessages = res?.data ?? [];
           if (!Array.isArray(serverMessages)) return;
           setMessages((prev) => {
             const seen = new Set(prev.map((m) => m.id));
