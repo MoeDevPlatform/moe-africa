@@ -116,7 +116,7 @@ const ProductDetail = () => {
     return (
       user?.role === "artisan" &&
       !!provider &&
-      user?.artisanProfile?.id === provider.id
+      (user?.artisanProfile?.id === provider.id || provider.userId === user?.id)
     );
   }, [user, provider]);
 
