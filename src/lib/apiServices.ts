@@ -1534,6 +1534,105 @@ export const customisationTemplateService = {
   },
 };
 
+// ─── Categories CRUD (Admin) ─────────────────────────────
+// Backend-managed taxonomy. Falls back to localStorage so admin QA can
+// still demo Add/Edit/Delete when the API is offline.
+
+export interface AdminCategory {
+  id: string;
+  slug: string;
+  label: string;
+  icon?: string | null;
+  isSeed?: boolean;
+  sortOrder?: number;
+  productCount?: number;
+}
+
+const LOCAL_CATS_KEY = "moe_admin_categories";
+
+const readLocalCats = (): AdminCategory[] => {
+  try {
+    const raw = localStorage.getItem(LOCAL_CATS_KEY);
+    return raw ? (JSON.parse(raw) as AdminCategory[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalCats = (cats: AdminCategory[]) => {
+  try {
+    localStorage.setItem(LOCAL_CATS_KEY, JSON.stringify(cats));
+  } catch {
+    /* storage full or unavailable — ignore */
+  }
+};
+
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+export const categoriesService = {
+  list: async (): Promise<AdminCategory[]> => {
+    try {
+      return await apiGet<AdminCategory[]>("/categories");
+    } catch {
+      return readLocalCats();
+    }
+  },
+  create: async (input: { label: string; slug?: string; icon?: string }): Promise<AdminCategory> => {
+    const payload = { ...input, slug: input.slug || slugify(input.label) };
+    try {
+      return await apiPost<AdminCategory>("/categories", payload);
+    } catch {
+      const cats = readLocalCats();
+      if (cats.some((c) => c.slug === payload.slug)) {
+        throw new Error("A category with that slug already exists");
+      }
+      const created: AdminCategory = {
+        id: `local_${Date.now()}`,
+        slug: payload.slug,
+        label: payload.label,
+        icon: payload.icon ?? null,
+        isSeed: false,
+        sortOrder: cats.length,
+        productCount: 0,
+      };
+      writeLocalCats([...cats, created]);
+      return created;
+    }
+  },
+  update: async (
+    id: string,
+    patch: { label?: string; icon?: string; sortOrder?: number },
+  ): Promise<AdminCategory> => {
+    try {
+      return await apiPatch<AdminCategory>(`/categories/${id}`, patch);
+    } catch {
+      const cats = readLocalCats();
+      const idx = cats.findIndex((c) => c.id === id);
+      if (idx === -1) throw new Error("Category not found");
+      const next = { ...cats[idx], ...patch };
+      cats[idx] = next;
+      writeLocalCats(cats);
+      return next;
+    }
+  },
+  remove: async (id: string): Promise<void> => {
+    try {
+      await apiDelete<void>(`/categories/${id}`);
+      return;
+    } catch {
+      const cats = readLocalCats();
+      const target = cats.find((c) => c.id === id);
+      if (target?.isSeed) throw new Error("Seed categories cannot be deleted");
+      writeLocalCats(cats.filter((c) => c.id !== id));
+    }
+  },
+};
+
 // ─── Rush Order (item 6) ──────────────────────────────────
 
 export interface RushOrderConfig {

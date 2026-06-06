@@ -1,11 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, MoreVertical, FolderTree } from "lucide-react";
+import { Plus, Search, MoreVertical, Tag, Loader2 } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
-import { productsService } from "@/lib/apiServices";
+import { productsService, categoriesService, AdminCategory } from "@/lib/apiServices";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +33,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+type Row = {
+  // Stable id: backend id for dynamic rows, slug for canonical seeds.
+  id: string;
+  // Backend id, null for canonical-only seeds.
+  backendId: string | null;
+  slug: string;
+  label: string;
+  icon: typeof CATEGORIES[number]["icon"] | null;
+  isSeed: boolean;
+  products: number | null;
+};
+
 const Categories = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  // null = still loading; number = resolved count.
   const [counts, setCounts] = useState<Record<string, number | null>>(
     () => Object.fromEntries(CATEGORIES.map((c) => [c.value, null])),
   );
+  const [serverCats, setServerCats] = useState<AdminCategory[]>([]);
+
+  // Add/Edit dialog state.
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
+  const [formLabel, setFormLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,7 +69,6 @@ const Categories = () => {
       CATEGORIES.map(async (c) => {
         try {
           const r = await productsService.list({ category: c.value, pageSize: 1 });
-          if (import.meta.env.DEV) console.log("[AdminCategories]", c.value, r.pagination);
           return [c.value, r.pagination?.totalItems ?? 0] as const;
         } catch {
           return [c.value, 0] as const;
@@ -39,16 +81,120 @@ const Categories = () => {
     return () => { cancelled = true; };
   }, []);
 
-  // Canonical categories — single source of truth in src/lib/categories.ts.
+  const loadServerCats = async () => {
+    const list = await categoriesService.list();
+    setServerCats(list);
+  };
+
+  useEffect(() => {
+    loadServerCats();
+  }, []);
+
   const palette = ["bg-primary/10", "bg-secondary/10", "bg-accent/10"];
-  const categories = CATEGORIES.map((c, idx) => ({
-    id: idx + 1,
-    name: c.label,
-    value: c.value,
-    icon: c.icon,
-    color: palette[idx % palette.length],
-    products: counts[c.value],
-  }));
+
+  // Merge canonical seeds with backend rows. Server rows win on slug collision
+  // (e.g. so admins can rename "Tailoring" → "Custom Tailoring").
+  const rows: Row[] = useMemo(() => {
+    const bySlug = new Map<string, Row>();
+    CATEGORIES.forEach((c) => {
+      bySlug.set(c.value, {
+        id: c.value,
+        backendId: null,
+        slug: c.value,
+        label: c.label,
+        icon: c.icon,
+        isSeed: true,
+        products: counts[c.value] ?? null,
+      });
+    });
+    serverCats.forEach((s) => {
+      const seed = bySlug.get(s.slug);
+      bySlug.set(s.slug, {
+        id: s.id,
+        backendId: s.id,
+        slug: s.slug,
+        label: s.label,
+        icon: seed?.icon ?? null,
+        isSeed: s.isSeed ?? seed?.isSeed ?? false,
+        products: s.productCount ?? seed?.products ?? 0,
+      });
+    });
+    const q = searchQuery.trim().toLowerCase();
+    return Array.from(bySlug.values()).filter((r) =>
+      q ? r.label.toLowerCase().includes(q) || r.slug.includes(q) : true,
+    );
+  }, [serverCats, counts, searchQuery]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setFormLabel("");
+    setDialogOpen(true);
+  };
+
+  const openEdit = (row: Row) => {
+    setEditing(row);
+    setFormLabel(row.label);
+    setDialogOpen(true);
+  };
+
+  const submitForm = async () => {
+    const label = formLabel.trim();
+    if (!label) {
+      toast({ title: "Name required", description: "Enter a category name.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editing) {
+        if (editing.backendId) {
+          await categoriesService.update(editing.backendId, { label });
+        } else {
+          // Renaming a canonical seed — persist via create so the server row
+          // overrides the seed label on next list().
+          await categoriesService.create({ label, slug: editing.slug });
+        }
+        toast({ title: "Category updated" });
+      } else {
+        await categoriesService.create({ label });
+        toast({ title: "Category added" });
+      }
+      setDialogOpen(false);
+      await loadServerCats();
+    } catch (e) {
+      toast({
+        title: "Could not save category",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (!pendingDelete.backendId) {
+        throw new Error("Seed categories cannot be deleted");
+      }
+      if ((pendingDelete.products ?? 0) > 0) {
+        throw new Error("Move or delete products in this category first");
+      }
+      await categoriesService.remove(pendingDelete.backendId);
+      toast({ title: "Category deleted" });
+      setPendingDelete(null);
+      await loadServerCats();
+    } catch (e) {
+      toast({
+        title: "Could not delete",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -63,7 +209,11 @@ const Categories = () => {
               Organize products into categories
             </p>
           </div>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-md hover:shadow-lg transition-all duration-300">
+          <Button
+            onClick={openAdd}
+            aria-label="Add category"
+            className="bg-primary text-primary-foreground hover:bg-primary-dark shadow-md hover:shadow-lg transition-all duration-300"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Category
           </Button>
@@ -77,12 +227,16 @@ const Categories = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 border-input bg-card"
+            aria-label="Search categories"
           />
         </div>
 
         {/* Categories Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {categories.map((category) => (
+          {rows.map((category, idx) => {
+            const Icon = category.icon ?? Tag;
+            const color = palette[idx % palette.length];
+            return (
             <Card
               key={category.id}
               className="overflow-hidden border-border bg-card shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer group"
@@ -90,12 +244,12 @@ const Categories = () => {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4 flex-1">
-                    <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${category.color} text-3xl transition-transform duration-300 group-hover:scale-110`}>
-                      <category.icon className="h-7 w-7 text-foreground" />
+                    <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${color} text-3xl transition-transform duration-300 group-hover:scale-110`}>
+                      <Icon className="h-7 w-7 text-foreground" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">
-                        {category.name}
+                        {category.label}
                       </h3>
                       {category.products === null ? (
                         <div className="mt-1 h-4 w-20 rounded bg-muted animate-pulse" aria-label="Loading product count" />
@@ -108,14 +262,19 @@ const Categories = () => {
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${category.label}`}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Products</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Category</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem onClick={() => openEdit(category)}>
+                        Edit Category
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        disabled={category.isSeed && !category.backendId}
+                        onClick={() => setPendingDelete(category)}
+                      >
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -123,9 +282,68 @@ const Categories = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {/* Add / Edit dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit category" : "Add category"}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Update the category name shown across the marketplace."
+                : "Create a new top-level category. The slug is auto-generated from the name."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cat-label">Name</Label>
+            <Input
+              id="cat-label"
+              value={formLabel}
+              onChange={(e) => setFormLabel(e.target.value)}
+              placeholder="e.g. Custom Apparel"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={submitForm} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? "Save changes" : "Add category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.isSeed
+                ? "This is a built-in category and cannot be deleted."
+                : `"${pendingDelete?.label}" will be removed from the marketplace. This cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting || (pendingDelete?.isSeed ?? false)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
