@@ -78,11 +78,18 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         </div>
         
         <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 fill-accent text-accent" />
-            <span className="font-medium text-foreground">{provider.rating}</span>
-            <span>({provider.reviewCount})</span>
-          </div>
+          {provider.reviewCount && provider.reviewCount > 0 ? (
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4 fill-accent text-accent" />
+              <span className="font-medium text-foreground">{provider.rating}</span>
+              <span>({provider.reviewCount})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">New</span>
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <MapPin className="h-4 w-4" />
             <span>{provider.city}, {provider.state}</span>
