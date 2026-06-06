@@ -1,81 +1,108 @@
-# Product Detail, Category, Rating & Delivery Fix Sprint (v3)
+# Investigation Summary
 
-Four sequential fixes per the spec. Backend dependencies appended to `backendRequirements.md`.
+I traced all four issues to specific gaps. They're real bugs, not perception issues.
 
-## Fix 1 — Category cleanup (canonical 7)
+## 1. The "Thank you for your message…" auto‑reply
 
-**`src/components/artisan/AddProductModal.tsx`**
-- Category options come exclusively from `CATEGORIES` in `src/lib/categories.ts` (no `accessories`, `canvas`, `crafts`, `furniture`, `art`). Label = `c.label`, submitted value = `c.value`.
+**Root cause:** `MessagingModal.tsx` (lines 180–201) is still running a leftover demo simulation:
+- `setIsTyping(true)` then a `setTimeout` that pushes a fake provider message into local state.
+- A second `setTimeout` flips the customer's message to `read: true` after 1 s, regardless of whether the artisan saw it.
+- Messages are written to `localStorage` only — `sendMessage()` is never called against the backend.
 
-**Browse by Category (`src/pages/marketplace/Home.tsx`)**
-- Iterate `CATEGORIES`, `Promise.all` 7 calls to `GET /service-providers/public-info?category={value}`.
-- `count > 0` → render "{n} artisan(s)"; 0 or failure → render nothing. Card layout untouched.
+That's why every customer sees the same canned reply 2.5 s after sending, and why ticks always go blue.
 
-## Fix 2 — Estimated delivery as free-text string
+## 2. Sent messages don't appear on `/marketplace/messages`
 
-**`src/components/artisan/AddProductModal.tsx`**
-- Replace numeric input with text input: optional, `maxLength={50}`, placeholder `e.g. 5-7 days`. Submit as `estimatedDelivery` (string). Block submit if length > 50.
+Two compounding causes:
+- Because we never POST to the backend, `/conversations` returns `[]` for this customer.
+- `Messages.tsx` removed the localStorage fallback in the previous sprint, so an empty backend list now renders "No messages yet" even though the modal saved the thread locally.
+- The reload effect only re-fires when `selectedProvider` changes (modal closes), which is fine — the real problem is that nothing was ever persisted server-side.
 
-**`src/lib/apiServices.ts`**
-- In `normalizeProduct`: `estimatedDelivery: raw.estimatedDelivery ?? (raw.estimatedDeliveryDays ? \`${raw.estimatedDeliveryDays} days\` : null)`. Keep `estimatedDeliveryDays` in output.
+## 3. Artisan reviews don't show after submission
 
-**Product type — update EVERY definition**
-- Grep `interface Product` / `type Product` / `estimatedDeliveryDays` across `src/` (`mockData.ts`, `apiServices.ts`, any `src/types/*`). Add `estimatedDelivery?: string | null` to every match so all consumers typecheck.
+`ProviderDetail.tsx` has `const providerReviews: Review[] = []` hardcoded at module scope (line 25). The Reviews tab always renders that empty array. `artisanReviewsService.list()` exists but is never called, and the submit handler doesn't refresh anything.
 
-**All display sites** (grep `estimatedDeliveryDays`)
-- `deliveryDisplay = product.estimatedDelivery ?? (product.estimatedDeliveryDays ? \`${product.estimatedDeliveryDays} days\` : null)`.
-- null → "Contact artisan for delivery time". Else render the string as-is. Remove any hardcoded `21` fallback.
+## 4. Preferences don't visibly affect the marketplace
 
-## Fix 3 — Product detail redesign (`src/pages/marketplace/ProductDetail.tsx`)
+`Home.tsx` passes `category`, `styleTags`, `priceMax` to `productsService.list()` and sorts providers by preferred category. But:
+- The backend `/products` endpoint currently ignores `styleTags` and `priceMax` query params, so the response is unchanged.
+- There is no client-side filter applied as a fallback after the server response.
+- There is no dedicated "Based on your preferences" section — the only signal is a small banner at the top, easy to miss.
 
-Data unchanged; only layout/spacing.
+---
 
-Desktop two-column (`grid lg:grid-cols-5 gap-8`):
-- Left col-span-3: existing `ProductImageGallery`.
-- Right col-span-2, `p-6 flex flex-col gap-6`:
-  1. Category badge (`bg-primary/10 text-primary` pill)
-  2. Product name (`text-2xl font-bold`)
-  3. Artisan avatar + "by {brandName}" → provider page
-  4. Star rating + review count (from Fix 4; "No reviews yet" when empty)
-  5. Price — `text-2xl font-bold text-primary`, range or single
-  6. Delivery — clock icon + "Est. delivery: {deliveryDisplay}"
-  7. Description — `text-sm text-muted-foreground leading-relaxed`
-  8. Tags — wrapping pill badges
-  9. Materials (if present) — small muted
-  10. Action buttons stacked full-width: Customise & Order (primary), Add to Wishlist (outline), Message Artisan (ghost)
+# Plan
 
-Below: full-width Tabs — Reviews / About the Artisan / More from this Artisan.
+## Task 1 — Real messaging with proper read‑receipt ticks
 
-Mobile: single column. Action bar:
-`sticky bottom-0 bg-background border-t p-4 flex flex-col gap-2 lg:static lg:border-0 lg:p-0`.
+In `src/components/marketplace/MessagingModal.tsx`:
 
-## Fix 4 — Product reviews (Reviews tab)
+1. Delete the simulated typing indicator timeout and the `autoReply` block (lines 180–201). No fake provider message, no fake read flip.
+2. Rewrite `handleSendMessage` to:
+   - Optimistically append the local message with `status: "sending"`.
+   - If `conversationId` is null, call `messagingService.startConversation(providerId, content)` and store the returned `id`.
+   - Otherwise call `messagingService.sendMessage(conversationId, content)`.
+   - On success, replace the optimistic row with the server message (real `id`, `sentAt`, `readAt`). On failure, mark it `status: "failed"` and show a retry affordance.
+3. Read‑receipt ticks (derived from server data only):
+   - `status === "sending"` → clock icon.
+   - Server message with `readAt == null` → single grey `Check`.
+   - Server message with `readAt != null` → double blue `CheckCheck`.
+   - The "double grey tick = delivered, blue = read" distinction requires a `deliveredAt` field that the backend does not currently expose. We will document this in `backendRequirements.md` and ship single‑grey/double‑blue for now (a true 3‑state tick is a backend follow‑up).
+4. Keep the 5 s poll, which already imports `readAt` from the server, so ticks turn blue automatically once the artisan opens the thread.
+5. Keep the localStorage cache as a draft/optimistic mirror only — server messages always win on merge.
 
-**`src/lib/apiServices.ts` — new `productReviewsService`:**
-- `list(productId, page=1, pageSize=5)` → `GET /products/:id/reviews`
-- `mine(productId)` → `GET /products/:id/reviews/mine` (404 → null)
-- `submit(productId, { rating, review })` → `POST /products/:id/reviews`
-- `update(productId, { rating, review })` → `PATCH /products/:id/reviews/mine`
+**Online/offline dot:** The backend has no presence endpoint. I'll add a backend gap note rather than fake it; the modal will simply not render a presence dot until the API exists.
 
-**New `src/components/marketplace/ProductReviews.tsx`:**
-- Header: big average + stars + "Based on {n} reviews"; empty-state copy otherwise.
-- List: reviewer name (already first + last initial from API), star row, text, relative date via `date-fns` `formatDistanceToNow` — confirmed installed as `^3.6.0`, import: `import { formatDistanceToNow } from "date-fns"`. 5/page; "Show more" paginates.
-- Write-a-review card shown only when: user authenticated AND role is customer AND not the product owner.
-  - **Ownership check:** `product.providerId` is the artisan profile id, not user id. Read `AuthContext` to find the user→artisan-profile id mapping (e.g. `user.artisanProfile?.id` or `user.providerId`), compare to `product.providerId`. If the mapping is ambiguous, hide the form (safer than letting an artisan review their own product).
-- Required star selector; textarea ≤500 chars optional. Submit disabled until rating set.
-- If `mine()` returns existing review → prefill, button "Update Review", `PATCH`. Else `POST`.
-- Success → toast + refetch list + refetch mine. Network errors render empty state (no crash).
+## Task 2 — Conversations list reflects sent messages
 
-## Fix 5 — `backendRequirements.md`
+In `src/pages/marketplace/Messages.tsx`:
 
-Append the full spec block verbatim: `estimatedDelivery` string field, category alignment + `accessories → jewellery` migration, product reviews endpoints, service-providers category filter verification.
+1. After fetching `/conversations`, merge in any locally cached conversation summaries (from the user-scoped `conversations_<userId>` key) that the backend hasn't returned yet, so a freshly sent message shows up immediately even if the backend write is still propagating.
+2. Re-fetch when the page regains focus (`visibilitychange` listener) so closing the modal and returning shows the new thread.
+3. Drop entries from the local cache once the backend returns the same `providerId`, so we don't double-render.
 
-## Technical notes
+No backend change required — once Task 1 actually POSTs, `/conversations` will start returning real data and this merge becomes a thin fallback.
 
-- `src/lib/categories.ts` is the single source of truth — no inline category arrays.
-- `estimatedDeliveryDays` stays in types and `normalizeProduct` output for legacy products; display logic uses `deliveryDisplay`.
-- `estimatedDelivery` added to every Product/ProductDto type found.
-- Reviews ownership uses the user's artisan-profile id, not `user.id`.
-- Mobile sticky action bar needs `bg-background border-t` to avoid floating over content.
-- `date-fns` v3.6.0 is in `package.json` — no new dependency required.
-- Semantic tokens only (`bg-primary/10`, `text-primary`, `text-muted-foreground`, `bg-background`, `border-t`).
+## Task 3 — Artisan reviews load + persist visibly
+
+In `src/pages/marketplace/ProviderDetail.tsx`:
+
+1. Remove the module-level `providerReviews` constant. Add `const [reviews, setReviews] = useState<Review[]>([])` plus `averageRating` / `totalReviews` derived from that array.
+2. Add a `loadReviews(providerId)` helper that calls `artisanReviewsService.list(providerId)`, normalizes both `ArtisanReviewApi[]` and `PaginatedResponse<ArtisanReviewApi>` shapes, and maps each row to the `Review` shape `CustomerReviews` expects (id, authorName from `customer.name` if backend includes it — otherwise "Customer", rating, date, comment, verifiedPurchase from `orderId` presence, helpful=0).
+3. Call `loadReviews` in the existing data‑load `useEffect`.
+4. In the submit handler, after a successful `artisanReviewsService.submit(...)`:
+   - Optimistically prepend the new review using the current user's name.
+   - Then call `loadReviews` again to reconcile with the server's canonical row.
+5. Pass the live `reviews`, `averageRating`, `totalReviews` into `<CustomerReviews />`.
+
+## Task 4 — Preferences visibly shape the marketplace
+
+In `src/pages/marketplace/Home.tsx`:
+
+1. Apply preferences as a **client-side filter** on top of the API response, so behaviour is correct even when the backend ignores the query params:
+   - Filter `allProducts` by `preferences.categories` (match against product.category) and `preferences.budget` (product min price ≤ budget) and `preferences.styles` (intersection with product.tags).
+   - Filter/sort `allProviders` by `preferences.categories` first, then by rating.
+2. Add a dedicated "Picked for you" section above "Recommended Artisans" that only renders when `hasPreferences` is true — shows the top 6 providers and top 8 products after the preference filter. This is the visible proof that preferences are being honored.
+3. Make the existing preference banner more prominent (icon + "Showing X results matching your preferences" with the active chips).
+
+In `backendRequirements.md`, document that `/products` and `/service-providers/public-info` should accept `category`, `styleTags`, `priceMax`, and `budget` query params so the client-side filter can eventually be removed.
+
+---
+
+# Technical notes
+
+- All four tasks are frontend-only. No DB or migration work.
+- The only new dependency on backend behaviour is what already exists: `POST /conversations`, `POST /conversations/:id/messages`, `GET /artisans/:id/reviews`, `POST /artisans/:id/reviews`. If any of these 500, the UI falls back to the optimistic local state and shows a toast.
+- Backend gaps captured in `backendRequirements.md`:
+  - Three-state read receipts need a `deliveredAt` field on messages.
+  - Online/offline presence endpoint (`GET /users/:id/presence` or a WebSocket).
+  - `/products` filter params: `styleTags`, `priceMax`, `budget`.
+  - Artisan review response should include `customer.name` so we don't render "Customer" as the author.
+
+# Files touched
+
+- `src/components/marketplace/MessagingModal.tsx` — remove auto-reply, wire real send, derive ticks from server.
+- `src/pages/marketplace/Messages.tsx` — merge local + server conversations, refresh on focus.
+- `src/pages/marketplace/ProviderDetail.tsx` — load and refresh real reviews; optimistic insert.
+- `src/pages/marketplace/Home.tsx` — client-side preference filter + "Picked for you" section + stronger banner.
+- `backendRequirements.md` — document the four gaps above.

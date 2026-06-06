@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Image as ImageIcon, Mic, Paperclip, Check, CheckCheck } from "lucide-react";
+import { Send, Image as ImageIcon, Mic, Paperclip, Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { messagingService } from "@/lib/apiServices";
@@ -19,7 +19,12 @@ interface Message {
   type: "text" | "image" | "voice" | "file";
   attachmentUrl?: string;
   attachmentName?: string;
-  read?: boolean;
+  /** Server-confirmed read timestamp. Null/undefined means not yet read. */
+  readAt?: string | null;
+  /** Local-only send status for optimistic UI. */
+  status?: "sending" | "sent" | "failed";
+  /** Server message id (number) once confirmed; used to dedupe with poll. */
+  serverId?: number;
 }
 
 interface MessagingModalProps {
@@ -57,7 +62,8 @@ const MessagingModal = ({
         ...m, 
         timestamp: new Date(m.timestamp),
         type: m.type || "text",
-        read: m.read ?? true 
+        readAt: m.readAt ?? null,
+        status: m.status ?? "sent",
       })));
     } else {
       setMessages([]);
@@ -96,20 +102,40 @@ const MessagingModal = ({
           const serverMessages = res?.data ?? [];
           if (!Array.isArray(serverMessages)) return;
           setMessages((prev) => {
-            const seen = new Set(prev.map((m) => m.id));
-            const incoming = serverMessages
-              .filter((m: any) => !seen.has(String(m.id)))
-              .map((m: any) => ({
-                id: String(m.id),
+            // Index existing rows by serverId so we can refresh `readAt`.
+            const byServerId = new Map<number, number>();
+            prev.forEach((m, i) => {
+              if (m.serverId != null) byServerId.set(m.serverId, i);
+            });
+            const next = [...prev];
+            let changed = false;
+            for (const m of serverMessages as any[]) {
+              const sid = Number(m.id);
+              const mapped: Message = {
+                id: `srv_${sid}`,
+                serverId: sid,
                 senderId: m.senderId != null ? String(m.senderId) : String(providerId),
-                senderName: m.senderName ?? providerName,
+                senderName: m.senderName ?? (m.senderType === "customer" ? "You" : providerName),
                 text: m.content ?? m.text ?? "",
                 timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
                 isCustomer: m.senderType === "customer",
-                type: "text" as const,
-                read: !!m.readAt,
-              }));
-            return incoming.length ? [...prev, ...incoming] : prev;
+                type: "text",
+                readAt: m.readAt ?? null,
+                status: "sent",
+              };
+              if (byServerId.has(sid)) {
+                const idx = byServerId.get(sid)!;
+                const existing = next[idx];
+                if (existing.readAt !== mapped.readAt) {
+                  next[idx] = { ...existing, readAt: mapped.readAt };
+                  changed = true;
+                }
+              } else {
+                next.push(mapped);
+                changed = true;
+              }
+            }
+            return changed ? next : prev;
           });
         })
         .catch(() => { /* silent — keep last good state */ });
@@ -138,7 +164,7 @@ const MessagingModal = ({
         providerName,
         lastMessage: lastMessage.text,
         lastMessageTime: lastMessage.timestamp,
-        unread: !lastMessage.isCustomer,
+        unread: !lastMessage.isCustomer && !lastMessage.readAt,
       };
 
       if (existingIndex >= 0) {
@@ -158,46 +184,70 @@ const MessagingModal = ({
     }
   }, [messages]);
 
-  const handleSendMessage = (type: "text" | "image" | "voice" | "file" = "text", attachmentUrl?: string, attachmentName?: string) => {
+  const handleSendMessage = async (type: "text" | "image" | "voice" | "file" = "text", attachmentUrl?: string, attachmentName?: string) => {
     if (type === "text" && !newMessage.trim()) return;
 
+    const content = type === "text" ? newMessage.trim() : (attachmentName || "");
+    const localId = `local_${Date.now()}`;
     const message: Message = {
-      id: Date.now().toString(),
+      id: localId,
       senderId: "customer",
       senderName: "You",
-      text: type === "text" ? newMessage : attachmentName || "",
+      text: content,
       timestamp: new Date(),
       isCustomer: true,
       type,
       attachmentUrl,
       attachmentName,
-      read: false,
+      readAt: null,
+      status: "sending",
     };
 
     setMessages((prev) => [...prev, message]);
-    setNewMessage("");
+    if (type === "text") setNewMessage("");
 
-    // Simulate provider typing and response
-    setIsTyping(true);
-    setTimeout(() => {
-      // Mark customer messages as read
-      setMessages((prev) => prev.map((m) => m.isCustomer ? { ...m, read: true } : m));
-    }, 1000);
+    // Only persist text messages to the backend for now — attachments are
+    // still local-only until upload endpoints exist.
+    if (type !== "text") return;
 
-    setTimeout(() => {
-      setIsTyping(false);
-      const autoReply: Message = {
-        id: (Date.now() + 1).toString(),
-        senderId: providerId.toString(),
-        senderName: providerName,
-        text: "Thank you for your message! We'll get back to you shortly.",
-        timestamp: new Date(),
-        isCustomer: false,
-        type: "text",
-        read: true,
-      };
-      setMessages((prev) => [...prev, autoReply]);
-    }, 2500);
+    try {
+      let serverMsg;
+      if (conversationId) {
+        serverMsg = await messagingService.sendMessage(conversationId, content);
+      } else {
+        const conv = await messagingService.startConversation(providerId, content);
+        if (conv?.id) setConversationId(conv.id);
+        // Some backends return the conversation; others return the first message.
+        // Try to fetch the new message list so we get the canonical row.
+        if (conv?.id) {
+          try {
+            const res = await messagingService.getMessages(conv.id);
+            const last = (res?.data ?? []).find((m: any) => (m.content ?? m.text) === content && m.senderType === "customer");
+            if (last) serverMsg = last as any;
+          } catch { /* fall through */ }
+        }
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === localId
+            ? {
+                ...m,
+                status: "sent",
+                serverId: serverMsg && (serverMsg as any).id ? Number((serverMsg as any).id) : m.serverId,
+                id: serverMsg && (serverMsg as any).id ? `srv_${(serverMsg as any).id}` : m.id,
+                timestamp: serverMsg && (serverMsg as any).sentAt
+                  ? new Date((serverMsg as any).sentAt)
+                  : m.timestamp,
+                readAt: (serverMsg as any)?.readAt ?? null,
+              }
+            : m,
+        ),
+      );
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === localId ? { ...m, status: "failed" } : m)),
+      );
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -324,8 +374,23 @@ const MessagingModal = ({
                           })}
                         </span>
                         {message.isCustomer && (
-                          <span className="text-xs text-muted-foreground">
-                            {message.read ? (
+                          <span
+                            className="text-xs text-muted-foreground"
+                            aria-label={
+                              message.status === "sending"
+                                ? "Sending"
+                                : message.status === "failed"
+                                  ? "Failed to send"
+                                  : message.readAt
+                                    ? "Read"
+                                    : "Sent"
+                            }
+                          >
+                            {message.status === "sending" ? (
+                              <Clock className="h-3 w-3" />
+                            ) : message.status === "failed" ? (
+                              <AlertCircle className="h-3 w-3 text-destructive" />
+                            ) : message.readAt ? (
                               <CheckCheck className="h-3 w-3 text-primary" />
                             ) : (
                               <Check className="h-3 w-3" />

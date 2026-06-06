@@ -14,15 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { productsService, providersService } from "@/lib/apiServices";
-import { artisanReviewsService } from "@/lib/apiServices";
+import { artisanReviewsService, type ArtisanReviewApi } from "@/lib/apiServices";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
-
-// Reviews come from the backend; no mock seed (avoids fake "Verified Purchase" rows).
-const providerReviews: Review[] = [];
 
 const ProviderDetail = () => {
   const { id } = useParams();
@@ -34,13 +31,34 @@ const ProviderDetail = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
   const [provider, setProvider] = useState<Provider | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+
+  const mapReview = (r: ArtisanReviewApi & { customer?: { name?: string }; orderId?: string }): Review => ({
+    id: String(r.id),
+    authorName: r.customer?.name?.trim() || "Customer",
+    rating: r.rating,
+    date: new Date(r.createdAt ?? Date.now()),
+    comment: r.comment ?? "",
+    verifiedPurchase: !!(r as any).orderId,
+    helpful: 0,
+  });
+
+  const loadReviews = async (providerId: number) => {
+    try {
+      const res = await artisanReviewsService.list(providerId);
+      const rows = Array.isArray(res) ? res : (res?.data ?? []);
+      setReviews(rows.map(mapReview));
+    } catch {
+      setReviews([]);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +77,7 @@ const ProviderDetail = () => {
         const prods = await productsService.getByProvider(providerId);
         if (cancelled) return;
         setProducts(prods);
+        if (!cancelled) loadReviews(providerId);
       } catch {
         if (!cancelled) setNotFound(true);
       } finally {
@@ -260,10 +279,14 @@ const ProviderDetail = () => {
                       Leave a Review
                     </Button>
                   </div>
-                  <CustomerReviews 
-                    reviews={providerReviews}
-                    averageRating={providerReviews.length ? provider.rating : 0}
-                    totalReviews={providerReviews.length}
+                  <CustomerReviews
+                    reviews={reviews}
+                    averageRating={
+                      reviews.length
+                        ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+                        : 0
+                    }
+                    totalReviews={reviews.length}
                   />
                 </TabsContent>
               </Tabs>
@@ -386,9 +409,22 @@ const ProviderDetail = () => {
                     rating: reviewRating,
                     comment: reviewComment.trim() || undefined,
                   });
+                  // Optimistic prepend so the user sees their review immediately.
+                  const optimistic: Review = {
+                    id: `local_${Date.now()}`,
+                    authorName: user?.name?.trim() || "You",
+                    rating: reviewRating,
+                    date: new Date(),
+                    comment: reviewComment.trim(),
+                    verifiedPurchase: false,
+                    helpful: 0,
+                  };
+                  setReviews((prev) => [optimistic, ...prev.filter((r) => r.authorName !== optimistic.authorName)]);
                   toast({ title: "Review submitted", description: "Thanks for your feedback." });
                   setShowReviewModal(false);
                   setReviewComment("");
+                  // Reconcile with server.
+                  loadReviews(provider.id);
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "Failed to submit review";
                   toast({ title: "Error", description: msg, variant: "destructive" });
