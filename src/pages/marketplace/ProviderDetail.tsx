@@ -41,7 +41,8 @@ const ProviderDetail = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
 
   const isOwnStorefront =
-    user?.role === "artisan" && user?.artisanProfile?.id === provider?.id;
+    user?.role === "artisan" &&
+    (user?.artisanProfile?.id === provider?.id || provider?.userId === user?.id);
 
   const mapReview = (
     r: ArtisanReviewApi & { customer?: { name?: string }; customerName?: string; orderId?: string },
