@@ -20,7 +20,6 @@ import UserDetailAdmin from "./pages/admin/UserDetail";
 import AdminSettings from "./pages/admin/Settings";
 import Categories from "./pages/admin/Categories";
 import Orders from "./pages/admin/Orders";
-import Media from "./pages/admin/Media";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/marketplace/Landing";
 import MarketplaceHome from "./pages/marketplace/Home";
@@ -132,7 +131,6 @@ const App = () => (
                   <Route path="/admin/users/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><UserDetailAdmin /></ProtectedRoute>} />
                   <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSettings /></ProtectedRoute>} />
                   <Route path="/admin/categories" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Categories /></ProtectedRoute>} />
-                  <Route path="/admin/media" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Media /></ProtectedRoute>} />
                   <Route path="/admin/orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Orders /></ProtectedRoute>} />
                   
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

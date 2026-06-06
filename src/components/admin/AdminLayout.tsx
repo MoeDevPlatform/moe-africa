@@ -10,8 +10,7 @@ import {
   Menu, 
   X,
   LogOut,
-  Settings as SettingsIcon,
-  Image as ImageIcon
+  Settings as SettingsIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +33,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Artisans", href: "/admin/artisans", icon: Users },
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
-    { name: "Media", href: "/admin/media", icon: Package },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
     { name: "Settings", href: "/admin/settings", icon: SettingsIcon },
   ];
