@@ -34,9 +34,6 @@ const ProviderDetail = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
-  const isOwnStorefront =
-    user?.role === "artisan" && user?.artisanProfile?.id === provider?.id;
-
   const [provider, setProvider] = useState<Provider | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
