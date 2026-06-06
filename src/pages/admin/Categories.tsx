@@ -25,7 +25,7 @@ const Categories = () => {
     Promise.all(
       CATEGORIES.map(async (c) => {
         try {
-          const r = await productsService.list({ category: c.value, pageSize: 1 } as never);
+          const r = await productsService.list({ category: c.value, pageSize: 1 });
           if (import.meta.env.DEV) console.log("[AdminCategories]", c.value, r.pagination);
           return [c.value, r.pagination?.totalItems ?? 0] as const;
         } catch {
