@@ -112,6 +112,14 @@ const ProductDetail = () => {
 
   const inWishlist = product ? isInWishlist(product.id) : false;
 
+  const isOwnProduct = useMemo(() => {
+    return (
+      user?.role === "artisan" &&
+      !!provider &&
+      user?.artisanProfile?.id === provider.id
+    );
+  }, [user, provider]);
+
   const handleWishlistToggle = () => {
     if (!product || !provider) return;
 
