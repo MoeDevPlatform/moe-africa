@@ -374,3 +374,55 @@ Validation rules enforced on the frontend (backend should mirror for defence-in-
 - No saved cards list → customer must re-enter card details on every order.
 - Missing validation on backend → invalid phone/address values slip through and break downstream delivery/invoice generation.
 - `paymentMethodId` rejected → checkout fails for returning customers who select a saved card.
+
+---
+
+## 10. Conversation Reset — Bulk Delete (Testing Support) — REQUIRED
+
+Frontend needs a way to fully wipe a user's messaging history during QA so
+stale threads don't pollute the inbox after backend/seed changes. Today the
+client can only clear its `localStorage` cache; threads returned by
+`GET /conversations` reappear on refresh.
+
+### Endpoints
+
+`DELETE /conversations/:id`
+
+- Auth: JWT required. Caller must be a participant (customer or provider) on
+  the conversation, otherwise return `403`.
+- Behaviour: hard-delete the conversation and all of its messages (cascade),
+  plus any per-user read receipts. Return `204 No Content` on success, `404`
+  if the conversation does not exist for this user.
+- Idempotent: a second `DELETE` on the same id returns `404` (not `500`).
+
+`DELETE /conversations`
+
+- Auth: JWT required.
+- Behaviour: delete every conversation (and its messages) where the
+  authenticated user is a participant. Other participants lose access to the
+  thread as well — this is intentional for test environments. In production
+  this endpoint should be gated behind an environment flag
+  (`ALLOW_CONVERSATION_BULK_DELETE=true`) or restricted to non-prod tiers so
+  customers cannot accidentally wipe artisans' inboxes.
+- Response: `200` with `{ "deleted": <number> }` indicating how many
+  conversations were removed. Return `{ "deleted": 0 }` (not `404`) when the
+  user had no conversations.
+
+### Notifications side-effect
+
+When a conversation is deleted, also delete any `Notification` rows whose
+`type = "message"` and `link` references the deleted conversation id, so the
+bell doesn't surface dead links.
+
+### Frontend usage
+
+- A "Clear all conversations" action on the Messages page calls
+  `DELETE /conversations`, then clears the local `conversations_<userId>` and
+  `conversation_<userId>_*` cache keys and refetches.
+- Per-thread delete (swipe / overflow menu) calls `DELETE /conversations/:id`
+  and removes the matching local cache entry.
+
+**User-facing consequence if not built:** Testers cannot reset the inbox
+between runs; cleared local caches repopulate from the server on next load,
+making it impossible to verify "no messages yet" empty states or fresh
+thread-creation flows.
