@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -50,6 +51,14 @@ const MessagingModal = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  // Ref mirrors state so back-to-back sends don't race React's render cycle.
+  const conversationIdRef = useRef<number | null>(null);
+  const adoptConversationId = (id: number | null) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+  };
+  // Guard against concurrent startConversation calls (rapid double-send).
+  const startInFlightRef = useRef<Promise<number | null> | null>(null);
   const { user } = useAuth();
   const userScope = user?.id != null ? String(user.id) : "guest";
   const convKey = `conversation_${userScope}_${providerId}`;
@@ -83,7 +92,7 @@ const MessagingModal = ({
         if (cancelled) return;
         const items = res?.data ?? [];
         const match = items.find((c) => c.providerId === providerId);
-        if (match?.id) setConversationId(match.id);
+        if (match?.id) adoptConversationId(match.id);
       })
       .catch(() => { /* backend not ready — silent */ });
     return () => { cancelled = true; };
