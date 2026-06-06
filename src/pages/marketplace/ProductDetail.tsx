@@ -51,6 +51,12 @@ const ProductDetail = () => {
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const isOwnProduct =
+    user?.role === "artisan" &&
+    !!provider &&
+    user?.artisanProfile?.id === provider.id;
 
   // Scroll to top when product changes
   useEffect(() => {
