@@ -1115,19 +1115,35 @@ export interface Message {
 }
 
 export const messagingService = {
-  listConversations: (params?: { page?: number; pageSize?: number }) =>
-    apiGet<PaginatedResponse<Conversation>>(
+  // Backend returns a raw array for both list endpoints (no { data, pagination } wrapper).
+  // We normalize here so callers can rely on a consistent { data } shape.
+  listConversations: async (
+    params?: { page?: number; pageSize?: number },
+  ): Promise<{ data: Conversation[] }> => {
+    const res = await apiGet<Conversation[] | { data?: Conversation[]; items?: Conversation[] }>(
       "/conversations",
       params as Record<string, unknown>,
-    ),
-  getMessages: (
+    );
+    const data = Array.isArray(res)
+      ? res
+      : (res as { data?: Conversation[]; items?: Conversation[] })?.data ??
+        (res as { items?: Conversation[] })?.items ?? [];
+    return { data };
+  },
+  getMessages: async (
     conversationId: number,
     params?: { page?: number; pageSize?: number },
-  ) =>
-    apiGet<PaginatedResponse<Message>>(
+  ): Promise<{ data: Message[] }> => {
+    const res = await apiGet<Message[] | { data?: Message[]; items?: Message[] }>(
       `/conversations/${conversationId}/messages`,
       params as Record<string, unknown>,
-    ),
+    );
+    const data = Array.isArray(res)
+      ? res
+      : (res as { data?: Message[]; items?: Message[] })?.data ??
+        (res as { items?: Message[] })?.items ?? [];
+    return { data };
+  },
   sendMessage: (conversationId: number, content: string) =>
     apiPost<Message>(`/conversations/${conversationId}/messages`, { content }),
   startConversation: (providerId: number, initialMessage: string) =>
