@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, MoreVertical, FolderTree } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
+import { productsService } from "@/lib/apiServices";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,29 @@ import {
 
 const Categories = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  // null = still loading; number = resolved count.
+  const [counts, setCounts] = useState<Record<string, number | null>>(
+    () => Object.fromEntries(CATEGORIES.map((c) => [c.value, null])),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      CATEGORIES.map(async (c) => {
+        try {
+          const r = await productsService.list({ category: c.value, pageSize: 1 });
+          if (import.meta.env.DEV) console.log("[AdminCategories]", c.value, r.pagination);
+          return [c.value, r.pagination?.totalItems ?? 0] as const;
+        } catch {
+          return [c.value, 0] as const;
+        }
+      }),
+    ).then((pairs) => {
+      if (cancelled) return;
+      setCounts(Object.fromEntries(pairs));
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Canonical categories — single source of truth in src/lib/categories.ts.
   const palette = ["bg-primary/10", "bg-secondary/10", "bg-accent/10"];
@@ -23,7 +47,7 @@ const Categories = () => {
     value: c.value,
     icon: c.icon,
     color: palette[idx % palette.length],
-    products: 0,
+    products: counts[c.value],
   }));
 
   return (
@@ -73,9 +97,13 @@ const Categories = () => {
                       <h3 className="text-lg font-semibold text-foreground">
                         {category.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {category.products} products
-                      </p>
+                      {category.products === null ? (
+                        <div className="mt-1 h-4 w-20 rounded bg-muted animate-pulse" aria-label="Loading product count" />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {category.products} {category.products === 1 ? "product" : "products"}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <DropdownMenu>

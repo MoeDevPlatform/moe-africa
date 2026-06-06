@@ -7,6 +7,7 @@ import { Send, Image as ImageIcon, Mic, Paperclip, Check, CheckCheck } from "luc
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { messagingService } from "@/lib/apiServices";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   id: string;
@@ -42,11 +43,14 @@ const MessagingModal = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const userScope = user?.id != null ? String(user.id) : "guest";
+  const convKey = `conversation_${userScope}_${providerId}`;
+  const listKey = `conversations_${userScope}`;
 
   useEffect(() => {
-    // Load conversation from localStorage
-    const key = `conversation_${providerId}`;
-    const saved = localStorage.getItem(key);
+    // Load conversation from localStorage (scoped per user to avoid cross-user leakage)
+    const saved = localStorage.getItem(convKey);
     if (saved) {
       const parsed = JSON.parse(saved);
       setMessages(parsed.map((m: any) => ({ 
@@ -55,8 +59,10 @@ const MessagingModal = ({
         type: m.type || "text",
         read: m.read ?? true 
       })));
+    } else {
+      setMessages([]);
     }
-  }, [providerId]);
+  }, [convKey]);
 
   // Resolve a server-side conversationId for this provider if available.
   // Best-effort — failures keep the localStorage simulation working.
@@ -120,13 +126,12 @@ const MessagingModal = ({
   }, [open, conversationId, providerId, providerName]);
 
   useEffect(() => {
-    // Save conversation to localStorage
+    // Save conversation to localStorage (user-scoped key)
     if (messages.length > 0) {
-      const key = `conversation_${providerId}`;
-      localStorage.setItem(key, JSON.stringify(messages));
+      localStorage.setItem(convKey, JSON.stringify(messages));
       
       // Also save to conversations list
-      const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
+      const conversations = JSON.parse(localStorage.getItem(listKey) || "[]");
       const existingIndex = conversations.findIndex((c: any) => c.providerId === providerId);
       const lastMessage = messages[messages.length - 1];
       
@@ -144,9 +149,9 @@ const MessagingModal = ({
         conversations.push(conversationData);
       }
       
-      localStorage.setItem("conversations", JSON.stringify(conversations));
+      localStorage.setItem(listKey, JSON.stringify(conversations));
     }
-  }, [messages, providerId, providerName]);
+  }, [messages, providerId, providerName, convKey, listKey]);
 
   useEffect(() => {
     // Auto-scroll to bottom

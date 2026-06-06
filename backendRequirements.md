@@ -167,3 +167,24 @@ Error: 404 if no existing review to update
 **Required:** The category query param must filter artisans by their profile category. The response `pagination.totalItems` must reflect the filtered count.
 **Canonical values to support:** `tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`, `jewellery`, `home_and_decor`
 **User-facing consequence if not built:** Browse by Category shows no artisan counts for any category.
+
+---
+
+## Sprint Findings — Observed Backend Behaviour
+
+Logged during the Issues & Enhancements sprint to capture what the live backend currently does versus what the frontend assumes.
+
+### GET /messages/conversations
+Returns `{ data: Conversation[] }` when the user has threads, but unauthenticated/empty cases return an empty list rather than 401. Frontend now treats any error as "no conversations" instead of falling back to localStorage (which previously leaked another user's threads).
+
+### Admin product count (GET /products?category=…&pageSize=1)
+Used by `/admin/categories` to render per-category counts. The `pagination.totalItems` field must reflect the filtered total (not just the page). Verified shape matches `ProductsResponse`. Failures fall back to `0` with a skeleton until resolved.
+
+### GET /service-providers/{id}/public-info
+Returns 404 when the artisan does not exist or is unapproved. Frontend now renders an in-page "Profile not found" card with Back / Browse links instead of redirecting to `/marketplace`, so the URL stays stable for retry/sharing.
+
+### GET /service-providers/public-info?category=…
+Required to filter by canonical category value. Where the artisan count is zero, the marketplace home now falls back to a product count for the same category via `GET /products?category=…&pageSize=1` so the category card isn't blank.
+
+### GET /products/customisation-template?category=…
+Returns `{ fields: CustomisationField[] }` keyed by `category`. The customisation modal posts the keyed `customisation` object on the cart payload via `addItem` / `updateItem` — no separate API call for confirm.
