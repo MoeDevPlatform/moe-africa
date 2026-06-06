@@ -242,3 +242,18 @@ Frontend now applies a client-side filter on the marketplace home so saved prefe
 - `GET /service-providers/public-info?category=…&styleTags=a,b`
 
 `pagination.totalItems` on both endpoints must reflect the filtered total so the "Picked for you" sections render accurate counts.
+
+### Review "helpful" votes — no endpoint yet
+**Status:** 🔴 NOT YET BUILT
+The "Helpful" thumbs-up button on each review currently persists votes in `localStorage` only (per-browser, not shared). Required endpoints:
+- `POST /reviews/:id/helpful` → increments the count, idempotent per user
+- `DELETE /reviews/:id/helpful` → removes the current user's vote
+- `GET /artisans/:id/reviews` should include `helpfulCount: number` and `viewerMarkedHelpful: boolean` on each review
+
+### Artisan aggregate rating must come from real reviews
+**Status:** 🔴 REQUIRED
+`GET /service-providers/public-info` and `GET /artisans/:id` return `rating` and `reviewCount` that don't match the reviews actually stored — e.g. an artisan with one 4-star review surfaces as "4.3 (0 reviews)". The aggregate fields must be computed from `Review` rows:
+- `rating` = `AVG(review.rating)` (0 when no reviews, not a seeded value)
+- `reviewCount` = `COUNT(review)`
+
+Until this is fixed the provider profile hero falls back to deriving both values from the loaded reviews list (showing "—" when none), which avoids the dummy-number bug but means listing/search results still display the stale aggregate.
