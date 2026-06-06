@@ -767,13 +767,74 @@ const Settings = () => {
     }
   }, [user]);
 
-  // Notifications
-  const [notificationSettings, setNotificationSettings] = useState({
-    inApp: true, email: true, sms: false, push: true,
+  // Notifications — persisted per-user. Email/SMS/Push aren't wired to a
+  // delivery backend yet, so those toggles are locked off until they ship.
+  const LOCKED_CHANNELS = ["email", "sms", "push"] as const;
+  type NotificationSettings = {
+    inApp: boolean; email: boolean; sms: boolean; push: boolean;
+    orderUpdates: boolean; promotions: boolean; wishlistAlerts: boolean; newMessages: boolean;
+  };
+  const defaultNotificationSettings: NotificationSettings = {
+    inApp: true, email: false, sms: false, push: false,
     orderUpdates: true, promotions: false, wishlistAlerts: true, newMessages: true,
-  });
-  const handleToggle = (key: keyof typeof notificationSettings) => {
-    setNotificationSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+  const notifKey = user?.id != null
+    ? `moe_notification_settings_${user.id}`
+    : null;
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+
+  useEffect(() => {
+    if (!notifKey) {
+      setNotificationSettings(defaultNotificationSettings);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(notifKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
+        setNotificationSettings({
+          ...defaultNotificationSettings,
+          ...parsed,
+          // Force locked channels off regardless of what was stored.
+          email: false, sms: false, push: false,
+        });
+      } else {
+        setNotificationSettings(defaultNotificationSettings);
+      }
+    } catch {
+      setNotificationSettings(defaultNotificationSettings);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifKey]);
+
+  const handleToggle = (key: keyof NotificationSettings) => {
+    if ((LOCKED_CHANNELS as readonly string[]).includes(key)) {
+      toast({
+        title: "Coming soon",
+        description: "This delivery channel isn't connected yet.",
+      });
+      return;
+    }
+    setNotificationSettings(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (notifKey) {
+        try { localStorage.setItem(notifKey, JSON.stringify(next)); } catch { /* ignore */ }
+      }
+      return next;
+    });
+  };
+
+  const handleSaveNotificationPreferences = () => {
+    if (!notifKey) {
+      toast({ title: "Sign in to save preferences", variant: "destructive" });
+      return;
+    }
+    try {
+      localStorage.setItem(notifKey, JSON.stringify(notificationSettings));
+      toast({ title: "Preferences saved" });
+    } catch {
+      toast({ title: "Could not save preferences", variant: "destructive" });
+    }
   };
 
   // Addresses — API-backed
@@ -1055,15 +1116,21 @@ const Settings = () => {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
                     <span>In-app notifications</span>
-                    <Badge variant="secondary">Enabled</Badge>
+                    <Badge variant={notificationSettings.inApp ? "secondary" : "outline"}>
+                      {notificationSettings.inApp ? "Enabled" : "Disabled"}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span>SMS alerts</span>
-                    <Badge variant="outline">Set up</Badge>
+                    <Badge variant="outline">Coming soon</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span>Email confirmations</span>
-                    <Badge variant="secondary">Enabled</Badge>
+                    <Badge variant="outline">Coming soon</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Push notifications</span>
+                    <Badge variant="outline">Coming soon</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -1079,19 +1146,29 @@ const Settings = () => {
                     <div className="space-y-3">
                       {[
                         { key: "inApp" as const, Icon: Bell, label: "In-App Notifications", desc: "Get notified within the app" },
-                        { key: "email" as const, Icon: Mail, label: "Email Notifications", desc: "Receive updates via email" },
-                        { key: "sms" as const, Icon: Phone, label: "SMS Alerts", desc: "Get text message updates" },
-                        { key: "push" as const, Icon: MessageSquare, label: "Push Notifications", desc: "Browser push notifications" },
-                      ].map(({ key, Icon, label, desc }) => (
+                        { key: "email" as const, Icon: Mail, label: "Email Notifications", desc: "Receive updates via email", locked: true },
+                        { key: "sms" as const, Icon: Phone, label: "SMS Alerts", desc: "Get text message updates", locked: true },
+                        { key: "push" as const, Icon: MessageSquare, label: "Push Notifications", desc: "Browser push notifications", locked: true },
+                      ].map(({ key, Icon, label, desc, locked }) => (
                         <div key={key} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <Icon className="h-4 w-4 text-muted-foreground" />
                             <div>
-                              <p className="font-medium text-sm">{label}</p>
+                              <p className="font-medium text-sm flex items-center gap-2">
+                                {label}
+                                {locked && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">Coming soon</Badge>
+                                )}
+                              </p>
                               <p className="text-xs text-muted-foreground">{desc}</p>
                             </div>
                           </div>
-                          <Switch checked={notificationSettings[key]} onCheckedChange={() => handleToggle(key)} />
+                          <Switch
+                            checked={notificationSettings[key]}
+                            disabled={!!locked}
+                            onCheckedChange={() => handleToggle(key)}
+                            aria-label={`Toggle ${label}`}
+                          />
                         </div>
                       ))}
                     </div>
@@ -1116,7 +1193,7 @@ const Settings = () => {
                       ))}
                     </div>
                   </div>
-                  <Button className="w-full sm:w-auto" onClick={() => toast({ title: "Preferences saved" })}>Save Preferences</Button>
+                  <Button className="w-full sm:w-auto" onClick={handleSaveNotificationPreferences}>Save Preferences</Button>
                 </CardContent>
               </Card>
             </div>
