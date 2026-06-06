@@ -33,6 +33,7 @@ interface Props {
   providerName: string;
   basePrice: number;
   category: string;
+  productImage?: string;
 }
 
 const DynamicCustomizationModal = ({
@@ -44,6 +45,7 @@ const DynamicCustomizationModal = ({
   providerName,
   basePrice,
   category,
+  productImage,
 }: Props) => {
   const [fields, setFields] = useState<CustomisationField[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);

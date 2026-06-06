@@ -35,6 +35,7 @@ interface CustomizationFormModalProps {
   basePrice: number;
   estimatedDeliveryDays: number;
   category: string;
+  productImage?: string;
   existingCustomization?: any;
   editingCartItemId?: string;
 }

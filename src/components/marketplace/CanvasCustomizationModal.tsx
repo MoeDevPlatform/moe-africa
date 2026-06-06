@@ -24,6 +24,7 @@ interface CanvasCustomizationModalProps {
   basePrice: number;
   estimatedDeliveryDays: number;
   editingCartItemId?: string;
+  productImage?: string;
 }
 
 const TOTAL_STEPS = 6;
