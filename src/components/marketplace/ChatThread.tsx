@@ -327,7 +327,8 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
           </AvatarFallback>
         </Avatar>
         <div>
-          <h2 className="font-semibold">{providerName}</h2>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Chatting with</p>
+          <h2 className="font-semibold leading-tight">{providerName}</h2>
           <p className="text-xs text-muted-foreground">Service Provider</p>
         </div>
       </div>
