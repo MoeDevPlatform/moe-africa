@@ -11,6 +11,7 @@ import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import ProductReviews from "@/components/marketplace/ProductReviews";
 import MessagingModal from "@/components/marketplace/MessagingModal";
 import ProviderCard from "@/components/marketplace/ProviderCard";
+import ProductCard from "@/components/marketplace/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -414,7 +415,11 @@ const ProductDetail = () => {
 
             <TabsContent value="more" className="pt-6">
               {otherProducts.length > 0 ? (
-                <CompleteYourLook currentProduct={product} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {otherProducts.map((p) => (
+                    <ProductCard key={p.id} product={p} providerId={provider.id} />
+                  ))}
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No other products from this artisan yet.
@@ -423,6 +428,9 @@ const ProductDetail = () => {
             </TabsContent>
           </Tabs>
         </section>
+
+        {/* Complete Your Look — cross-artisan style suggestions */}
+        <CompleteYourLook currentProduct={product} />
       </main>
 
       {/* Mobile sticky action bar — bg + border avoid floating-over-content */}

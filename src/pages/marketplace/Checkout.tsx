@@ -127,30 +127,30 @@ const Checkout = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstname">First Name</Label>
-                    <Input id="firstname" aria-required="true" aria-invalid={!!errors.firstName} {...register("firstName")} />
+                    <Label htmlFor="firstname">First Name <span className="text-destructive">*</span></Label>
+                    <Input id="firstname" required aria-required="true" aria-invalid={!!errors.firstName} {...register("firstName")} />
                     {errors.firstName && <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="lastname">Last Name</Label>
-                    <Input id="lastname" aria-required="true" aria-invalid={!!errors.lastName} {...register("lastName")} />
+                    <Label htmlFor="lastname">Last Name <span className="text-destructive">*</span></Label>
+                    <Input id="lastname" required aria-required="true" aria-invalid={!!errors.lastName} {...register("lastName")} />
                     {errors.lastName && <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>}
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="+234" aria-required="true" aria-invalid={!!errors.phone} {...register("phone")} />
+                  <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
+                  <Input id="phone" type="tel" required placeholder="+234" aria-required="true" aria-invalid={!!errors.phone} {...register("phone")} />
                   {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="address">Street Address</Label>
-                  <Input id="address" aria-required="true" aria-invalid={!!errors.address} {...register("address")} />
+                  <Label htmlFor="address">Street Address <span className="text-destructive">*</span></Label>
+                  <Input id="address" required aria-required="true" aria-invalid={!!errors.address} {...register("address")} />
                   {errors.address && <p className="text-xs text-destructive mt-1">{errors.address.message}</p>}
                 </div>
                 
                 {/* Country Selection */}
                 <div>
-                  <Label htmlFor="country">Country</Label>
+                  <Label htmlFor="country">Country <span className="text-destructive">*</span></Label>
                   <Controller
                     name="country"
                     control={control}
@@ -180,12 +180,12 @@ const Checkout = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" aria-required="true" aria-invalid={!!errors.city} {...register("city")} />
+                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                    <Input id="city" required aria-required="true" aria-invalid={!!errors.city} {...register("city")} />
                     {errors.city && <p className="text-xs text-destructive mt-1">{errors.city.message}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="state">State / Province</Label>
+                    <Label htmlFor="state">State / Province <span className="text-destructive">*</span></Label>
                     <Controller
                       name="state"
                       control={control}

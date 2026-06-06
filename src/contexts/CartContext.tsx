@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { cartService } from "@/lib/apiServices";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast as sonnerToast } from "sonner";
 
 export interface CartItem {
   id: string;
@@ -33,37 +35,54 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const STORAGE_KEY = "cart";
+/**
+ * Per-user cart storage (no shared/guest key).
+ *
+ * The previous shared "cart" key leaked items between accounts on the same
+ * browser. Guests now have no persisted cart; authenticated users get a
+ * key scoped to their userId.
+ */
+const userCartKey = (userId: number | string) => `moe_cart_user_${userId}`;
+const LEGACY_CART_KEY = "cart";
 
-function readLocal(): CartItem[] {
+function readLocalKey(key: string): CartItem[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
   }
 }
 
-function writeLocal(items: CartItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
-
-function isAuthenticated() {
-  return !!localStorage.getItem("moe_access_token");
+function writeLocalKey(key: string, items: CartItem[]) {
+  localStorage.setItem(key, JSON.stringify(items));
 }
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartItem[]>(readLocal);
+  const { user, isAuthenticated } = useAuth();
+  const [items, setItems] = useState<CartItem[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Persist locally on every change
+  // Always wipe the legacy shared key — it leaked carts across accounts.
   useEffect(() => {
-    writeLocal(items);
-  }, [items]);
+    localStorage.removeItem(LEGACY_CART_KEY);
+  }, []);
 
-  // Sync from backend on mount if authenticated
+  // Persist to the per-user key only when authenticated.
   useEffect(() => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated || !user?.id) return;
+    writeLocalKey(userCartKey(user.id), items);
+  }, [items, isAuthenticated, user?.id]);
+
+  // Load (or clear) on identity flip. Guests => empty in-memory, no persistence.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setItems([]);
+      localStorage.removeItem(LEGACY_CART_KEY);
+      return;
+    }
+    // Seed from per-user local first for instant paint.
+    setItems(readLocalKey(userCartKey(user.id)));
     setIsSyncing(true);
     cartService
       .list()
@@ -91,26 +110,38 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       })
       .catch(() => {/* keep local */})
       .finally(() => setIsSyncing(false));
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   const syncAdd = useCallback((item: CartItem) => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated) return;
     cartService.add(item).catch(() => {});
-  }, []);
+  }, [isAuthenticated]);
 
   const syncRemove = useCallback((id: string) => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated) return;
     cartService.remove(id).catch(() => {});
-  }, []);
+  }, [isAuthenticated]);
 
   const syncUpdate = useCallback((id: string, item: CartItem) => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated) return;
     cartService.update(id, item).catch(() => {});
-  }, []);
+  }, [isAuthenticated]);
 
   const addItem = useCallback((item: CartItem) => {
-    setItems((prev) => [...prev, item]);
-    syncAdd(item);
+    let added = false;
+    setItems((prev) => {
+      // Prevent duplicate entries for the same product.
+      if (prev.some((i) => i.productId === item.productId)) {
+        return prev;
+      }
+      added = true;
+      return [...prev, item];
+    });
+    if (added) {
+      syncAdd(item);
+    } else {
+      sonnerToast.info("This item is already in your cart");
+    }
   }, [syncAdd]);
 
   const updateItem = useCallback((id: string, updatedItem: CartItem) => {
@@ -125,8 +156,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = useCallback(() => {
     setItems([]);
-    if (isAuthenticated()) cartService.clear().catch(() => {});
-  }, []);
+    if (isAuthenticated) cartService.clear().catch(() => {});
+  }, [isAuthenticated]);
 
   const getItemCount = useCallback(() => {
     return items.reduce((total, item) => total + item.quantity, 0);

@@ -169,8 +169,8 @@ const CustomizationFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl p-6 sm:p-8">
+        <DialogHeader className="pb-2">
           <DialogTitle className="font-display">Customise {productName}</DialogTitle>
         </DialogHeader>
 
@@ -189,8 +189,8 @@ const CustomizationFormModal = ({
         )}
 
         {!isLoading && fields && fields.length > 0 && (
-          <div className="grid gap-6 py-2 lg:grid-cols-5">
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 lg:col-span-3">
+          <div className="grid gap-8 py-4 lg:grid-cols-5">
+            <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 lg:col-span-3">
               {fields.map((field) => {
               const v = values[field.key];
               if (field.type === "select") {
@@ -301,7 +301,21 @@ const CustomizationFormModal = ({
 
             {/* Sticky summary panel — desktop only */}
             <aside className="hidden lg:block lg:col-span-2">
-              <div className="sticky top-2 rounded-xl border bg-muted/40 p-4 space-y-3">
+              <div className="sticky top-2 rounded-xl border bg-muted/40 p-5 space-y-4">
+                {productImage && (
+                  <div className="aspect-square w-full overflow-hidden rounded-lg bg-background border">
+                    <img
+                      src={productImage}
+                      alt={productName}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/placeholder.svg";
+                      }}
+                    />
+                  </div>
+                )}
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Summary</p>
                   <p className="font-display font-semibold">{productName}</p>
@@ -337,7 +351,7 @@ const CustomizationFormModal = ({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="pt-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

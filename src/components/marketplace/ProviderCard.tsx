@@ -1,10 +1,12 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
+import { artisanReviewsService } from "@/lib/apiServices";
 // Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
 // back to the mock dataset count only when the field is missing — this prevents a freshly
 // created artisan from showing "0 products" after they actually added one.
@@ -19,6 +21,31 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
   const liveCount = (provider as Provider & { productCount?: number }).productCount;
   const productCount =
     typeof liveCount === "number" ? liveCount : getProductsByProviderId(provider.id).length;
+
+  // Issue: backend `/service-providers/public-info` does not always include
+  // aggregate rating/reviewCount. If we have none, hydrate from the
+  // per-artisan reviews endpoint so the card shows real star ratings.
+  const [liveRating, setLiveRating] = useState<{ avg: number; count: number } | null>(null);
+
+  useEffect(() => {
+    if ((provider.reviewCount ?? 0) > 0) return;
+    if (!provider.id) return;
+    let cancelled = false;
+    artisanReviewsService
+      .list(provider.id)
+      .then((res) => {
+        if (cancelled) return;
+        const rows = Array.isArray(res) ? res : res?.data ?? [];
+        if (!rows.length) return;
+        const avg = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
+        setLiveRating({ avg, count: rows.length });
+      })
+      .catch(() => { /* silent */ });
+    return () => { cancelled = true; };
+  }, [provider.id, provider.reviewCount]);
+
+  const displayRating = liveRating?.avg ?? Number(provider.rating ?? 0);
+  const displayReviewCount = liveRating?.count ?? (provider.reviewCount ?? 0);
 
   const handleCardClick = () => {
     if (!provider.id) {
@@ -78,11 +105,11 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         </div>
         
         <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
-          {provider.reviewCount && provider.reviewCount > 0 ? (
+          {displayReviewCount > 0 ? (
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
-              <span className="font-medium text-foreground">{Number(provider.rating).toFixed(1)}</span>
-              <span>({provider.reviewCount})</span>
+              <span className="font-medium text-foreground">{displayRating.toFixed(1)}</span>
+              <span>({displayReviewCount})</span>
             </div>
           ) : (
             <span className="text-muted-foreground italic">No Reviews Yet</span>
