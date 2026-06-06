@@ -169,7 +169,7 @@ const CustomizationFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-6 sm:p-8">
+      <DialogContent className="max-w-3xl w-[calc(100%-2rem)] sm:w-[calc(100%-4rem)] p-6 sm:p-8">
         <DialogHeader className="pb-2">
           <DialogTitle className="font-display">Customise {productName}</DialogTitle>
         </DialogHeader>
@@ -189,8 +189,8 @@ const CustomizationFormModal = ({
         )}
 
         {!isLoading && fields && fields.length > 0 && (
-          <div className="grid gap-8 py-4 lg:grid-cols-5">
-            <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 lg:col-span-3">
+          <div className="grid gap-6 py-4 md:grid-cols-5">
+            <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 md:col-span-3">
               {fields.map((field) => {
               const v = values[field.key];
               if (field.type === "select") {
@@ -299,8 +299,8 @@ const CustomizationFormModal = ({
               })}
             </div>
 
-            {/* Sticky summary panel — desktop only */}
-            <aside className="hidden lg:block lg:col-span-2">
+            {/* Sticky summary panel */}
+            <aside className="hidden md:block md:col-span-2">
               <div className="sticky top-2 rounded-xl border bg-muted/40 p-5 space-y-4">
                 {productImage && (
                   <div className="aspect-square w-full overflow-hidden rounded-lg bg-background border">
