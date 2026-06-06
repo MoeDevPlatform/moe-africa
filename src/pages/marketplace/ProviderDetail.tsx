@@ -21,38 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
 
-// Mock reviews with images
-const mockReviews: Review[] = [
-  {
-    id: "1",
-    authorName: "Ngozi A.",
-    rating: 5,
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
-    comment: "Absolutely amazing work! The attention to detail is incredible. My Ankara suit fits perfectly and I received so many compliments.",
-    images: ["https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400"],
-    verifiedPurchase: true,
-    helpful: 12,
-  },
-  {
-    id: "2",
-    authorName: "Emeka O.",
-    rating: 5,
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
-    comment: "Professional service from start to finish. The custom measurements ensured a perfect fit.",
-    verifiedPurchase: true,
-    helpful: 8,
-  },
-  {
-    id: "3",
-    authorName: "Amaka C.",
-    rating: 4,
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
-    comment: "Great quality and fast delivery. Would definitely recommend!",
-    images: ["https://images.unsplash.com/photo-1622288432450-277d0fef5ed6?w=400", "https://images.unsplash.com/photo-1612423284934-2850a4ea6b0f?w=400"],
-    verifiedPurchase: true,
-    helpful: 5,
-  },
-];
+// Reviews come from the backend; no mock seed (avoids fake "Verified Purchase" rows).
+const providerReviews: Review[] = [];
 
 const ProviderDetail = () => {
   const { id } = useParams();
@@ -291,9 +261,9 @@ const ProviderDetail = () => {
                     </Button>
                   </div>
                   <CustomerReviews 
-                    reviews={mockReviews} 
-                    averageRating={provider.rating} 
-                    totalReviews={provider.reviewCount} 
+                    reviews={providerReviews}
+                    averageRating={providerReviews.length ? provider.rating : 0}
+                    totalReviews={providerReviews.length}
                   />
                 </TabsContent>
               </Tabs>
