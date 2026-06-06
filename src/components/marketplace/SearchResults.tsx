@@ -342,7 +342,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
                               {provider.heroImage ? (
-                                <img
+                                <img loading="lazy" decoding="async"
                                   src={provider.heroImage}
                                   alt={provider.brandName}
                                   className="w-full h-full object-cover"

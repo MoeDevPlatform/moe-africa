@@ -415,7 +415,7 @@ const ArtisanDashboard = () => {
                   <div className="space-y-3">
                     {products.map((product) => (
                       <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={product.images?.[0] || FALLBACK_IMAGE}
                           alt={product.name}
                           className="h-16 w-16 object-cover rounded-lg"
@@ -605,7 +605,7 @@ const ArtisanDashboard = () => {
                           if (!src) return null;
                           return (
                             <div className="relative">
-                              <img
+                              <img loading="lazy" decoding="async"
                                 src={src}
                                 alt="Store preview"
                                 className="h-20 w-20 object-cover rounded-lg border"
@@ -670,7 +670,7 @@ const ArtisanDashboard = () => {
                           if (!src) return null;
                           return (
                             <div className="relative">
-                              <img
+                              <img loading="lazy" decoding="async"
                                 src={src}
                                 alt="Cover preview"
                                 className="h-20 w-40 object-cover rounded-lg border"
@@ -758,7 +758,7 @@ const ArtisanDashboard = () => {
                     {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Store Image</p>
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
                           alt="Store"
                           className="h-24 w-24 object-cover rounded-lg border"
@@ -769,7 +769,7 @@ const ArtisanDashboard = () => {
                     {artisanProfile?.coverImageUrl && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Cover / Banner Image</p>
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={artisanProfile.coverImageUrl}
                           alt="Cover"
                           className="w-full max-w-2xl aspect-[16/5] object-cover rounded-lg border"

@@ -133,7 +133,7 @@ const OrderDetail = () => {
               <CardContent className="p-4 md:p-6">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="w-full sm:w-32 h-32 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={mockOrderDetail.productImage}
                       alt={mockOrderDetail.productName}
                       className="w-full h-full object-cover"

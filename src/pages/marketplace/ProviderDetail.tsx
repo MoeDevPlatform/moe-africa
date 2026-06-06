@@ -123,7 +123,7 @@ const ProviderDetail = () => {
         {/* Hero Banner */}
         <section className="relative h-80 bg-gradient-hero">
           {provider.heroImage && (
-            <img
+            <img loading="lazy" decoding="async"
               src={provider.heroImage}
               alt={provider.brandName}
               className="w-full h-full object-cover"

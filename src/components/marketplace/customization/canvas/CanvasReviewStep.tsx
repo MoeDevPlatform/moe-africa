@@ -48,7 +48,7 @@ const CanvasReviewStep = ({
       {/* Image Preview */}
       {uploadedImage && (
         <div className="border border-border rounded-xl overflow-hidden">
-          <img
+          <img loading="lazy" decoding="async"
             src={uploadedImage}
             alt="Your design"
             className="w-full max-h-40 object-contain bg-muted"

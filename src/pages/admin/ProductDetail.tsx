@@ -122,7 +122,7 @@ const ProductDetailPage = () => {
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {images.map((src, i) => (
-                        <img
+                        <img loading="lazy" decoding="async"
                           key={i}
                           src={src}
                           alt={`${product.name} ${i + 1}`}
