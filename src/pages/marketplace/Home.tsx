@@ -11,7 +11,7 @@ import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tag, Clock, Shirt, Palette } from "lucide-react";
+import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
@@ -140,6 +140,43 @@ const MarketplaceHome = () => {
     });
   }, [allProducts, filters]);
 
+  // Client-side preference filter — applied on top of the API response so the
+  // marketplace visibly responds even if the backend ignores the query params.
+  const matchesPreferences = (product: Product): boolean => {
+    if (!hasPreferences) return true;
+    if (preferences.categories.length) {
+      const cat = (product.category ?? "").toLowerCase();
+      const ok = preferences.categories.some((c) => cat.includes(c.toLowerCase()));
+      if (!ok) return false;
+    }
+    if (preferences.budget && preferences.budget > 0 && preferences.budget < 500000) {
+      if ((product.priceRange?.min ?? 0) > preferences.budget) return false;
+    }
+    if (preferences.styles.length) {
+      const tags = (product.tags ?? []).map((t) => t.toLowerCase());
+      const ok = preferences.styles.some((s) => tags.includes(s.toLowerCase()));
+      if (!ok) return false;
+    }
+    return true;
+  };
+
+  const preferenceProducts = useMemo(
+    () => (hasPreferences ? allProducts.filter(matchesPreferences) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allProducts, hasPreferences, preferences.categories, preferences.budget, preferences.styles],
+  );
+
+  const preferenceProviders = useMemo(() => {
+    if (!hasPreferences || !preferences.categories.length) return [];
+    return allProviders
+      .filter((p) =>
+        preferences.categories.some((c) =>
+          (p.category || "").toLowerCase().includes(c.toLowerCase()),
+        ),
+      )
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  }, [allProviders, hasPreferences, preferences.categories]);
+
   // Filter providers
   const filteredProviders = useMemo(() => {
     let providers = selectedCategory
@@ -212,14 +249,18 @@ const MarketplaceHome = () => {
       <main className="container mx-auto px-4 py-6 md:py-8">
         {/* Preference Banner — visible when the user has saved preferences. */}
         {hasPreferences && (
-          <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border bg-card/60 px-4 py-3 text-sm">
-            <span className="text-muted-foreground">
-              Showing results based on your preferences.
-            </span>
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border bg-primary/5 px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+              <span className="text-foreground">
+                Showing {preferenceProducts.length} product{preferenceProducts.length === 1 ? "" : "s"} and {preferenceProviders.length} artisan{preferenceProviders.length === 1 ? "" : "s"} matched to your preferences
+                {preferences.categories.length ? ` (${preferences.categories.join(", ")})` : ""}.
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => navigate("/marketplace/settings?section=preferences")}
-              className="text-primary font-medium hover:underline"
+              className="text-primary font-medium hover:underline shrink-0"
               aria-label="Update your marketplace preferences"
             >
               Update preferences
@@ -314,6 +355,52 @@ const MarketplaceHome = () => {
 
         {/* Featured Products */}
         <FeaturedProducts />
+
+        {/* Picked for you — only when preferences are set. */}
+        {hasPreferences && (preferenceProviders.length > 0 || preferenceProducts.length > 0) && (
+          <section className="mb-12 md:mb-16">
+            <div className="flex items-center gap-2 mb-4 md:mb-6">
+              <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Picked For You</h2>
+            </div>
+            {preferenceProviders.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-6">
+                {preferenceProviders.slice(0, 6).map((provider) => (
+                  <ProviderCard key={provider.id} provider={provider} />
+                ))}
+              </div>
+            )}
+            {preferenceProducts.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+                {preferenceProducts.slice(0, 8).map((p) => (
+                  <div
+                    key={p.id}
+                    className="group cursor-pointer"
+                    onClick={() => navigate(`/marketplace/product/${p.id}`)}
+                  >
+                    <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                      <img
+                        loading="lazy"
+                        decoding="async"
+                        src={p.images?.[0] || FALLBACK_IMAGE}
+                        alt={p.name}
+                        className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = FALLBACK_IMAGE;
+                        }}
+                      />
+                    </div>
+                    <h3 className="font-semibold mb-1 text-sm md:text-base line-clamp-1">{p.name}</h3>
+                    <span className="font-bold text-primary">
+                      ₦{(p.priceRange?.min ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Recommended Providers */}
         <section className="mb-12 md:mb-16">
