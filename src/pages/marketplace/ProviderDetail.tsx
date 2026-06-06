@@ -42,7 +42,7 @@ const ProviderDetail = () => {
 
   const mapReview = (r: ArtisanReviewApi & { customer?: { name?: string }; orderId?: string }): Review => ({
     id: String(r.id),
-    authorName: r.customer?.name?.trim() || "Customer",
+    authorName: r.customer?.name?.trim() || "Anonymous",
     rating: r.rating,
     date: new Date(r.createdAt ?? Date.now()),
     comment: r.comment ?? "",

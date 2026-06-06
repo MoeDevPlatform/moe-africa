@@ -231,8 +231,9 @@ No endpoint exposes whether a user is currently connected. To show an online dot
 Until then the modal omits the online indicator (no faked state).
 
 ### Artisan reviews — include reviewer name
-**Status:** ⚠️ NEEDS VERIFICATION
-`GET /artisans/:id/reviews` should return each review with an embedded `customer: { name }` (first name + last initial is sufficient for privacy). Without it the frontend renders "Customer" as the author, which is misleading.
+**Status:** 🔴 REQUIRED
+`GET /artisans/:id/reviews` must return each review with an embedded `customer: { name }` (first name + last initial is sufficient for privacy).
+**User-facing consequence if not built:** Every review on the artisan profile renders the author as "Anonymous", which hurts review credibility and trust.
 
 ### Product / provider filter params for preferences
 **Status:** ⚠️ NEEDS VERIFICATION
