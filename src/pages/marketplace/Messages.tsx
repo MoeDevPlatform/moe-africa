@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
-import MessagingModal from "@/components/marketplace/MessagingModal";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -11,16 +10,20 @@ import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Conversation {
+  id?: number;
   providerId: number;
   providerName: string;
   lastMessage: string;
   lastMessageTime: string;
   unread: boolean;
+  createdBy?: number;
+  createdAt?: string;
 }
+
+const LOCAL_STUB_TTL_MS = 30 * 60 * 1000;
 
 const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
@@ -34,11 +37,14 @@ const Messages = () => {
         const parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return [];
         return parsed.map((c: any) => ({
+          id: c.id,
           providerId: c.providerId,
           providerName: c.providerName,
           lastMessage: c.lastMessage,
           lastMessageTime: c.lastMessageTime,
           unread: !!c.unread,
+          createdBy: c.createdBy,
+          createdAt: c.createdAt,
         }));
       } catch {
         return [];
@@ -50,17 +56,27 @@ const Messages = () => {
       try {
         const res = await messagingService.listConversations();
         if (cancelled) return;
-        const server = res.data.map((c) => ({
+        const server: Conversation[] = res.data.map((c) => ({
+          id: c.id,
           providerId: c.providerId,
           providerName: c.providerName,
           lastMessage: c.lastMessage,
           lastMessageTime: c.lastMessageTime,
           unread: c.unreadCount > 0,
         }));
-        // Merge: server wins per providerId; locally-cached threads that the
-        // server hasn't returned yet (newly created) still appear.
+        // Issue #1 — strict merge. Only keep local stub if created by current
+        // user within last 30 min AND server hasn't surfaced it yet. Prevents
+        // cross-account stale leakage.
         const seen = new Set(server.map((c) => c.providerId));
-        const merged = [...server, ...local.filter((c) => !seen.has(c.providerId))];
+        const now = Date.now();
+        const keptLocal = local.filter((c) => {
+          if (seen.has(c.providerId)) return false;
+          if (!user?.id || c.createdBy !== user.id) return false;
+          if (!c.createdAt) return false;
+          return now - new Date(c.createdAt).getTime() < LOCAL_STUB_TTL_MS;
+        });
+        const merged = [...server, ...keptLocal];
+        try { localStorage.setItem(listKey, JSON.stringify(merged)); } catch { /* noop */ }
         setConversations(merged);
       } catch {
         if (!cancelled) setConversations(local);
@@ -68,7 +84,6 @@ const Messages = () => {
     };
 
     loadConversations();
-
     const onVisible = () => {
       if (document.visibilityState === "visible") loadConversations();
     };
@@ -77,29 +92,29 @@ const Messages = () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [selectedProvider, listKey]);
+  }, [listKey, user?.id]);
 
-  const handleOpenConversation = (providerId: number, providerName: string) => {
-    setSelectedProvider({ id: providerId, name: providerName });
-    
-    // Mark as read
-    const updated = conversations.map((c) =>
-      c.providerId === providerId ? { ...c, unread: false } : c
+  const handleOpenConversation = (conversation: Conversation) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.providerId === conversation.providerId ? { ...c, unread: false } : c)),
     );
-    setConversations(updated);
+    if (conversation.id) {
+      navigate(`/marketplace/messages/${conversation.id}`);
+    } else {
+      navigate(
+        `/marketplace/messages/0?providerId=${conversation.providerId}&providerName=${encodeURIComponent(conversation.providerName)}`,
+      );
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
-
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-display font-bold mb-2">Messages</h1>
-            <p className="text-muted-foreground">
-              Your conversations with service providers
-            </p>
+            <p className="text-muted-foreground">Your conversations with service providers</p>
           </div>
 
           {conversations.length === 0 ? (
@@ -122,9 +137,9 @@ const Messages = () => {
                 .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime())
                 .map((conversation) => (
                   <Card
-                    key={conversation.providerId}
+                    key={`${conversation.id ?? "local"}_${conversation.providerId}`}
                     className="p-4 hover:border-primary cursor-pointer transition-all"
-                    onClick={() => handleOpenConversation(conversation.providerId, conversation.providerName)}
+                    onClick={() => handleOpenConversation(conversation)}
                   >
                     <div className="flex items-start gap-4">
                       <Avatar className="h-12 w-12">
@@ -139,13 +154,9 @@ const Messages = () => {
                             {new Date(conversation.lastMessageTime).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {conversation.lastMessage}
-                        </p>
+                        <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                       </div>
-                      {conversation.unread && (
-                        <Badge variant="default" className="shrink-0">New</Badge>
-                      )}
+                      {conversation.unread && <Badge variant="default" className="shrink-0">New</Badge>}
                     </div>
                   </Card>
                 ))}
@@ -153,17 +164,7 @@ const Messages = () => {
           )}
         </div>
       </main>
-
       <MarketplaceFooter />
-
-      {selectedProvider && (
-        <MessagingModal
-          open={!!selectedProvider}
-          onOpenChange={(open) => !open && setSelectedProvider(null)}
-          providerId={selectedProvider.id}
-          providerName={selectedProvider.name}
-        />
-      )}
     </div>
   );
 };
