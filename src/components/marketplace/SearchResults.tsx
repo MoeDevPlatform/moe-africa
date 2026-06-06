@@ -358,7 +358,11 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant="secondary">⭐ {provider.rating ?? "—"}</Badge>
+                              <Badge variant="secondary">
+                                {provider.reviewCount && provider.reviewCount > 0
+                                  ? `⭐ ${provider.rating}`
+                                  : "New"}
+                              </Badge>
                               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                             </div>
                           </div>
