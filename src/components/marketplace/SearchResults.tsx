@@ -61,6 +61,7 @@ type ProviderResult = {
   city?: string;
   state?: string;
   rating?: number;
+  reviewCount?: number;
 };
 
 type ProductResult = {
@@ -98,6 +99,7 @@ function mapProvider(p: any): ProviderResult {
     city: p.city,
     state: p.state,
     rating: typeof p.rating === "number" ? p.rating : undefined,
+    reviewCount: typeof p.reviewCount === "number" ? p.reviewCount : undefined,
   };
 }
 
