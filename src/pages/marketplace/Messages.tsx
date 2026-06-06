@@ -204,7 +204,6 @@ const Messages = () => {
     if (!conversation.id) {
       setConversations((prev) => prev.filter((c) => c.providerId !== conversation.providerId));
       try {
-        const scope = user?.id != null ? String(user.id) : "guest";
         localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
       } catch { /* noop */ }
       return;
@@ -215,7 +214,6 @@ const Messages = () => {
       addTombstone(conversation.id);
       setConversations((prev) => prev.filter((c) => c.id !== conversation.id));
       try {
-        const scope = user?.id != null ? String(user.id) : "guest";
         localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
       } catch { /* noop */ }
       toast({ title: "Conversation deleted" });
