@@ -49,6 +49,9 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [conversationId, setConversationId] = useState<number | null>(initialConversationId ?? null);
   const { user } = useAuth();
+  const isSelfChat =
+    user?.role === "artisan" && user?.artisanProfile?.id === providerId;
+
   // Guard: artisans cannot chat with themselves.
   if (isSelfChat) {
     return (
@@ -66,8 +69,6 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
     );
   }
 
-  const isSelfChat =
-    user?.role === "artisan" && user?.artisanProfile?.id === providerId;
   const userScope = user?.id != null ? String(user.id) : "guest";
   const convKey = `conversation_${userScope}_${providerId}`;
   const listKey = `conversations_${userScope}`;
