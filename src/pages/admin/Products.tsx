@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Check, X, Loader2, Eye, FileText } from "lucide-react";
+import { Search, Check, X, Loader2, Eye, FileText, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -67,6 +77,8 @@ const Products = () => {
   >(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [removeRow, setRemoveRow] = useState<AdminProductRow | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const load = (page = 1, status: ProductStatus | "all" = statusFilter) => {
     setIsLoading(true);
@@ -118,6 +130,21 @@ const Products = () => {
       toast.error(e?.message || "Status update failed");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!removeRow) return;
+    setIsRemoving(true);
+    try {
+      await adminService.removeProduct(removeRow.id);
+      toast.success(`"${removeRow.name}" removed from the marketplace`);
+      setRemoveRow(null);
+      load(pagination.page, statusFilter);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to remove product");
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -238,6 +265,15 @@ const Products = () => {
                               <FileText className="h-4 w-4" /> Draft
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1 text-destructive hover:text-destructive"
+                            onClick={() => setRemoveRow(row)}
+                            aria-label={`Remove ${row.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" /> Remove
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -331,6 +367,28 @@ const Products = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!removeRow} onOpenChange={(o) => { if (!o) setRemoveRow(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove "{removeRow?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the product from the marketplace, the artisan's storefront,
+              search, wishlists, and all other surfaces. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleRemove(); }}
+              disabled={isRemoving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

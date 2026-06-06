@@ -512,3 +512,43 @@ be deletable.
 without a code change, and the "Add Category" button on
 `/admin/categories` either no-ops or only persists changes in the current
 browser via `localStorage`.
+
+## 12. Admin product hard-delete (DELETE /admin/products/:id)
+
+Admins need to permanently remove a product from the system — not just
+reject it. A removed product must disappear everywhere: the public
+marketplace catalog (`GET /products`), category and search results, the
+artisan's own storefront and dashboard listing, wishlists, "complete your
+look" suggestions, recommendations, and any cached aggregates.
+
+`DELETE /admin/products/:id`
+
+- Auth: admin only (same guard as the other `/admin/products` routes).
+- Optional query: `?reason=<string>` — stored in an audit log entry for
+  the action; not returned to the artisan.
+- Behaviour:
+  1. Soft-delete is acceptable internally (set `deletedAt` and exclude from
+     every product query), but the row must be invisible to all non-admin
+     reads. If you implement hard-delete, cascade to dependent rows
+     (reviews, wishlist items, cart items, customization templates,
+     bundled-suggestions links). Existing orders must keep their snapshot
+     of the product (denormalised name/price/image on the order line) so
+     order history is not broken.
+  2. Notify the owning artisan (`product_removed_by_admin` notification)
+     with the product name and optional reason.
+  3. Invalidate any per-artisan product count caches.
+- Response: `204 No Content` on success. `404` if the product does not
+  exist. `403` for non-admin callers.
+
+### Frontend behaviour
+
+- New "Remove" action on `/admin/products` (table row) and
+  `/admin/products/:id` (header). Opens an `AlertDialog` warning that the
+  deletion is permanent and cross-surface before calling
+  `adminService.removeProduct(id)`.
+- On success the table reloads and the detail page navigates back to
+  `/admin/products`. Toast confirms removal.
+
+**User-facing consequence if not built:** Admin clicks Remove, sees a
+success toast, but the product reappears on next page load because the
+`DELETE` call 404s and the row was never deleted server-side.

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Check, X, Loader2, FileText } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, FileText, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,18 +15,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { adminService, type ProductStatus } from "@/lib/apiServices";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Record<string, any> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [action, setAction] = useState<ProductStatus | null>(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -39,6 +52,19 @@ const ProductDetailPage = () => {
         else toast.error(e?.message || "Failed to load product");
       })
       .finally(() => setIsLoading(false));
+  };
+
+  const handleRemove = async () => {
+    if (!product) return;
+    setRemoving(true);
+    try {
+      await adminService.removeProduct(Number(product.id));
+      toast.success(`"${product.name}" removed from the marketplace`);
+      navigate("/admin/products");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to remove product");
+      setRemoving(false);
+    }
   };
 
   useEffect(() => {
@@ -110,6 +136,14 @@ const ProductDetailPage = () => {
                 {status !== "draft" && (
                   <Button variant="ghost" onClick={() => setAction("draft")} className="gap-2"><FileText className="h-4 w-4"/> Draft</Button>
                 )}
+                <Button
+                  variant="ghost"
+                  onClick={() => setConfirmRemove(true)}
+                  className="gap-2 text-destructive hover:text-destructive"
+                  aria-label="Remove product"
+                >
+                  <Trash2 className="h-4 w-4"/> Remove
+                </Button>
               </div>
             </div>
 
@@ -183,6 +217,28 @@ const ProductDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmRemove} onOpenChange={(o) => { if (!o && !removing) setConfirmRemove(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove "{product?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the product from the marketplace, the artisan's storefront,
+              search, wishlists, and all other surfaces. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleRemove(); }}
+              disabled={removing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
