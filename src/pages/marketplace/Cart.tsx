@@ -110,6 +110,21 @@ const Cart = () => {
                               {Object.entries(item.measurements).map(([key, value]) => `${key}: ${value}`).join(", ")}
                             </p>
                           )}
+                          {item.customisation && Object.keys(item.customisation).length > 0 && (
+                            <div className="mt-2 rounded-md border bg-muted/40 p-2 space-y-0.5">
+                              {Object.entries(item.customisation).map(([key, value]) => {
+                                const display = Array.isArray(value) ? value.join(", ") : String(value ?? "");
+                                if (!display) return null;
+                                const label = key.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                                return (
+                                  <p key={key} className="text-xs">
+                                    <span className="text-muted-foreground">{label}:</span>{" "}
+                                    <strong>{display}</strong>
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap gap-2 text-xs">
