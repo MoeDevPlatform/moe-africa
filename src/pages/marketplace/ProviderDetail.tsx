@@ -40,15 +40,25 @@ const ProviderDetail = () => {
   const [notFound, setNotFound] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
 
-  const mapReview = (r: ArtisanReviewApi & { customer?: { name?: string }; orderId?: string }): Review => ({
-    id: String(r.id),
-    authorName: r.customer?.name?.trim() || "Anonymous",
-    rating: r.rating,
-    date: new Date(r.createdAt ?? Date.now()),
-    comment: r.comment ?? "",
-    verifiedPurchase: !!(r as any).orderId,
-    helpful: 0,
-  });
+  const mapReview = (
+    r: ArtisanReviewApi & { customer?: { name?: string }; customerName?: string; orderId?: string },
+  ): Review => {
+    // If the backend didn't embed a customer name but the row belongs to the current
+    // signed-in user, surface their own name instead of "Anonymous".
+    const isOwnReview = user?.id != null && r.customerId === user.id;
+    const serverName = r.customer?.name?.trim() || r.customerName?.trim();
+    const authorName = serverName || (isOwnReview ? user?.name?.trim() : "") || "Anonymous";
+    const helpfulMap = JSON.parse(localStorage.getItem("moe_review_helpful") || "{}") as Record<string, number>;
+    return {
+      id: String(r.id),
+      authorName,
+      rating: r.rating,
+      date: new Date(r.createdAt ?? Date.now()),
+      comment: r.comment ?? "",
+      verifiedPurchase: !!(r as any).orderId,
+      helpful: helpfulMap[String(r.id)] ?? 0,
+    };
+  };
 
   const loadReviews = async (providerId: number) => {
     try {
@@ -177,8 +187,12 @@ const ProviderDetail = () => {
                 <div className="flex items-center gap-6 text-white/90 drop-shadow-md">
                   <div className="flex items-center gap-1">
                     <Star className="h-5 w-5 fill-accent text-accent" />
-                    <span className="font-semibold">{provider.rating}</span>
-                    <span className="text-sm">({provider.reviewCount} reviews)</span>
+                    <span className="font-semibold">
+                      {reviews.length
+                        ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+                        : "—"}
+                    </span>
+                    <span className="text-sm">({reviews.length} {reviews.length === 1 ? "review" : "reviews"})</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MapPin className="h-5 w-5" />
