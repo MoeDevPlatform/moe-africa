@@ -1805,6 +1805,11 @@ export const adminService = {
       reason ? { status, reason } : { status },
     ),
 
+  removeProduct: (id: number, reason?: string) =>
+    apiDelete<void>(
+      `/admin/products/${id}${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`,
+    ),
+
   listUsers: (params?: { page?: number; pageSize?: number; role?: UserRole }) =>
     apiGet<PaginatedResponse<AdminUserRow>>(
       "/admin/users",
