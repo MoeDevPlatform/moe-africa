@@ -439,7 +439,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
                 {images.map((img, idx) => (
                   <div key={idx} className="relative group aspect-square rounded-md overflow-hidden border">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={img.previewUrl}
                       alt={img.name}
                       className="w-full h-full object-cover"

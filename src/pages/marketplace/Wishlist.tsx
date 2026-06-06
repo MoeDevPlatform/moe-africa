@@ -183,7 +183,7 @@ const Wishlist = () => {
                     className="overflow-hidden hover:shadow-lg transition-all duration-300"
                   >
                     <div className="relative h-64 bg-muted">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={imageUrl}
                         alt={productName}
                         className="w-full h-full object-cover"

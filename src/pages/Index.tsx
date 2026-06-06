@@ -9,7 +9,7 @@ const Index = () => {
       {/* Hero Section */}
       <header className="container mx-auto px-4 py-8">
         <nav className="flex items-center justify-between">
-          <img src={logo} alt="MOE" className="h-16 w-auto" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-16 w-auto" />
           <Link to="/admin/login">
             <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
               Admin Portal
@@ -108,7 +108,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-8 mt-20">
         <div className="container mx-auto px-4 text-center">
-          <img src={logo} alt="MOE" className="h-12 w-auto mx-auto mb-4" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-12 w-auto mx-auto mb-4" />
           <p className="text-muted-foreground">
             © 2026 MOE Marketplace. Built For Africa, By Us.
           </p>

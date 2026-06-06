@@ -140,7 +140,7 @@ const CustomOrderModal = ({ open, onOpenChange, providerId, providerName }: Cust
 
               {previewUrl && (
                 <div className="relative rounded-xl overflow-hidden border">
-                  <img src={previewUrl} alt="Preview" className="w-full h-64 object-cover" />
+                  <img loading="lazy" decoding="async" src={previewUrl} alt="Preview" className="w-full h-64 object-cover" />
                   <Button
                     size="icon"
                     variant="destructive"
@@ -303,7 +303,7 @@ const CustomOrderModal = ({ open, onOpenChange, providerId, providerName }: Cust
               <div className="space-y-4 border rounded-xl p-6 bg-muted/30">
                 {previewUrl && (
                   <div className="rounded-lg overflow-hidden">
-                    <img src={previewUrl} alt="Design" className="w-full h-48 object-cover" />
+                    <img loading="lazy" decoding="async" src={previewUrl} alt="Design" className="w-full h-48 object-cover" />
                   </div>
                 )}
 

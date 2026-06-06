@@ -81,7 +81,7 @@ const Blog = () => {
           >
             <div className="grid md:grid-cols-2">
               <div className="h-64 md:h-auto">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={posts[0].image} 
                   alt={posts[0].title}
                   className="w-full h-full object-cover"
@@ -116,7 +116,7 @@ const Blog = () => {
                 onClick={() => handlePostClick(post.id)}
               >
                 <div className="h-48">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={post.image} 
                     alt={post.title}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"

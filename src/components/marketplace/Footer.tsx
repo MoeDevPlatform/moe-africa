@@ -9,7 +9,7 @@ const MarketplaceFooter = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-4">
-            <img src={logo} alt="MOE Marketplace Logo" className="h-12 w-auto" />
+            <img loading="lazy" decoding="async" src={logo} alt="MOE Marketplace Logo" className="h-12 w-auto" />
             <p className="text-sm text-muted-foreground">
               Connecting you with Africa's finest artisans for custom creations.
             </p>

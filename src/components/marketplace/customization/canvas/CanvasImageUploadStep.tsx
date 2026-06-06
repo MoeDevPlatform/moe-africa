@@ -61,7 +61,7 @@ const CanvasImageUploadStep = ({ uploadedImage, onImageUpload, onImageRemove }: 
         </div>
       ) : (
         <div className="relative rounded-xl overflow-hidden border border-border">
-          <img
+          <img loading="lazy" decoding="async"
             src={uploadedImage}
             alt="Uploaded design"
             className="w-full max-h-72 object-contain bg-muted"

@@ -71,7 +71,7 @@ const ShoeStyleVariantStep = ({
 
                   {variant.imageUrl && (
                     <div className="aspect-square rounded-md overflow-hidden mb-2 bg-muted">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={variant.imageUrl}
                         alt={variant.name}
                         className="w-full h-full object-cover"

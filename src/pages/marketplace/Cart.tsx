@@ -74,7 +74,7 @@ const Cart = () => {
                 <Card key={item.id}>
                   <CardContent className="p-6">
                     <div className="flex gap-6">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={product?.images[0] || ""} 
                         alt={item.productName}
                         className="w-32 h-32 object-cover rounded-lg"

@@ -83,7 +83,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                   onMouseMove={handleMouseMove}
                   onClick={() => setShowFullscreen(true)}
                 >
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={image} 
                     alt={`${productName} - View ${index + 1}`}
                     className="w-full h-full object-cover transition-transform duration-200"
@@ -163,7 +163,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                 : "opacity-60 hover:opacity-100"
             )}
           >
-            <img 
+            <img loading="lazy" decoding="async" 
               src={image} 
               alt={`${productName} thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
@@ -252,7 +252,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
 
           {/* Image */}
           <div className="flex items-center justify-center h-[80vh] overflow-auto p-8">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={images[selectedIndex]} 
               alt={`${productName} - Full View`}
               className="max-w-full max-h-full object-contain transition-transform duration-200"
@@ -275,7 +275,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                     : "opacity-50 hover:opacity-100"
                 )}
               >
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={image} 
                   alt={`Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"

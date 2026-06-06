@@ -12,7 +12,7 @@ const Landing = () => {
       {/* Hero Section */}
       <main className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="text-center max-w-4xl">
-          <img src={logo} alt="MOE" className="h-24 md:h-32 w-auto mx-auto mb-8" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-24 md:h-32 w-auto mx-auto mb-8" />
           
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-foreground leading-tight mb-6">
             Discover Africa's Best

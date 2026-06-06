@@ -100,7 +100,7 @@ const MarketplaceNavbar = () => {
 
           {/* Logo */}
           <Link to="/marketplace" className="flex items-center">
-            <img src={logo} alt="MOE" className="h-10 w-auto" />
+            <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-10 w-auto" />
           </Link>
 
           {/* Categories Button - Desktop */}

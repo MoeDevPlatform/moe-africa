@@ -48,7 +48,7 @@ const VariantSelectionStep = ({ variants, selectedVariants, onVariantSelect }: V
                 >
                   {variant.imageUrl && (
                     <div className="aspect-square rounded-md overflow-hidden mb-2 bg-muted">
-                      <img src={variant.imageUrl} alt={variant.name} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={variant.imageUrl} alt={variant.name} className="w-full h-full object-cover" />
                     </div>
                   )}
                   {type === "color" && !variant.imageUrl && variant.value && (

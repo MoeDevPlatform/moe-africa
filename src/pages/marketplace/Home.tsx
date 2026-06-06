@@ -370,7 +370,7 @@ const MarketplaceHome = () => {
               {dealProducts.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={product.imageUrl}
                       alt={product.name}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
@@ -402,7 +402,7 @@ const MarketplaceHome = () => {
               {styleProducts.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={product.imageUrl}
                       alt={product.name}
                       className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
