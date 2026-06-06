@@ -1,6 +1,6 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
-import { useParams, Navigate, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
-import { getProviderById as mockGetProviderById, getProductsByProviderId as mockGetProductsByProviderId } from "@/data/mockData";
 import { productsService, providersService } from "@/lib/apiServices";
 import { artisanReviewsService } from "@/lib/apiServices";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -68,22 +67,36 @@ const ProviderDetail = () => {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const [provider, setProvider] = useState<Provider | undefined>(mockGetProviderById(Number(id)));
-  const [products, setProducts] = useState<Product[]>(
-    provider ? mockGetProductsByProviderId(provider.id) : []
-  );
+  const [provider, setProvider] = useState<Provider | undefined>(undefined);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       const providerId = Number(id);
-      const prov = await providersService.getById(providerId);
-      if (prov) {
+      setIsLoading(true);
+      setNotFound(false);
+      try {
+        const prov = await providersService.getById(providerId);
+        if (cancelled) return;
+        if (!prov) {
+          setNotFound(true);
+          return;
+        }
         setProvider(prov);
         const prods = await productsService.getByProvider(providerId);
+        if (cancelled) return;
         setProducts(prods);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
     loadData();
+    return () => { cancelled = true; };
   }, [id]);
 
   useEffect(() => {
@@ -95,8 +108,41 @@ const ProviderDetail = () => {
     }
   }, [provider?.id]);
 
-  if (!provider) {
-    return <Navigate to="/marketplace" replace />;
+  if (isLoading && !provider) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle">
+        <MarketplaceNavbar />
+        <main className="container mx-auto px-4 py-24 text-center text-muted-foreground">
+          Loading artisan profile…
+        </main>
+        <MarketplaceFooter />
+      </div>
+    );
+  }
+
+  if (notFound || !provider) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle">
+        <MarketplaceNavbar />
+        <main className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto bg-card border rounded-xl p-8 text-center space-y-4">
+            <h1 className="text-2xl font-display font-bold">Profile not found</h1>
+            <p className="text-muted-foreground">
+              We couldn't find this artisan's profile. They may have been removed or the link is incorrect.
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <Button variant="outline" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-4 w-4 mr-2" /> Back
+              </Button>
+              <Button asChild>
+                <Link to="/marketplace">Browse artisans</Link>
+              </Button>
+            </div>
+          </div>
+        </main>
+        <MarketplaceFooter />
+      </div>
+    );
   }
 
   return (
