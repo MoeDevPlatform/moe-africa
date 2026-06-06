@@ -6,7 +6,9 @@ Two leftover issues from the previous sprint plan. Everything else from the revi
 
 **File:** `src/components/marketplace/MessagingModal.tsx` (inside `handleSendMessage`)
 
-Today, if `messagingService.startConversation(providerId, content)` throws (which the backend does when a conversation already exists — typically 409, sometimes 400), the optimistic message flips to `status: "failed"`. The user then has to retry, but every retry hits the same conflict.
+Today, if `messagingService.startConversation(providerId, content)` throws, the optimistic message flips to `status: "failed"`. The user then has to retry, but every retry hits the same error.
+
+Note: a duplicate conversation should not normally return 409 — `startConversation` is documented as idempotent. Recovery here is defensive cover for edge cases (transient 5xx, response-shape drift, race between two tabs creating the same thread, etc.), not a fix for an expected conflict path.
 
 Change:
 
@@ -25,7 +27,7 @@ In `mapReview`, change the `authorName` fallback from `"Customer"` to `"Anonymou
 
 **File:** `backendRequirements.md`
 
-Upgrade the existing "Artisan reviews — include reviewer name" entry from `⚠️ NEEDS VERIFICATION` to `🔴 REQUIRED`, with a one-line user-facing consequence: "Until the customer name is returned on `GET /artisans/:id/reviews`, every review shows the author as 'Anonymous' which hurts review credibility."
+Keep the "Artisan reviews — include reviewer name" entry as a frontend mapping gap (⚠️), not 🔴 REQUIRED. The typed DTO drops the customer object, so we don't actually know live responses lack a name field. Action: capture a real `GET /artisans/:id/reviews` payload first; only escalate to REQUIRED if no name-shaped field is present.
 
 ## Files touched
 
