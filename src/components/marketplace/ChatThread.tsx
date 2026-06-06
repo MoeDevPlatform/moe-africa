@@ -49,6 +49,26 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [conversationId, setConversationId] = useState<number | null>(initialConversationId ?? null);
   const { user } = useAuth();
+  const isSelfChat =
+    user?.role === "artisan" && user?.artisanProfile?.id === providerId;
+
+  // Guard: artisans cannot chat with themselves.
+  if (isSelfChat) {
+    return (
+      <div className={cn("flex flex-col items-center justify-center bg-card border rounded-lg overflow-hidden text-center px-6", compact ? "h-[500px]" : "h-[calc(100vh-220px)] min-h-[400px]")}>
+        <Avatar className="h-16 w-16 mb-4">
+          <AvatarFallback className="bg-muted text-muted-foreground text-2xl">
+            {providerName.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <h3 className="font-semibold text-lg mb-1">Your Storefront</h3>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          You can&apos;t start a conversation with your own business. Customers will message you here.
+        </p>
+      </div>
+    );
+  }
+
   const userScope = user?.id != null ? String(user.id) : "guest";
   const convKey = `conversation_${userScope}_${providerId}`;
   const listKey = `conversations_${userScope}`;

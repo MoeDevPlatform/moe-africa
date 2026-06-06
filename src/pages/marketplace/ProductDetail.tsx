@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -50,6 +51,7 @@ const ProductDetail = () => {
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Scroll to top when product changes
   useEffect(() => {
@@ -109,6 +111,14 @@ const ProductDetail = () => {
   }, [id]);
 
   const inWishlist = product ? isInWishlist(product.id) : false;
+
+  const isOwnProduct = useMemo(() => {
+    return (
+      user?.role === "artisan" &&
+      !!provider &&
+      user?.artisanProfile?.id === provider.id
+    );
+  }, [user, provider]);
 
   const handleWishlistToggle = () => {
     if (!product || !provider) return;
@@ -193,15 +203,17 @@ const ProductDetail = () => {
         />
         {inWishlist ? "In Wishlist" : "Add to Wishlist"}
       </Button>
-      <Button
-        size="lg"
-        variant="ghost"
-        className="w-full"
-        onClick={() => setShowMessaging(true)}
-      >
-        <MessageCircle className="h-4 w-4 mr-2" />
-        Message Artisan
-      </Button>
+      {!isOwnProduct && (
+        <Button
+          size="lg"
+          variant="ghost"
+          className="w-full"
+          onClick={() => setShowMessaging(true)}
+        >
+          <MessageCircle className="h-4 w-4 mr-2" />
+          Message Artisan
+        </Button>
+      )}
     </>
   );
 
