@@ -265,6 +265,15 @@ const Products = () => {
                               <FileText className="h-4 w-4" /> Draft
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1 text-destructive hover:text-destructive"
+                            onClick={() => setRemoveRow(row)}
+                            aria-label={`Remove ${row.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" /> Remove
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
