@@ -289,3 +289,88 @@ Implementation notes:
 
 ### Auth token field name — frontend alignment note
 Login response returns `token` (not `accessToken`). Frontend already stores it under `moe_access_token`, so this is purely informational — keep the response field name `token` to avoid breaking the current client.
+
+---
+
+## 9. Checkout — Saved Cards & Order Payload (Issue 8) — REQUIRED
+
+### Saved Cards endpoint
+
+`GET /payment-methods`
+
+Auth: JWT required. Returns the current customer's saved payment instruments.
+
+Response shape:
+
+```json
+{
+  "data": [
+    {
+      "id": "pm_abc123",
+      "brand": "visa",
+      "last4": "4242",
+      "expiry": "12/28",
+      "isDefault": true
+    }
+  ]
+}
+```
+
+Field requirements:
+- `id` — opaque token, passed back in `paymentMethodId` on order create
+- `brand` — lowercase network name (`visa`, `mastercard`, `verve`, etc.). Frontend maps to human-readable label and icon.
+- `last4` — last four digits only
+- `expiry` — string in `MM/YY` or `MM/YYYY` format; frontend renders as-is
+- `isDefault` — boolean; the frontend pre-selects the default card when present
+
+If the customer has no saved cards, return `{ "data": [] }` (200, not 404).
+
+### Checkout order creation payload
+
+`POST /orders` (or existing checkout endpoint) must accept the following fields. The frontend now sends them via `react-hook-form` + `zod` validation:
+
+Body:
+
+```json
+{
+  "items": [
+    {
+      "productId": "uuid",
+      "quantity": 1,
+      "customisation": { "fabric": "Ankara" }
+    }
+  ],
+  "shippingAddress": {
+    "firstName": "Ada",
+    "lastName": "Obi",
+    "phone": "+2348012345678",
+    "address": "12 Lagos Street",
+    "country": "Nigeria",
+    "state": "Lagos",
+    "city": "Ikeja"
+  },
+  "paymentMethod": "card",
+  "paymentMethodId": "pm_abc123",
+  "saveCard": false
+}
+```
+
+Validation rules enforced on the frontend (backend should mirror for defence-in-depth):
+- `firstName` / `lastName` — required, min 1 char, max 50
+- `phone` — required, must match `^\+?[0-9\s\-\(\)]{7,20}$`
+- `address` — required, max 200 chars
+- `country` / `state` / `city` — required strings
+- `paymentMethod` — enum: `card` | `wallet` | `bank_transfer` | `cod`
+- `paymentMethodId` — required when `paymentMethod === "card"` and a saved card is selected; omit when `"Add New Card"` is chosen (the gateway token will be created client-side and passed as `gatewayToken` instead)
+- `saveCard` — optional boolean; instructs the backend/payment processor to tokenise the card for future reuse
+
+**Backend must:**
+1. Persist `shippingAddress` as a structured JSON/object (not a flat string) so it can be reused for order tracking and invoice generation.
+2. Accept both `paymentMethodId` (saved card) and `gatewayToken` (one-time client-side token) for card payments. Return `400` if neither is provided when `paymentMethod === "card"`.
+3. When `saveCard === true`, store the newly tokenised instrument and surface it on subsequent `GET /payment-methods` calls.
+4. Include the saved card list in the checkout success/failure webhook or response so the UI can refresh without an extra round-trip.
+
+**User-facing consequence if not built:**
+- No saved cards list → customer must re-enter card details on every order.
+- Missing validation on backend → invalid phone/address values slip through and break downstream delivery/invoice generation.
+- `paymentMethodId` rejected → checkout fails for returning customers who select a saved card.
