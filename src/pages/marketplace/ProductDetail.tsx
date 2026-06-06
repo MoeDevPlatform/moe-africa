@@ -203,15 +203,17 @@ const ProductDetail = () => {
         />
         {inWishlist ? "In Wishlist" : "Add to Wishlist"}
       </Button>
-      <Button
-        size="lg"
-        variant="ghost"
-        className="w-full"
-        onClick={() => setShowMessaging(true)}
-      >
-        <MessageCircle className="h-4 w-4 mr-2" />
-        Message Artisan
-      </Button>
+      {!isOwnProduct && (
+        <Button
+          size="lg"
+          variant="ghost"
+          className="w-full"
+          onClick={() => setShowMessaging(true)}
+        >
+          <MessageCircle className="h-4 w-4 mr-2" />
+          Message Artisan
+        </Button>
+      )}
     </>
   );
 
