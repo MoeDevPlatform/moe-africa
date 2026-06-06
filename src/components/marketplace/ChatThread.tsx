@@ -51,6 +51,7 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   const { user } = useAuth();
   const userScope = user?.id != null ? String(user.id) : "guest";
   const convKey = `conversation_${userScope}_${providerId}`;
+  const listKey = `conversations_${userScope}`;
 
   // Load local cache for fast paint.
   useEffect(() => {
@@ -164,8 +165,29 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   useEffect(() => {
     if (messages.length > 0) {
       try { localStorage.setItem(convKey, JSON.stringify(messages)); } catch { /* noop */ }
+
+      // Mirror MessagingModal: also upsert into the conversations list so
+      // the /marketplace/messages index can render this thread.
+      try {
+        const list = JSON.parse(localStorage.getItem(listKey) || "[]");
+        const last = messages[messages.length - 1];
+        const entry = {
+          id: conversationId ?? undefined,
+          providerId,
+          providerName,
+          lastMessage: last.text || (last.type === "image" ? "📷 Image" : last.type === "voice" ? "🎤 Voice message" : last.type === "file" ? "📎 File" : ""),
+          lastMessageTime: last.timestamp,
+          unread: !last.isCustomer && !last.readAt,
+          createdBy: user?.id,
+          createdAt: new Date().toISOString(),
+        };
+        const idx = Array.isArray(list) ? list.findIndex((c: any) => c.providerId === providerId) : -1;
+        const next = Array.isArray(list) ? [...list] : [];
+        if (idx >= 0) next[idx] = entry; else next.push(entry);
+        localStorage.setItem(listKey, JSON.stringify(next));
+      } catch { /* noop */ }
     }
-  }, [messages, convKey]);
+  }, [messages, convKey, listKey, conversationId, providerId, providerName, user?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
