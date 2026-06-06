@@ -53,11 +53,6 @@ const ProductDetail = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const isOwnProduct =
-    user?.role === "artisan" &&
-    !!provider &&
-    user?.artisanProfile?.id === provider.id;
-
   // Scroll to top when product changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
