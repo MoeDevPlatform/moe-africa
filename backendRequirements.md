@@ -174,11 +174,30 @@ Error: 404 if no existing review to update
 
 Logged during the Issues & Enhancements sprint to capture what the live backend currently does versus what the frontend assumes.
 
-### GET /messages/conversations
-Returns `{ data: Conversation[] }` when the user has threads, but unauthenticated/empty cases return an empty list rather than 401. Frontend now treats any error as "no conversations" instead of falling back to localStorage (which previously leaked another user's threads).
+### GET /conversations (corrected path)
+The live backend mounts the controller at `/conversations`, not `/messages/conversations`. The frontend `messagingService.listConversations()` calls `/conversations` and normalises the response, because the backend returns a **raw array** of conversation rows rather than the `{ data, pagination }` wrapper used elsewhere:
+
+```json
+[
+  { "id": 1, "customerId": 42, "providerId": 7, "providerName": "Brand Name",
+    "lastMessage": "Hello", "lastMessageTime": "2026-06-06T12:00:00.000Z",
+    "unreadCount": 2 }
+]
+```
+
+Frontend treats any error as "no conversations" instead of falling back to localStorage (which previously leaked another user's threads). `GET /conversations/:id/messages` is also expected to return a raw array; the service layer normalises both.
+
+**Backend follow-ups (non-blocking):**
+- Add `providerAvatarUrl` (or `providerImage`) to the conversation DTO so the inbox can show an avatar instead of the initial-letter fallback.
+- Provide an artisan-side conversation list (`/conversations` is currently customer-scoped only) so artisans can read inbound messages from their dashboard.
+- When a thread has no messages, return `lastMessageTime: null` instead of `now()` so empty threads don't sort to the top of the inbox.
 
 ### Admin product count (GET /products?category=…&pageSize=1)
 Used by `/admin/categories` to render per-category counts. The `pagination.totalItems` field must reflect the filtered total (not just the page). Verified shape matches `ProductsResponse`. Failures fall back to `0` with a skeleton until resolved.
+
+**Caveat — approved-only:** The public `/products` endpoint scopes results to `status = APPROVED`, so admin counts currently exclude `pending`, `rejected`, and `draft` products. This is acceptable for an "approved per category" view but undercounts true admin totals.
+
+**Backend follow-up (non-blocking):** either add a `category` filter to `GET /admin/products` (which already accepts `status` and includes all statuses when omitted), or expose a dedicated `GET /admin/categories/counts` aggregate endpoint. Until then the admin page will display approved-only counts.
 
 ### GET /service-providers/{id}/public-info
 Returns 404 when the artisan does not exist or is unapproved. Frontend now renders an in-page "Profile not found" card with Back / Browse links instead of redirecting to `/marketplace`, so the URL stays stable for retry/sharing.
