@@ -137,7 +137,19 @@ async function request<T>(
     throw new MoeApiError(message, res.status, code, errJson);
   }
 
-  return (await res.json()) as T;
+  // Handle empty-body responses (e.g. 204 No Content from DELETE) without
+  // attempting to parse JSON, which would throw and surface as a misleading
+  // "failed to execute" error even when the request actually succeeded.
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined as T;
+  }
 }
 
 export async function apiGet<T>(path: string, query?: Record<string, unknown>) {
