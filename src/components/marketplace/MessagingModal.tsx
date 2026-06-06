@@ -375,13 +375,26 @@ const MessagingModal = ({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6" ref={scrollRef}>
-          <div className="space-y-4 py-4">
-            {messages.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No messages yet. Start a conversation!</p>
-              </div>
-            ) : (
+        {isSelfChat ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+            <Avatar className="h-16 w-16 mb-4">
+              <AvatarFallback className="bg-muted text-muted-foreground text-2xl">
+                {providerName.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <h3 className="font-semibold text-lg mb-1">Your Storefront</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              You can&apos;t start a conversation with your own business. Customers will message you here.
+            </p>
+          </div>
+        ) : (
+          <ScrollArea className="flex-1 px-6" ref={scrollRef}>
+            <div className="space-y-4 py-4">
+              {messages.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No messages yet. Start a conversation!</p>
+                </div>
+              ) : (
               <>
                 {messages.map((message) => (
                   <div
