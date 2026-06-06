@@ -21,6 +21,8 @@ interface Message {
   attachmentName?: string;
   /** Server-confirmed read timestamp. Null/undefined means not yet read. */
   readAt?: string | null;
+  /** Server-confirmed delivered timestamp. */
+  deliveredAt?: string | null;
   /** Local-only send status for optimistic UI. */
   status?: "sending" | "sent" | "failed";
   /** Server message id (number) once confirmed; used to dedupe with poll. */
@@ -86,6 +88,13 @@ const MessagingModal = ({
       .catch(() => { /* backend not ready — silent */ });
     return () => { cancelled = true; };
   }, [open, providerId]);
+
+  // Issue #2 — mark conversation read on open so the sender sees their
+  // outbound messages flip to "read" on the next poll cycle.
+  useEffect(() => {
+    if (!open || !conversationId) return;
+    messagingService.markRead(conversationId).catch(() => { /* silent */ });
+  }, [open, conversationId]);
 
   // Poll the conversation for new messages while the modal is open.
   // Cleanup runs on unmount, modal close, or conversation change so we never
@@ -160,11 +169,16 @@ const MessagingModal = ({
       const lastMessage = messages[messages.length - 1];
       
       const conversationData = {
+        id: conversationId ?? undefined,
         providerId,
         providerName,
         lastMessage: lastMessage.text,
         lastMessageTime: lastMessage.timestamp,
         unread: !lastMessage.isCustomer && !lastMessage.readAt,
+        // Issue #1 — tag local stub with creator + timestamp so Messages.tsx
+        // can keep it visible to the sender until the server returns it.
+        createdBy: user?.id,
+        createdAt: new Date().toISOString(),
       };
 
       if (existingIndex >= 0) {
