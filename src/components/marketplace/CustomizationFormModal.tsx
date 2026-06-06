@@ -158,7 +158,7 @@ const CustomizationFormModal = ({
       addItem(cartItem);
       toast({
         title: "Added to cart! 🎉",
-        description: `Your custom ${productName} has been added to your cart.`,
+        description: `Your custom ${productName ?? "item"} has been added to your cart.`,
       });
     }
     onOpenChange(false);

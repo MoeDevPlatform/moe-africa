@@ -75,9 +75,14 @@ const Cart = () => {
                   <CardContent className="p-6">
                     <div className="flex gap-6">
                       <img loading="lazy" decoding="async" 
-                        src={product?.images[0] || ""} 
+                        src={item.imageUrl || product?.images?.[0] || "/placeholder.svg"} 
                         alt={item.productName}
                         className="w-32 h-32 object-cover rounded-lg"
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          t.onerror = null;
+                          t.src = "/placeholder.svg";
+                        }}
                       />
                       
                       <div className="flex-1">

@@ -139,7 +139,7 @@ const CanvasCustomizationModal = ({
       toast({ title: "Cart updated! 🎨", description: "Your canvas order has been updated." });
     } else {
       addItem(cartItem);
-      toast({ title: "Added to cart! 🎨", description: `Your custom ${productName} has been added to your cart.` });
+      toast({ title: "Added to cart! 🎨", description: `Your custom ${productName ?? "canvas"} has been added to your cart.` });
     }
 
     onOpenChange(false);

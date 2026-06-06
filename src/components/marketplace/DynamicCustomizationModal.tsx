@@ -105,7 +105,7 @@ const DynamicCustomizationModal = ({
     } as never);
     toast({
       title: "Added to cart! 🎉",
-      description: `${productName} has been customised and added to your cart.`,
+      description: `${productName ?? "Item"} has been customised and added to your cart.`,
     });
     onOpenChange(false);
     setValues({});
