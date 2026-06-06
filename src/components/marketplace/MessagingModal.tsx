@@ -268,23 +268,9 @@ const MessagingModal = ({
         const adoptedId = await startInFlightRef.current;
         if (!adoptedId) throw new Error("no_conversation_id");
         adoptConversationId(adoptedId);
-        // If startConversation succeeded but didn't return the message body,
-        // fetch it so the optimistic row can adopt the real id/sentAt/readAt.
-        try {
-          const res = await messagingService.getMessages(adoptedId);
-          const last = (res?.data ?? []).find(
-            (m: any) => (m.content ?? m.text) === content && m.senderType === "customer",
-          );
-          if (last) {
-            serverMsg = last as any;
-          } else {
-            // No matching message means startConversation didn't create one
-            // (or matched an existing conversation). Send explicitly.
-            serverMsg = await messagingService.sendMessage(adoptedId, content);
-          }
-        } catch {
-          serverMsg = await messagingService.sendMessage(adoptedId, content);
-        }
+        // startConversation already persisted the initial message on the
+        // backend. Don't re-send — let the 5s poll adopt the server row.
+        serverMsg = undefined;
       }
       setMessages((prev) =>
         prev.map((m) =>
