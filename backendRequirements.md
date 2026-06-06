@@ -257,3 +257,35 @@ The "Helpful" thumbs-up button on each review currently persists votes in `local
 - `reviewCount` = `COUNT(review)`
 
 Until this is fixed the provider profile hero falls back to deriving both values from the loaded reviews list (showing "—" when none), which avoids the dummy-number bug but means listing/search results still display the stale aggregate.
+
+---
+
+## In-App Notifications — Verified + Outstanding Work (June 2026)
+
+### Read path — VERIFIED working
+- `GET /notifications` → `200` with `{ data: Notification[], pagination }`. Frontend `NotificationContext` now reads `response.data` (and tolerates a bare-array shape as a fallback).
+- `PATCH /notifications/:id/read` → `200`. Wired on per-item click.
+- `PATCH /notifications/read-all` → `200`. Wired on "Mark all as read".
+- Frontend polls `/notifications` every 30s while authenticated and caches per-user at `moe_notifications:<userId>` so the bell paints instantly on reload and survives transient API errors. The legacy global `moe_notifications` key is wiped on mount to prevent cross-account leakage.
+
+### Write path — 🔴 NOT YET BUILT (this is why the bell stays empty)
+No backend code creates `Notification` rows from domain events. Until this lands, customers will never see anything in the bell even after real activity. Required emitters:
+
+| Event | Recipient | `type` | `title` | `body` | `link` |
+|---|---|---|---|---|---|
+| Order created | customer | `order_update` | "Order placed" | "Your order #<id> has been received." | `/orders/<id>` |
+| Order status change (paid, in_production, shipped, delivered, cancelled) | customer | `order_update` | "Order <status>" | "Order #<id> is now <status>." | `/orders/<id>` |
+| New message in a conversation | recipient (customer or artisan) | `message` | "New message from <senderName>" | first 80 chars of body | `/messages?c=<conversationId>` |
+| Quote request submitted | artisan | `order_update` | "New custom-order request" | "<customerName> requested a quote for <product>." | `/artisan/quotes/<id>` |
+| Quote responded | customer | `order_update` | "Quote ready" | "<artisanName> responded to your request." | `/orders/<id>` |
+| Wishlist item back in stock / price drop | customer | `promotion` | dynamic | dynamic | `/products/<id>` |
+| Admin promotion / campaign | broadcast | `promotion` | dynamic | dynamic | optional |
+
+Implementation notes:
+- Create rows inside the same service that emits the event (e.g. `orders.service.create` → also `notifications.service.create`). Idempotency key = (`userId`, `type`, dedupe field like `orderId`/`messageId`) to avoid duplicates on retries.
+- Set `link` to a frontend-relative path (not absolute URL).
+- `body` should be plain text (no markdown) and ≤140 chars.
+- DO NOT send email/SMS/push in the same path — those channels are still disabled on the frontend ("Coming soon"). When they're ready, gate them on the user's `NotificationSettings`.
+
+### Auth token field name — frontend alignment note
+Login response returns `token` (not `accessToken`). Frontend already stores it under `moe_access_token`, so this is purely informational — keep the response field name `token` to avoid breaking the current client.
