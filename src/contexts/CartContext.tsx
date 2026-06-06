@@ -20,6 +20,8 @@ export interface CartItem {
   quantity: number;
   /** Issue #7 — primary product image stashed at add-time so cart can render it. */
   imageUrl?: string;
+  /** Dynamic schema-driven customisation payload keyed by field.key. */
+  customisation?: Record<string, string | string[]>;
 }
 
 interface CartContextType {
