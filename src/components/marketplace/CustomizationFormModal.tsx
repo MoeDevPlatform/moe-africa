@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, ShoppingCart } from "lucide-react";
+import { Loader2, ShoppingCart, Minus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 import {
@@ -166,7 +166,7 @@ const CustomizationFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="font-display">Customise {productName}</DialogTitle>
         </DialogHeader>
@@ -186,8 +186,9 @@ const CustomizationFormModal = ({
         )}
 
         {!isLoading && fields && fields.length > 0 && (
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            {fields.map((field) => {
+          <div className="grid gap-6 py-2 lg:grid-cols-5">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 lg:col-span-3">
+              {fields.map((field) => {
               const v = values[field.key];
               if (field.type === "select") {
                 return (
@@ -246,6 +247,37 @@ const CustomizationFormModal = ({
                   </div>
                 );
               }
+              if (field.type === "number") {
+                const numStr = typeof v === "string" ? v : "";
+                const numVal = Number(numStr);
+                const dec = () => setValue(field.key, String(Math.max(0, (Number.isFinite(numVal) ? numVal : 0) - 1)));
+                const inc = () => setValue(field.key, String((Number.isFinite(numVal) ? numVal : 0) + 1));
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <Label>
+                      {field.label}
+                      {field.required && <span className="text-destructive"> *</span>}
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="icon" onClick={dec} aria-label={`Decrease ${field.label}`}>
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={numStr}
+                        placeholder={field.placeholder}
+                        onChange={(e) => setValue(field.key, e.target.value)}
+                        aria-label={field.label}
+                        className="text-center"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={inc} aria-label={`Increase ${field.label}`}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <div key={field.key} className="space-y-2">
                   <Label>
@@ -253,8 +285,7 @@ const CustomizationFormModal = ({
                     {field.required && <span className="text-destructive"> *</span>}
                   </Label>
                   <Input
-                    type={field.type === "number" ? "number" : "text"}
-                    min={field.type === "number" ? 0 : undefined}
+                    type="text"
                     value={typeof v === "string" ? v : ""}
                     placeholder={field.placeholder}
                     onChange={(e) => setValue(field.key, e.target.value)}
@@ -262,7 +293,44 @@ const CustomizationFormModal = ({
                   />
                 </div>
               );
-            })}
+              })}
+            </div>
+
+            {/* Sticky summary panel — desktop only */}
+            <aside className="hidden lg:block lg:col-span-2">
+              <div className="sticky top-2 rounded-xl border bg-muted/40 p-4 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Summary</p>
+                  <p className="font-display font-semibold">{productName}</p>
+                  <p className="text-xs text-muted-foreground">by {providerName}</p>
+                </div>
+                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                  {fields.map((f) => {
+                    const v = values[f.key];
+                    const display = Array.isArray(v) ? v.join(", ") : (v ?? "");
+                    return (
+                      <div
+                        key={f.key}
+                        className="flex items-start justify-between gap-3 text-sm transition-colors rounded-md px-2 py-1"
+                      >
+                        <span className="text-muted-foreground">{f.label}</span>
+                        <span className="font-medium text-right truncate max-w-[55%]">
+                          {display || <span className="text-muted-foreground/60">—</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="border-t pt-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Starting at</span>
+                    <span className="font-semibold">
+                      ₦{(basePrice || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
         )}
 
@@ -274,10 +342,10 @@ const CustomizationFormModal = ({
             onClick={handleSubmit}
             disabled={isLoading || (fields !== null && fields.length > 0 && !canSubmit)}
             className="gap-2"
-            aria-label={editingCartItemId ? "Update cart" : "Add to cart"}
+            aria-label="Confirm customisation"
           >
             <ShoppingCart className="h-4 w-4" />
-            {editingCartItemId ? "Update Cart" : "Add to Cart"}
+            Confirm Customisation
           </Button>
         </DialogFooter>
       </DialogContent>
