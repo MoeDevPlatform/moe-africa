@@ -79,6 +79,9 @@ const HeroBanner = () => {
               src={banner.imageUrl}
               alt={banner.title}
               className="w-full h-full object-cover"
+              loading={index === 0 ? "eager" : "lazy"}
+              decoding="async"
+              {...(index === 0 ? { fetchPriority: "high" as const } : {})}
               onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
