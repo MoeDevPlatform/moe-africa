@@ -426,3 +426,89 @@ bell doesn't surface dead links.
 between runs; cleared local caches repopulate from the server on next load,
 making it impossible to verify "no messages yet" empty states or fresh
 thread-creation flows.
+
+## 11. Categories CRUD (Admin) — REQUIRED
+
+The admin "Categories" screen must let staff add, rename, and remove
+marketplace categories. Today the list is hardcoded on the client
+(`src/lib/categories.ts`), which means non-engineers can't evolve the
+taxonomy. The frontend now expects a backend-managed list it can merge with
+the seven canonical seeds.
+
+### Data model (Prisma sketch)
+
+```prisma
+model Category {
+  id           String   @id @default(cuid())
+  slug         String   @unique           // e.g. "tailoring", "custom_apparel"
+  label        String                       // display name
+  icon         String?                      // lucide icon name, optional
+  isSeed       Boolean  @default(false)     // true for the 7 canonical entries
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+```
+
+Seed the seven canonical categories on first migration with `isSeed=true`
+(`tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`,
+`jewellery`, `home_and_decor`). Seeds may be renamed/re-iconed but must not
+be deletable.
+
+### Endpoints
+
+`GET /categories`
+
+- Auth: public.
+- Returns `Category[]` ordered by `sortOrder, label`. Each entry carries
+  `productCount` so the admin grid can render counts without a per-row
+  request:
+  ```json
+  [
+    { "id": "...", "slug": "tailoring", "label": "Tailoring",
+      "icon": "Scissors", "isSeed": true, "productCount": 4 }
+  ]
+  ```
+
+`POST /categories`
+
+- Auth: admin only (JWT + role check).
+- Body: `{ "label": string, "slug"?: string, "icon"?: string }`.
+  Slug is auto-derived from label (`lowercase`, spaces→`_`,
+  strip non-alphanumerics) when omitted. Reject duplicates with `409`.
+- Response: `201` with the created `Category`.
+
+`PATCH /categories/:id`
+
+- Auth: admin only.
+- Body: partial `{ label?, icon?, sortOrder? }`. Slug is immutable once a
+  category has products; the backend should return `409` if a slug change is
+  attempted on a non-empty category.
+- Response: `200` with the updated `Category`.
+
+`DELETE /categories/:id`
+
+- Auth: admin only.
+- Reject seeds (`isSeed=true`) with `409 { "error": "Seed categories cannot
+  be deleted" }`.
+- Reject categories with `productCount > 0` with `409 { "error": "Move or
+  delete products in this category first" }`.
+- Response: `204 No Content` on success.
+
+### Frontend behaviour
+
+- `categoriesService.list()` is called on admin Categories mount and its
+  result is merged with the canonical client-side `CATEGORIES` list (server
+  wins on slug collisions).
+- When `GET /categories` is unreachable the admin UI falls back to
+  `localStorage` key `moe_admin_categories` so QA can still demo add/edit.
+  Mutations queue locally and reconcile on next successful list call.
+- Other consumers (signup, mega menu, filters, customization) still read
+  from the canonical seed list. Once the backend ships, those consumers
+  should switch to `categoriesService.list()` in a follow-up so newly added
+  categories appear everywhere — not in this sprint.
+
+**User-facing consequence if not built:** Admins cannot grow the taxonomy
+without a code change, and the "Add Category" button on
+`/admin/categories` either no-ops or only persists changes in the current
+browser via `localStorage`.
