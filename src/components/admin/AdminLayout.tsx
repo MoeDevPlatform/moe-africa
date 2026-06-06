@@ -63,7 +63,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-20 items-center justify-between border-b border-border px-6">
-            <img src={logo} alt="MOE" className="h-12 w-auto" />
+            <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-12 w-auto" />
             <Button
               variant="ghost"
               size="icon"
@@ -126,7 +126,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           >
             <Menu className="h-6 w-6" />
           </Button>
-          <img src={logo} alt="MOE" className="h-10 w-auto" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-10 w-auto" />
           <div className="w-10" />
         </header>
 

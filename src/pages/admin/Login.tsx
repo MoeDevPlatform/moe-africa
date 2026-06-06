@@ -46,7 +46,7 @@ const Login = () => {
       <Card className="w-full max-w-md border-border shadow-lg">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto w-32">
-            <img src={logo} alt="MOE" className="h-auto w-full" />
+            <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-auto w-full" />
           </div>
           <div>
             <CardTitle className="text-2xl font-display font-bold text-foreground">

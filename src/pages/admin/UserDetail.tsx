@@ -50,7 +50,7 @@ const UserDetailPage = () => {
           <>
             <div className="flex items-center gap-4">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="h-16 w-16 rounded-full object-cover" />
+                <img loading="lazy" decoding="async" src={user.avatarUrl} alt={user.name} className="h-16 w-16 rounded-full object-cover" />
               ) : (
                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-2xl font-display">
                   {user.name.charAt(0)}

@@ -94,7 +94,7 @@ const ReviewCard = ({ review, onImageClick }: { review: Review; onImageClick: (i
                   onClick={() => onImageClick(review.images!, index)}
                   className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-muted hover:opacity-80 transition-opacity"
                 >
-                  <img src={image} alt={`Review image ${index + 1}`} className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={image} alt={`Review image ${index + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -239,7 +239,7 @@ const CustomerReviews = ({ reviews, averageRating, totalReviews }: CustomerRevie
               >
                 <X className="h-4 w-4" />
               </Button>
-              <img
+              <img loading="lazy" decoding="async"
                 src={selectedImages.images[selectedImages.index]}
                 alt="Review image"
                 className="w-full h-auto max-h-[80vh] object-contain"
@@ -255,7 +255,7 @@ const CustomerReviews = ({ reviews, averageRating, totalReviews }: CustomerRevie
                         idx === selectedImages.index ? "ring-2 ring-primary" : "opacity-50"
                       )}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={img} alt="" className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>

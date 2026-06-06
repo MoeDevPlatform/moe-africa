@@ -243,7 +243,7 @@ const MessagingModal = ({
       case "image":
         return (
           <div>
-            <img 
+            <img loading="lazy" decoding="async" 
               src={message.attachmentUrl} 
               alt="Shared image" 
               className="max-w-[200px] rounded-lg mb-1"

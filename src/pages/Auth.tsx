@@ -105,7 +105,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <Link to="/" className="flex justify-center mb-8">
-          <img src={logo} alt="MOE" className="h-16 w-auto" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-16 w-auto" />
         </Link>
 
         <Card>
