@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("moe_artisan_cover_url");
     localStorage.removeItem("moe_artisan_store_url");
     localStorage.removeItem("moe_self_user_id");
+    // Clear messaging caches so the next account doesn't see prior drafts/list.
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("conversation_") || k.startsWith("conversations_") || k === "conversations")
+      .forEach((k) => localStorage.removeItem(k));
     setUser(null);
   }, []);
 

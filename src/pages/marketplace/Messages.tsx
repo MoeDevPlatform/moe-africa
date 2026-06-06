@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare } from "lucide-react";
 import { messagingService } from "@/lib/apiServices";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Conversation {
   providerId: number;
@@ -21,6 +22,8 @@ const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<{ id: number; name: string } | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -36,15 +39,12 @@ const Messages = () => {
           }))
         );
       } catch {
-        // Fallback to localStorage
-        const saved = localStorage.getItem("conversations");
-        if (saved) {
-          setConversations(JSON.parse(saved));
-        }
+        // Backend unreachable — no fallback (avoid cross-user leakage from stale localStorage)
+        setConversations([]);
       }
     };
     loadConversations();
-  }, [selectedProvider]);
+  }, [selectedProvider, listKey]);
 
   const handleOpenConversation = (providerId: number, providerName: string) => {
     setSelectedProvider({ id: providerId, name: providerName });
@@ -54,7 +54,6 @@ const Messages = () => {
       c.providerId === providerId ? { ...c, unread: false } : c
     );
     setConversations(updated);
-    localStorage.setItem("conversations", JSON.stringify(updated));
   };
 
   return (
