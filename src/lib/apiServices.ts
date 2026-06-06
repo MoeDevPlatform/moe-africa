@@ -1170,6 +1170,10 @@ export const messagingService = {
     apiPost<Conversation>("/conversations", { providerId, initialMessage }),
   markRead: (conversationId: number) =>
     apiPatch<void>(`/conversations/${conversationId}/read`),
+  deleteConversation: (conversationId: number) =>
+    apiDelete<void>(`/conversations/${conversationId}`),
+  deleteAllConversations: () =>
+    apiDelete<{ deleted: number }>(`/conversations`),
 };
 
 // ─── Wishlist (API sync for logged-in users) ──────────────

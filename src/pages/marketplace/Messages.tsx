@@ -5,7 +5,20 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,6 +37,8 @@ const LOCAL_STUB_TTL_MS = 30 * 60 * 1000;
 
 const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [clearing, setClearing] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
@@ -107,14 +122,104 @@ const Messages = () => {
     }
   };
 
+  const clearLocalConversationCache = () => {
+    try {
+      const scope = user?.id != null ? String(user.id) : "guest";
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k === `conversations_${scope}` || k.startsWith(`conversation_${scope}_`))) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch { /* noop */ }
+  };
+
+  const handleClearAll = async () => {
+    setClearing(true);
+    try {
+      const res = await messagingService.deleteAllConversations();
+      clearLocalConversationCache();
+      setConversations([]);
+      toast({
+        title: "Conversations cleared",
+        description: `${res?.deleted ?? 0} conversation${(res?.deleted ?? 0) === 1 ? "" : "s"} removed.`,
+      });
+    } catch (err: any) {
+      // Even if backend endpoint isn't deployed yet, wipe local cache so QA can proceed.
+      clearLocalConversationCache();
+      setConversations([]);
+      toast({
+        title: "Local cache cleared",
+        description: "Backend delete failed — server conversations may reappear on refresh.",
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handleDeleteOne = async (conversation: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!conversation.id) {
+      setConversations((prev) => prev.filter((c) => c.providerId !== conversation.providerId));
+      try {
+        const scope = user?.id != null ? String(user.id) : "guest";
+        localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
+      } catch { /* noop */ }
+      return;
+    }
+    setDeletingId(conversation.id);
+    try {
+      await messagingService.deleteConversation(conversation.id);
+      setConversations((prev) => prev.filter((c) => c.id !== conversation.id));
+      try {
+        const scope = user?.id != null ? String(user.id) : "guest";
+        localStorage.removeItem(`conversation_${scope}_${conversation.providerId}`);
+      } catch { /* noop */ }
+      toast({ title: "Conversation deleted" });
+    } catch {
+      toast({
+        title: "Could not delete conversation",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <MarketplaceNavbar />
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-display font-bold mb-2">Messages</h1>
-            <p className="text-muted-foreground">Your conversations with service providers</p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-display font-bold mb-2">Messages</h1>
+              <p className="text-muted-foreground">Your conversations with service providers</p>
+            </div>
+            {conversations.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={clearing} aria-label="Clear all conversations">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {clearing ? "Clearing..." : "Clear all"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear all conversations?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This permanently deletes every conversation and message in your inbox. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll}>Delete all</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
 
           {conversations.length === 0 ? (
@@ -157,6 +262,16 @@ const Messages = () => {
                         <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                       </div>
                       {conversation.unread && <Badge variant="default" className="shrink-0">New</Badge>}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDeleteOne(conversation, e)}
+                        disabled={deletingId === conversation.id}
+                        aria-label={`Delete conversation with ${conversation.providerName}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </Card>
                 ))}
