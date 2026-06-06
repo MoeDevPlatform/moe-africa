@@ -32,6 +32,7 @@ export interface Product {
 
 export interface Provider {
   id: number;
+  userId?: number;
   brandName: string;
   firstName: string;
   lastName: string;
