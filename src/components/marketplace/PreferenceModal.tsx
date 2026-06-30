@@ -6,7 +6,8 @@ import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORIES } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
+import { getCategoryIcon } from "@/lib/categories";
 
 interface PreferenceModalProps {
   open: boolean;
@@ -34,7 +35,12 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
   }, [open, preferences.categories, preferences.budget, preferences.styles]);
 
   // Canonical categories — single source of truth in src/lib/categories.ts.
-  const categories = CATEGORIES.map((c) => ({ id: c.value, name: c.label, icon: c.icon }));
+  const { categories: dynamicCategories } = useCategories();
+  const categories = dynamicCategories.map((c) => ({
+    id: c.value,
+    name: c.label,
+    icon: c.icon ?? getCategoryIcon(c.iconKey),
+  }));
 
   const styles = ["Modern", "Afrocentric", "Minimalist", "Traditional", "Vintage", "Contemporary"];
 

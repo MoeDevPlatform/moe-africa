@@ -12,7 +12,7 @@ import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
-import { CATEGORIES } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService } from "@/lib/apiServices";
 import { apiGet } from "@/lib/moeApi";
@@ -20,6 +20,7 @@ import type { Product, Provider } from "@/data/mockData";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
+  const { categories: dynamicCategories } = useCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -68,26 +69,14 @@ const MarketplaceHome = () => {
   // ("N artisans") across all categories and reflects the true system state
   // rather than the artisan's self-declared primary category.
   useEffect(() => {
+    if (dynamicCategories.length === 0) return;
     let cancelled = false;
     Promise.all(
-      CATEGORIES.map(async (c) => {
+      dynamicCategories.map(async (c) => {
         try {
-          // Pull all products in the category (large page size to cover most
-          // catalogs in one round trip) and count unique providerIds.
-          const pr = await productsService.list({ category: c.value, pageSize: 200 });
-          const rows = Array.isArray(pr?.data) ? pr.data : [];
-          const uniqueArtisans = new Set<string | number>(
-            rows
-              .map((p) => {
-                const anyP = p as unknown as {
-                  providerId?: string | number;
-                  provider?: { id?: string | number };
-                };
-                return anyP.providerId ?? anyP.provider?.id;
-              })
-              .filter((v): v is string | number => v !== undefined && v !== null),
-          );
-          return [c.value, uniqueArtisans.size, "artisan" as const] as const;
+          const res = await providersService.list({ category: c.value, pageSize: 1 });
+          const total = res.pagination?.totalItems ?? res.data?.length ?? 0;
+          return [c.value, total, "artisan" as const] as const;
         } catch {
           return [c.value, 0, "artisan" as const] as const;
         }
@@ -100,12 +89,12 @@ const MarketplaceHome = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dynamicCategories]);
 
   // Canonical category cards. Count comes from per-category public-info calls;
   // falls back to the local providers list when the API count is missing.
   const categories = useMemo(() => {
-    return CATEGORIES.map((d) => {
+    return dynamicCategories.map((d) => {
       const localCount = allProviders.filter(
         (p) => (p.category || "").toLowerCase() === d.value.toLowerCase(),
       ).length;
@@ -113,7 +102,7 @@ const MarketplaceHome = () => {
       const kind = categoryCountKind[d.value] ?? "artisan";
       return { id: d.value, name: d.label, icon: d.icon, count, kind };
     });
-  }, [allProviders, categoryCounts, categoryCountKind]);
+  }, [allProviders, categoryCounts, categoryCountKind, dynamicCategories]);
 
   // Apply filters to products
   const filteredProducts = useMemo(() => {
@@ -277,7 +266,7 @@ const MarketplaceHome = () => {
               return (
                 <button
                   key={category.id}
-                  onClick={() => navigate(`/marketplace/products?category=${category.id}`)}
+                  onClick={() => navigate(`/marketplace/artisans?category=${category.id}`)}
                   className="p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
                   aria-label={`Browse ${category.name} category`}
                 >

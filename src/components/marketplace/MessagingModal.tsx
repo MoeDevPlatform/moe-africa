@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveMessageSenderName } from "@/lib/messagingDisplay";
 import { toast } from "@/hooks/use-toast";
 
 interface Message {
@@ -45,7 +46,6 @@ const MessagingModal = ({
 }: MessagingModalProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -133,7 +133,7 @@ const MessagingModal = ({
                 id: `srv_${sid}`,
                 serverId: sid,
                 senderId: m.senderId != null ? String(m.senderId) : String(providerId),
-                senderName: m.senderName ?? (m.senderType === "customer" ? "You" : providerName),
+                senderName: resolveMessageSenderName(m, providerName, true),
                 text: m.content ?? m.text ?? "",
                 timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
                 isCustomer: m.senderType === "customer",
@@ -382,7 +382,8 @@ const MessagingModal = ({
               </AvatarFallback>
             </Avatar>
             <div>
-              <DialogTitle>{providerName}</DialogTitle>
+              <DialogTitle>Re: {providerName}</DialogTitle>
+              <p className="text-xs text-muted-foreground">Replies from MoE Support</p>
               <p className="text-sm text-muted-foreground">Service Provider</p>
             </div>
           </div>
@@ -452,24 +453,6 @@ const MessagingModal = ({
                     </div>
                   </div>
                 ))}
-                
-                {/* Typing indicator */}
-                {isTyping && (
-                  <div className="flex gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary">
-                        {providerName.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-muted rounded-2xl px-4 py-2">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>

@@ -7,10 +7,12 @@ import ProductCard from "@/components/marketplace/ProductCard";
 import { products as mockProducts, getProviderById } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
 import { getCategory } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
 import type { Product } from "@/data/mockData";
 
 const AllProducts = () => {
   const navigate = useNavigate();
+  const { categories } = useCategories();
   const [searchParams] = useSearchParams();
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
   const [title, setTitle] = useState("All Products");
@@ -31,7 +33,7 @@ const AllProducts = () => {
 
         if (category) {
           filters.category = category;
-          const cat = getCategory(category);
+          const cat = getCategory(category, categories);
           if (cat) {
             newTitle = `${cat.label} Products`;
             newDescription = `Browse all ${cat.label.toLowerCase()} items from our artisans`;
@@ -40,7 +42,7 @@ const AllProducts = () => {
         if (type) {
           filters.type = type;
           newTitle = type;
-          newDescription = `Shop ${type}${category ? ` in ${getCategory(category)?.label ?? ""}` : ""}`;
+          newDescription = `Shop ${type}${category ? ` in ${getCategory(category, categories)?.label ?? ""}` : ""}`;
         }
 
         if (featured === "true") {
@@ -104,7 +106,7 @@ const AllProducts = () => {
     };
 
     loadProducts();
-  }, [featured, sort, season, category, type]);
+  }, [featured, sort, season, category, type, categories]);
 
   return (
     <div className="min-h-screen bg-background">

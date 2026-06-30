@@ -88,7 +88,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
       <CardContent className="p-6">
         <div className="flex items-center gap-2 mb-2">
           <h3 className="text-xl font-display font-bold hover:text-primary transition-colors">
-            {provider.brandName}
+            {(provider as Provider & { businessName?: string }).businessName || provider.brandName}
           </h3>
           {provider.verified && (
             <TooltipProvider>
@@ -103,6 +103,11 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
             </TooltipProvider>
           )}
         </div>
+        {provider.category && (
+          <p className="text-sm text-muted-foreground mb-2 capitalize">
+            {(provider.category || "").replace(/_/g, " ")}
+          </p>
+        )}
         
         <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
           {displayReviewCount > 0 ? (

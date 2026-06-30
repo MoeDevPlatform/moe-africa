@@ -12,7 +12,8 @@ import {
   Flame,
   ChevronRight,
 } from "lucide-react";
-import { CATEGORIES, type CategoryDef } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
+import { type CategoryDef } from "@/lib/categories";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -109,16 +110,19 @@ const FEATURED_RAILS = [
   { name: "Trending Pieces", slug: "trending-pieces" },
 ];
 
-const categories: CategoryData[] = CATEGORIES.map((c: CategoryDef) => {
-  const Icon = c.icon;
-  return {
-    name: c.label,
-    slug: c.value,
-    icon: <Icon className="h-4 w-4" />,
-    featured: FEATURED_RAILS,
-    subcategories: c.types.map((t) => ({ name: t, slug: toTypeSlug(t) })),
-  };
-});
+const categoriesFromDefs = (defs: CategoryDef[]): CategoryData[] =>
+  defs.map((c: CategoryDef) => {
+    const Icon = c.icon;
+    return {
+      name: c.label,
+      slug: c.value,
+      icon: Icon ? <Icon className="h-4 w-4" /> : <Package className="h-4 w-4" />,
+      featured: FEATURED_RAILS,
+      subcategories: (c.types ?? []).map((t) => ({ name: t, slug: toTypeSlug(t) })),
+    };
+  });
+
+// Removed module-level categories — built inside component from CategoriesContext.
 
 // Derive Seasonal Picks season from the current month (West Africa default).
 // Nov–Apr = Harmattan, May–Oct = Rainy.
@@ -170,10 +174,13 @@ interface MegaMenuProps {
 
 const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps) => {
   const navigate = useNavigate();
-  // Always show all canonical categories — they are the source of truth.
-  const visibleCategories = useMemo<CategoryData[]>(() => categories, []);
+  const { categories: dynamicCategories } = useCategories();
+  const visibleCategories = useMemo<CategoryData[]>(
+    () => categoriesFromDefs(dynamicCategories),
+    [dynamicCategories],
+  );
 
-  const [activeCategory, setActiveCategory] = useState<CategoryData | null>(categories[0]);
+  const [activeCategory, setActiveCategory] = useState<CategoryData | null>(null);
 
   useEffect(() => {
     if (visibleCategories.length === 0) {

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Upload } from "lucide-react";
-import { CATEGORIES } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
 
 interface ProductFormProps {
   product?: any;
@@ -21,6 +21,12 @@ interface ProductFormProps {
 }
 
 const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
+  const { categories: dynamicCategories } = useCategories();
+  const categories = dynamicCategories.map((c, idx) => ({
+    id: idx + 1,
+    name: c.label,
+    value: c.value,
+  }));
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
@@ -39,9 +45,6 @@ const ProductForm = ({ product, onSubmit, onCancel }: ProductFormProps) => {
     { id: 8, name: "Canvas & Co. Lagos" },
     { id: 9, name: "ArtPrint Naija" },
   ];
-
-  // Canonical categories — single source of truth in src/lib/categories.ts.
-  const categories = CATEGORIES.map((c, idx) => ({ id: idx + 1, name: c.label, value: c.value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

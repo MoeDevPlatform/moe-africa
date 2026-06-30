@@ -22,12 +22,7 @@ interface AddProductModalProps {
   editProduct?: Product | null;
 }
 
-// Canonical 7 categories — single source of truth in src/lib/categories.ts.
-// Legacy values are kept valid in the payload so existing products remain
-// editable, but they are hidden from the dropdown unless the product being
-// edited still uses one.
-import { CATEGORIES } from "@/lib/categories";
-const CANONICAL_CATEGORIES = CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
+import { useCategories } from "@/contexts/CategoriesContext";
 const LEGACY_CATEGORY_LABELS: Record<string, string> = {
   canvas: "Canvas & Painting (legacy)",
   crafts: "Art & Crafts (legacy)",
@@ -53,6 +48,8 @@ interface UploadedImage {
 }
 
 const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: AddProductModalProps) => {
+  const { categories: dynamicCategories } = useCategories();
+  const canonicalCategories = dynamicCategories.map((c) => ({ value: c.value, label: c.label }));
   const isEdit = !!editProduct;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -290,7 +287,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent className="bg-card">
-                {CANONICAL_CATEGORIES.map((c) => (
+                {canonicalCategories.map((c) => (
                   <SelectItem key={c.value} value={c.value}>
                     {c.label}
                   </SelectItem>

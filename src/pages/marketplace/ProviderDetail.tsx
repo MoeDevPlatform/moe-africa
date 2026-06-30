@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Star, MapPin, CheckCircle2, Phone, Mail, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
+import { Star, MapPin, CheckCircle2, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { productsService, providersService } from "@/lib/apiServices";
 import { artisanReviewsService, type ArtisanReviewApi } from "@/lib/apiServices";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -225,10 +225,10 @@ const ProviderDetail = () => {
                       <TooltipTrigger asChild>
                         <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
                           <MessageCircle className="h-4 w-4 mr-2" />
-                          Message
+                          Contact Us About This Artisan
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent><p className="text-xs">Send a message to this artisan</p></TooltipContent>
+                      <TooltipContent><p className="text-xs">Send an inquiry to MoE Support about this artisan</p></TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -328,17 +328,19 @@ const ProviderDetail = () => {
                 <h3 className="font-semibold mb-4">Contact Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-5 w-5 text-primary" />
-                    <span>{provider.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <span>{provider.email}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
                     <MapPin className="h-5 w-5 text-primary" />
                     <span>{provider.city}, {provider.state}</span>
                   </div>
+                  {!isOwnStorefront && (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => setShowMessaging(true)}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Contact Us About This Artisan
+                    </Button>
+                  )}
                 </div>
                 {provider.customOrdersEnabled && (
                   <TooltipProvider>

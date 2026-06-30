@@ -7,10 +7,12 @@ import ProviderCard from "@/components/marketplace/ProviderCard";
 import { providers as mockProviders } from "@/data/mockData";
 import { providersService } from "@/lib/apiServices";
 import { getCategory } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
 import type { Provider } from "@/data/mockData";
 
 const AllArtisans = () => {
   const navigate = useNavigate();
+  const { categories } = useCategories();
   const [searchParams] = useSearchParams();
   const [displayProviders, setDisplayProviders] = useState<Provider[]>([]);
   const [title, setTitle] = useState("All Artisans");
@@ -33,9 +35,9 @@ const AllArtisans = () => {
         }
         if (category) {
           filters.category = category;
-          const cat = getCategory(category);
+          const cat = getCategory(category, categories);
           if (cat) {
-            newTitle = `${cat.label} Artisans`;
+            newTitle = `Artisans in ${cat.label}`;
             newDescription = `Browse artisans specialising in ${cat.label.toLowerCase()}`;
           }
         }
@@ -57,7 +59,7 @@ const AllArtisans = () => {
     };
 
     loadProviders();
-  }, [featured, category]);
+  }, [featured, category, categories]);
 
   return (
     <div className="min-h-screen bg-background">

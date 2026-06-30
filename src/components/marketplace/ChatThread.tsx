@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveMessageSenderName } from "@/lib/messagingDisplay";
 
 interface ChatMessage {
   id: string;
@@ -146,7 +147,7 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
                 id: `srv_${sid}`,
                 serverId: sid,
                 senderId: m.senderId != null ? String(m.senderId) : String(providerId),
-                senderName: m.senderName ?? (m.senderType === "customer" ? "You" : providerName),
+                senderName: resolveMessageSenderName(m, providerName, true),
                 text: m.content ?? m.text ?? "",
                 timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
                 isCustomer: m.senderType === "customer",
@@ -370,7 +371,8 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
         </Avatar>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Chatting with</p>
-          <h2 className="font-semibold leading-tight">{providerName}</h2>
+          <h2 className="font-semibold leading-tight">Re: {providerName}</h2>
+          <p className="text-xs text-muted-foreground">Replies from MoE Support</p>
           <p className="text-xs text-muted-foreground">Service Provider</p>
         </div>
       </div>

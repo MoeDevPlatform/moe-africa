@@ -16,20 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
-import { countries, getStatesByCountry } from "@/data/countryStateData";
-
-const CATEGORIES = [
-  { value: "tailoring", label: "Tailoring" },
-  { value: "shoemaking", label: "Shoemaking" },
-  { value: "canvas", label: "Canvas & Painting" },
-  { value: "leatherwork", label: "Leatherwork" },
-  { value: "beauty", label: "Beauty" },
-  { value: "crafts", label: "Art & Crafts" },
-];
+import CustomerInquiries from "@/components/artisan/CustomerInquiries";
+import { useCategories } from "@/contexts/CategoriesContext";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 // Backend (local filesystem storage) caps uploads at 2MB.
@@ -37,6 +29,7 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
+  const { categories: profileCategories } = useCategories();
   const { user, refreshProfile } = useAuth();
   const [artisanProfile, setArtisanProfile] = useState<ArtisanProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -376,6 +369,9 @@ const ArtisanDashboard = () => {
             <TabsTrigger value="products" className="flex items-center gap-2 flex-1">
               <Package className="h-4 w-4" /> My Products
             </TabsTrigger>
+            <TabsTrigger value="inquiries" className="flex items-center gap-2 flex-1">
+              <MessageSquare className="h-4 w-4" /> Customer Inquiries
+            </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-2 flex-1">
               <Store className="h-4 w-4" /> Business Profile
             </TabsTrigger>
@@ -467,6 +463,22 @@ const ArtisanDashboard = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="inquiries">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" /> Customer Inquiries
+                </CardTitle>
+                <CardDescription>
+                  Read-only view of customer messages about your work. MoE Support replies on your behalf.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CustomerInquiries />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Business Profile Tab */}
           <TabsContent value="profile">
             <Card>
@@ -520,7 +532,7 @@ const ArtisanDashboard = () => {
                           <SelectValue placeholder="Select your craft category" />
                         </SelectTrigger>
                         <SelectContent className="bg-card">
-                          {CATEGORIES.map((c) => (
+                          {profileCategories.map((c) => (
                             <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -743,7 +755,7 @@ const ArtisanDashboard = () => {
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
                         <p className="font-medium">
-                          {CATEGORIES.find((c) => c.value === artisanProfile?.category)?.label
+                          {profileCategories.find((c) => c.value === artisanProfile?.category)?.label
                             || artisanProfile?.category || "—"}
                         </p>
                       </div>

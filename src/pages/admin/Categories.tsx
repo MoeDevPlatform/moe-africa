@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, MoreVertical, Tag, Loader2 } from "lucide-react";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORY_ICON_MAP, getCategoryIcon, type CategoryDef } from "@/lib/categories";
+import { useCategories } from "@/contexts/CategoriesContext";
 import { productsService, categoriesService, AdminCategory } from "@/lib/apiServices";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -27,6 +28,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -40,23 +48,26 @@ type Row = {
   backendId: string | null;
   slug: string;
   label: string;
-  icon: typeof CATEGORIES[number]["icon"] | null;
+  icon: CategoryDef["icon"] | null;
   isSeed: boolean;
   products: number | null;
 };
 
+const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
 const Categories = () => {
   const { toast } = useToast();
+  const { categories: contextCategories, refetchCategories } = useCategories();
   const [searchQuery, setSearchQuery] = useState("");
-  const [counts, setCounts] = useState<Record<string, number | null>>(
-    () => Object.fromEntries(CATEGORIES.map((c) => [c.value, null])),
-  );
+  const [counts, setCounts] = useState<Record<string, number | null>>({});
   const [serverCats, setServerCats] = useState<AdminCategory[]>([]);
 
-  // Add/Edit dialog state.
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [formLabel, setFormLabel] = useState("");
+  const [formIconKey, setFormIconKey] = useState("Package");
+  const [formOrder, setFormOrder] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Delete confirmation.
@@ -64,9 +75,10 @@ const Categories = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    if (contextCategories.length === 0) return;
     let cancelled = false;
     Promise.all(
-      CATEGORIES.map(async (c) => {
+      contextCategories.map(async (c) => {
         try {
           const r = await productsService.list({ category: c.value, pageSize: 1 });
           return [c.value, r.pagination?.totalItems ?? 0] as const;
@@ -79,7 +91,7 @@ const Categories = () => {
       setCounts(Object.fromEntries(pairs));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [contextCategories]);
 
   const loadServerCats = async () => {
     const list = await categoriesService.list();
@@ -96,14 +108,14 @@ const Categories = () => {
   // (e.g. so admins can rename "Tailoring" → "Custom Tailoring").
   const rows: Row[] = useMemo(() => {
     const bySlug = new Map<string, Row>();
-    CATEGORIES.forEach((c) => {
+    contextCategories.forEach((c) => {
       bySlug.set(c.value, {
-        id: c.value,
-        backendId: null,
+        id: c.id ?? c.value,
+        backendId: c.id ?? null,
         slug: c.value,
         label: c.label,
-        icon: c.icon,
-        isSeed: true,
+        icon: c.icon ?? getCategoryIcon(c.iconKey),
+        isSeed: false,
         products: counts[c.value] ?? null,
       });
     });
@@ -114,7 +126,7 @@ const Categories = () => {
         backendId: s.id,
         slug: s.slug,
         label: s.label,
-        icon: seed?.icon ?? null,
+        icon: seed?.icon ?? getCategoryIcon(s.icon),
         isSeed: s.isSeed ?? seed?.isSeed ?? false,
         products: s.productCount ?? seed?.products ?? 0,
       });
@@ -123,17 +135,23 @@ const Categories = () => {
     return Array.from(bySlug.values()).filter((r) =>
       q ? r.label.toLowerCase().includes(q) || r.slug.includes(q) : true,
     );
-  }, [serverCats, counts, searchQuery]);
+  }, [serverCats, counts, searchQuery, contextCategories]);
+
+  const previewSlug = slugify(formLabel);
 
   const openAdd = () => {
     setEditing(null);
     setFormLabel("");
+    setFormIconKey("Package");
+    setFormOrder("");
     setDialogOpen(true);
   };
 
   const openEdit = (row: Row) => {
     setEditing(row);
     setFormLabel(row.label);
+    setFormIconKey("Package");
+    setFormOrder("");
     setDialogOpen(true);
   };
 
@@ -147,19 +165,32 @@ const Categories = () => {
     try {
       if (editing) {
         if (editing.backendId) {
-          await categoriesService.update(editing.backendId, { label });
+          await categoriesService.update(editing.backendId, {
+            label,
+            icon: formIconKey,
+            ...(formOrder ? { sortOrder: Number(formOrder) } : {}),
+          });
         } else {
-          // Renaming a canonical seed — persist via create so the server row
-          // overrides the seed label on next list().
-          await categoriesService.create({ label, slug: editing.slug });
+          await categoriesService.create({
+            label,
+            slug: editing.slug,
+            icon: formIconKey,
+            ...(formOrder ? { order: Number(formOrder) } : {}),
+          });
         }
         toast({ title: "Category updated" });
       } else {
-        await categoriesService.create({ label });
+        await categoriesService.create({
+          label,
+          slug: previewSlug,
+          icon: formIconKey,
+          ...(formOrder ? { order: Number(formOrder) } : {}),
+        });
         toast({ title: "Category added" });
       }
       setDialogOpen(false);
       await loadServerCats();
+      await refetchCategories();
     } catch (e) {
       toast({
         title: "Could not save category",
@@ -176,19 +207,20 @@ const Categories = () => {
     setDeleting(true);
     try {
       if (!pendingDelete.backendId) {
-        throw new Error("Seed categories cannot be deleted");
+        throw new Error("This category cannot be deleted because artisans or products are currently assigned to it.");
       }
       if ((pendingDelete.products ?? 0) > 0) {
-        throw new Error("Move or delete products in this category first");
+        throw new Error("This category cannot be deleted because artisans or products are currently assigned to it.");
       }
       await categoriesService.remove(pendingDelete.backendId);
       toast({ title: "Category deleted" });
       setPendingDelete(null);
       await loadServerCats();
+      await refetchCategories();
     } catch (e) {
       toast({
         title: "Could not delete",
-        description: e instanceof Error ? e.message : "Try again.",
+        description: e instanceof Error ? e.message : "This category cannot be deleted because artisans or products are currently assigned to it.",
         variant: "destructive",
       });
     } finally {
@@ -298,15 +330,47 @@ const Categories = () => {
                 : "Create a new top-level category. The slug is auto-generated from the name."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="cat-label">Name</Label>
-            <Input
-              id="cat-label"
-              value={formLabel}
-              onChange={(e) => setFormLabel(e.target.value)}
-              placeholder="e.g. Custom Apparel"
-              autoFocus
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cat-label">Label</Label>
+              <Input
+                id="cat-label"
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder="e.g. Home & Decor"
+                autoFocus
+              />
+            </div>
+            {!editing && previewSlug && (
+              <p className="text-xs text-muted-foreground">
+                Slug preview: <code>{previewSlug}</code>
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label>Icon Key</Label>
+              <Select value={formIconKey} onValueChange={setFormIconKey}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(CATEGORY_ICON_MAP).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {key}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cat-order">Display Order (optional)</Label>
+              <Input
+                id="cat-order"
+                type="number"
+                value={formOrder}
+                onChange={(e) => setFormOrder(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>

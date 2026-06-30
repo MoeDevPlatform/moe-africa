@@ -2,73 +2,57 @@ import {
   Scissors,
   Footprints,
   Palette,
-  Sparkle,
+  Sparkles,
   Briefcase,
   Gem,
   Home as HomeIcon,
+  Package,
   type LucideIcon,
 } from "lucide-react";
 
-/**
- * Canonical category list — the single source of truth used across the app
- * (home grid, mega menu, signup, filters). Do not redefine these values
- * elsewhere; import from here.
- */
+/** Canonical category shape from GET /categories */
 export interface CategoryDef {
+  id?: string;
   /** Canonical slug used as the API `category` value. */
   value: string;
   /** Display label shown to users. */
   label: string;
-  /** Lucide icon component. */
-  icon: LucideIcon;
+  /** Lucide icon key from the API. */
+  iconKey?: string | null;
+  icon?: LucideIcon;
+  order?: number;
   /** Static product-type suggestions for the mega menu "Shop by Type" column. */
-  types: string[];
+  types?: string[];
 }
 
-export const CATEGORIES: CategoryDef[] = [
-  {
-    value: "tailoring",
-    label: "Tailoring",
-    icon: Scissors,
-    types: ["Kaftans", "Agbada", "Ankara Dresses", "Corporate Suits", "Traditional Wear"],
-  },
-  {
-    value: "arts_and_crafts",
-    label: "Arts & Crafts",
-    icon: Palette,
-    types: ["Paintings", "Sculptures", "Handmade Cards", "Woven Baskets"],
-  },
-  {
-    value: "shoemaking",
-    label: "Shoemaking",
-    icon: Footprints,
-    types: ["Men's Shoes", "Women's Shoes", "Sandals", "Boots", "Custom Sneakers"],
-  },
-  {
-    value: "beauty",
-    label: "Beauty",
-    icon: Sparkle,
-    types: ["Skincare", "Hair Products", "Makeup", "Natural Oils"],
-  },
-  {
-    value: "leatherwork",
-    label: "Leatherwork",
-    icon: Briefcase,
-    types: ["Bags", "Belts", "Wallets", "Shoes", "Jackets"],
-  },
-  {
-    value: "jewellery",
-    label: "Jewellery",
-    icon: Gem,
-    types: ["Necklaces", "Earrings", "Bracelets", "Rings", "Anklets"],
-  },
-  {
-    value: "home_and_decor",
-    label: "Home & Decor",
-    icon: HomeIcon,
-    types: ["Wall Art", "Throw Pillows", "Table Decor", "Candles", "Rugs"],
-  },
-];
+/** Map API iconKey strings to Lucide components. */
+export const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
+  Scissors,
+  Palette,
+  Footprints,
+  Sparkles,
+  Briefcase,
+  Gem,
+  Home: HomeIcon,
+  Package,
+};
 
-export const getCategory = (value: string): CategoryDef | undefined =>
-  CATEGORIES.find((c) => c.value === value);
+export const getCategoryIcon = (iconKey?: string | null): LucideIcon =>
+  (iconKey && CATEGORY_ICON_MAP[iconKey]) || Package;
+
+/** Default mega-menu type suggestions keyed by slug (optional fallback). */
+export const DEFAULT_CATEGORY_TYPES: Record<string, string[]> = {
+  tailoring: ["Kaftans", "Agbada", "Ankara Dresses", "Corporate Suits", "Traditional Wear"],
+  arts_and_crafts: ["Paintings", "Sculptures", "Handmade Cards", "Woven Baskets"],
+  shoemaking: ["Men's Shoes", "Women's Shoes", "Sandals", "Boots", "Custom Sneakers"],
+  beauty: ["Skincare", "Hair Products", "Makeup", "Natural Oils"],
+  leatherwork: ["Bags", "Belts", "Wallets", "Shoes", "Jackets"],
+  jewellery: ["Necklaces", "Earrings", "Bracelets", "Rings", "Anklets"],
+  home_and_decor: ["Wall Art", "Throw Pillows", "Table Decor", "Candles", "Rugs"],
+};
+
+export const getCategory = (
+  value: string,
+  categories: CategoryDef[],
+): CategoryDef | undefined =>
+  categories.find((c) => c.value === value);

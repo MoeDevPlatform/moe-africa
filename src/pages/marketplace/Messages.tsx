@@ -300,7 +300,7 @@ const Messages = () => {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-semibold">{conversation.providerName}</h3>
+                          <h3 className="font-semibold">Re: {conversation.providerName}</h3>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(conversation.lastMessageTime).toLocaleDateString()}
                           </span>

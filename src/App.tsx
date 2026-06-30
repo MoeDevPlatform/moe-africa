@@ -8,6 +8,7 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CategoriesProvider } from "@/contexts/CategoriesContext";
 import Index from "./pages/Index";
 import Login from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -19,6 +20,7 @@ import Users from "./pages/admin/Users";
 import UserDetailAdmin from "./pages/admin/UserDetail";
 import AdminSettings from "./pages/admin/Settings";
 import Categories from "./pages/admin/Categories";
+import AdminMessages from "./pages/admin/Messages";
 import Orders from "./pages/admin/Orders";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/marketplace/Landing";
@@ -67,6 +69,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+    <CategoriesProvider>
     <NotificationProvider>
       <WishlistProvider>
         <CartProvider>
@@ -131,6 +134,8 @@ const App = () => (
                   <Route path="/admin/products/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><ProductDetailAdmin /></ProtectedRoute>} />
                   <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Users /></ProtectedRoute>} />
                   <Route path="/admin/users/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><UserDetailAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/messages" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminMessages /></ProtectedRoute>} />
+                  <Route path="/admin/messages/:conversationId" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminMessages /></ProtectedRoute>} />
                   <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSettings /></ProtectedRoute>} />
                   <Route path="/admin/categories" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Categories /></ProtectedRoute>} />
                   <Route path="/admin/orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Orders /></ProtectedRoute>} />
@@ -144,6 +149,7 @@ const App = () => (
         </CartProvider>
       </WishlistProvider>
     </NotificationProvider>
+    </CategoriesProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

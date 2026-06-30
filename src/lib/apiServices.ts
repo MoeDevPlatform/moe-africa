@@ -1120,8 +1120,13 @@ export interface Conversation {
   customerId: number;
   providerId: number;
   providerName: string;
+  customerName?: string;
+  artisanName?: string;
   lastMessage: string;
   lastMessageTime: string;
+  lastMessageAt?: string;
+  status?: string;
+  artisanNote?: string | null;
   unreadCount: number;
 }
 
@@ -1130,9 +1135,17 @@ export interface Message {
   conversationId: number;
   senderId: number;
   senderType: "customer" | "provider";
+  senderRole?: "customer" | "admin" | "artisan_note";
   content: string;
   sentAt: string;
   readAt?: string;
+}
+
+export interface AdminConversation extends Conversation {
+  artisanId: number;
+  customerName: string;
+  artisanName: string;
+  status: string;
 }
 
 export const messagingService = {
@@ -1175,6 +1188,29 @@ export const messagingService = {
     apiDelete<void>(`/conversations/${conversationId}`),
   deleteAllConversations: () =>
     apiDelete<{ deleted: number }>(`/conversations`),
+  updateArtisanNote: (conversationId: number, note: string) =>
+    apiPatch<{ success: boolean }>(`/conversations/${conversationId}/artisan-note`, { note }),
+};
+
+export const adminMessagingService = {
+  listConversations: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    apiGet<{ data: AdminConversation[]; pagination?: Pagination }>(
+      "/admin/conversations",
+      params as Record<string, unknown>,
+    ),
+  getConversation: (id: number) =>
+    apiGet<{ conversation: AdminConversation; messages: Message[] }>(`/admin/conversations/${id}`),
+  reply: (id: number, content: string) =>
+    apiPost<Message>(`/admin/conversations/${id}/reply`, { content }),
+  updateStatus: (id: number, status: string) =>
+    apiPatch<{ success: boolean }>(`/admin/conversations/${id}/status`, { status }),
+  unreadCount: async (): Promise<number> => {
+    const res = await apiGet<{ data: AdminConversation[]; pagination?: Pagination }>(
+      "/admin/conversations",
+      { status: "unread", pageSize: 1 },
+    );
+    return res.pagination?.totalItems ?? res.data?.length ?? 0;
+  },
 };
 
 // ─── Wishlist (API sync for logged-in users) ──────────────
@@ -1582,11 +1618,14 @@ export const categoriesService = {
       return readLocalCats();
     }
   },
-  create: async (input: { label: string; slug?: string; icon?: string }): Promise<AdminCategory> => {
+  create: async (input: { label: string; slug?: string; icon?: string; order?: number }): Promise<AdminCategory> => {
     const payload = { ...input, slug: input.slug || slugify(input.label) };
     try {
-      return await apiPost<AdminCategory>("/categories", payload);
+      return await apiPost<AdminCategory>("/admin/categories", payload);
     } catch {
+      try {
+        return await apiPost<AdminCategory>("/categories", payload);
+      } catch {
       const cats = readLocalCats();
       if (cats.some((c) => c.slug === payload.slug)) {
         throw new Error("A category with that slug already exists");
@@ -1602,6 +1641,7 @@ export const categoriesService = {
       };
       writeLocalCats([...cats, created]);
       return created;
+      }
     }
   },
   update: async (
@@ -1609,8 +1649,11 @@ export const categoriesService = {
     patch: { label?: string; icon?: string; sortOrder?: number },
   ): Promise<AdminCategory> => {
     try {
-      return await apiPatch<AdminCategory>(`/categories/${id}`, patch);
+      return await apiPatch<AdminCategory>(`/admin/categories/${id}`, patch);
     } catch {
+      try {
+        return await apiPatch<AdminCategory>(`/categories/${id}`, patch);
+      } catch {
       const cats = readLocalCats();
       const idx = cats.findIndex((c) => c.id === id);
       if (idx === -1) throw new Error("Category not found");
@@ -1618,17 +1661,23 @@ export const categoriesService = {
       cats[idx] = next;
       writeLocalCats(cats);
       return next;
+      }
     }
   },
   remove: async (id: string): Promise<void> => {
     try {
-      await apiDelete<void>(`/categories/${id}`);
+      await apiDelete<void>(`/admin/categories/${id}`);
       return;
     } catch {
-      const cats = readLocalCats();
-      const target = cats.find((c) => c.id === id);
-      if (target?.isSeed) throw new Error("Seed categories cannot be deleted");
-      writeLocalCats(cats.filter((c) => c.id !== id));
+      try {
+        await apiDelete<void>(`/categories/${id}`);
+        return;
+      } catch {
+        const cats = readLocalCats();
+        const target = cats.find((c) => c.id === id);
+        if (target?.isSeed) throw new Error("Seed categories cannot be deleted");
+        writeLocalCats(cats.filter((c) => c.id !== id));
+      }
     }
   },
 };
@@ -1753,6 +1802,7 @@ export interface AdminUserRow {
   email: string;
   roles: UserRole[];
   artisanStatus: ApprovalStatus | null;
+  status?: "active" | "suspended";
   createdAt: string;
 }
 
@@ -1810,12 +1860,26 @@ export const adminService = {
       `/admin/products/${id}${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`,
     ),
 
-  listUsers: (params?: { page?: number; pageSize?: number; role?: UserRole }) =>
+  listUsers: (params?: { page?: number; pageSize?: number; role?: UserRole; status?: string }) =>
     apiGet<PaginatedResponse<AdminUserRow>>(
       "/admin/users",
       params as Record<string, unknown>,
     ),
   getUser: (id: number) => apiGet<AdminUserDetail>(`/admin/users/${id}`),
+  createUser: (body: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: UserRole;
+    temporaryPassword: string;
+    businessName?: string;
+    category?: string;
+  }) => apiPost<AdminUserRow>("/admin/users", body),
+  resetPassword: (id: number) =>
+    apiPost<{ temporaryPassword: string }>(`/admin/users/${id}/reset-password`, {}),
+  setUserStatus: (id: number, status: "active" | "suspended") =>
+    apiPatch<{ id: number; status: string }>(`/admin/users/${id}/status`, { status }),
+  deleteUser: (id: number) => apiDelete<{ success: boolean }>(`/admin/users/${id}`),
 };
 
 // ─── Admin Orders ─────────────────────────────────────────
