@@ -13,8 +13,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   adminMessagingService,
   type AdminConversation,
@@ -39,6 +55,8 @@ const AdminMessages = () => {
   } | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadList = () => {
     setIsLoading(true);
@@ -91,6 +109,26 @@ const AdminMessages = () => {
       toast.success("Status updated");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to update status");
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!pendingDelete) return;
+    const removed = pendingDelete;
+    setDeleting(true);
+    setConversations((prev) => prev.filter((c) => c.id !== removed.id));
+    setPendingDelete(null);
+    try {
+      await adminMessagingService.deleteConversation(removed.id);
+      toast.success("Conversation deleted");
+      if (conversationId && Number(conversationId) === removed.id) {
+        navigate("/admin/messages");
+      }
+    } catch (e: unknown) {
+      setConversations((prev) => [removed, ...prev]);
+      toast.error(e instanceof Error ? e.message : "Failed to delete conversation");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -204,11 +242,13 @@ const AdminMessages = () => {
             {conversations.map((c) => (
               <Card
                 key={c.id}
-                className="p-4 cursor-pointer hover:border-primary transition-colors"
-                onClick={() => navigate(`/admin/messages/${c.id}`)}
+                className="p-4 hover:border-primary transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
+                  <div
+                    className="min-w-0 flex-1 cursor-pointer"
+                    onClick={() => navigate(`/admin/messages/${c.id}`)}
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold">{c.customerName}</h3>
                       <Badge variant="outline" className="text-xs">
@@ -220,13 +260,35 @@ const AdminMessages = () => {
                       {c.lastMessage}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <Badge variant="secondary">
-                      {STATUS_LABELS[c.status ?? "unread"] ?? c.status}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(c.lastMessageAt ?? c.lastMessageTime).toLocaleDateString()}
-                    </p>
+                  <div className="flex items-start gap-2 shrink-0">
+                    <div className="text-right">
+                      <Badge variant="secondary">
+                        {STATUS_LABELS[c.status ?? "unread"] ?? c.status}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(c.lastMessageAt ?? c.lastMessageTime).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setPendingDelete(c)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </Card>
@@ -234,6 +296,23 @@ const AdminMessages = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cannot be undone. All messages in this thread will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConversation} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

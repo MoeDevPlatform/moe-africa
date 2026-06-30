@@ -17,11 +17,11 @@ interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  clearNotification: (id: string) => void;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  clearNotification: (id: string) => Promise<void>;
   clearAll: () => void;
-  refresh: () => Promise<void>;
+  refresh: (options?: { unreadOnly?: boolean }) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -39,15 +39,17 @@ const mapType = (t: ApiNotification["type"]): Notification["type"] => {
   }
 };
 
-// Issue #3 — backend currently emits `/messages/:id` for message notifications,
-// but our router only knows `/marketplace/messages/:id`. Rewrite the link
-// client-side so clicking a notification no longer 404s.
-// TODO(backend): remove this shim once notification rows ship the
-// `/marketplace/messages/:id` link directly. Tracked in backendRequirements.md.
-const rewriteLink = (link?: string): string | undefined => {
-  if (!link) return link;
-  const match = link.match(/^\/messages\/(\d+)(.*)$/);
-  if (match) return `/marketplace/messages/${match[1]}${match[2] ?? ""}`;
+const rewriteLink = (link?: string | null): string | undefined => {
+  if (!link || link.includes("undefined")) return "/marketplace/messages";
+
+  const queryMatch = link.match(/^[\/]?messages\?c=(\d+)/);
+  if (queryMatch) return `/marketplace/messages/${queryMatch[1]}`;
+
+  const pathMatch = link.match(/^[\/]?messages\/(\d+)/);
+  if (pathMatch) return `/marketplace/messages/${pathMatch[1]}`;
+
+  if (link.startsWith("/marketplace/")) return link;
+  if (link.startsWith("/")) return link;
   return link;
 };
 
@@ -64,56 +66,61 @@ const fromApi = (n: ApiNotification): Notification => ({
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadPoll, setUnreadPoll] = useState<Notification[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Wipe legacy global cache once — it leaked between accounts on the same browser.
   useEffect(() => {
     try { localStorage.removeItem(LEGACY_KEY); } catch { /* noop */ }
   }, []);
 
-  const loadFromCache = useCallback((uid: string | number): Notification[] => {
-    try {
-      const raw = localStorage.getItem(cacheKey(uid));
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return parsed.map((n: any) => ({ ...n, timestamp: new Date(n.timestamp) }));
-    } catch { return []; }
-  }, []);
-
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { unreadOnly?: boolean }) => {
     if (!isAuthenticated || !user?.id) {
       setNotifications([]);
+      setUnreadPoll([]);
       return;
     }
     try {
-      const res = await notificationsService.list();
-      // Backend returns { data, pagination }; tolerate raw array fallback too.
+      const res = await notificationsService.list(
+        options?.unreadOnly ? { unread: true } : undefined,
+      );
       const rows: ApiNotification[] = Array.isArray(res) ? res : (res?.data ?? []);
       const mapped = rows.map(fromApi);
-      setNotifications(mapped);
-      try { localStorage.setItem(cacheKey(user.id), JSON.stringify(mapped)); } catch { /* noop */ }
+      if (options?.unreadOnly) {
+        setUnreadPoll(mapped);
+      } else {
+        setNotifications(mapped);
+        try { localStorage.setItem(cacheKey(user.id), JSON.stringify(mapped)); } catch { /* noop */ }
+      }
     } catch {
-      // Network/API down: fall back to per-user cache so the bell isn't empty.
-      setNotifications(loadFromCache(user.id));
+      if (!options?.unreadOnly && user?.id) {
+        try {
+          const raw = localStorage.getItem(cacheKey(user.id));
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            setNotifications(
+              parsed.map((n: Notification) => ({ ...n, timestamp: new Date(n.timestamp) })),
+            );
+          }
+        } catch { /* noop */ }
+      }
     }
-  }, [isAuthenticated, user?.id, loadFromCache]);
+  }, [isAuthenticated, user?.id]);
 
-  // Load + poll while signed in. Reset on logout.
   useEffect(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     if (!isAuthenticated || !user?.id) {
       setNotifications([]);
+      setUnreadPoll([]);
       return;
     }
-    setNotifications(loadFromCache(user.id)); // instant paint
-    refresh();
-    pollRef.current = setInterval(refresh, 30_000);
+    refresh({ unreadOnly: true });
+    pollRef.current = setInterval(() => refresh({ unreadOnly: true }), 30_000);
     return () => {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
-  }, [isAuthenticated, user?.id, refresh, loadFromCache]);
+  }, [isAuthenticated, user?.id, refresh]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = unreadPoll.filter((n) => !n.read).length;
 
   const addNotification: NotificationContextType["addNotification"] = (notification) => {
     const newNotification: Notification = {
@@ -125,23 +132,31 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setNotifications((prev) => [newNotification, ...prev]);
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markAsRead = async (id: string) => {
     const numeric = Number(id);
     if (!Number.isNaN(numeric) && isAuthenticated) {
-      notificationsService.markRead(numeric).catch(() => { /* silent */ });
+      await notificationsService.markRead(numeric);
+      await refresh({ unreadOnly: true });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+    } else {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
     if (isAuthenticated) {
-      notificationsService.markAllRead().catch(() => { /* silent */ });
+      await notificationsService.markAllRead();
+      await refresh({ unreadOnly: true });
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } else {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     }
   };
 
-  const clearNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  const clearNotification = async (id: string) => {
+    await markAsRead(id);
   };
 
   const clearAll = () => setNotifications([]);

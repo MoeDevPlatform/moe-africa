@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, X, Check, Quote, MessageSquare, Package, Heart, Tag, Paintbrush } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
@@ -46,6 +46,11 @@ const formatTimeAgo = (date: Date) => {
   return date.toLocaleDateString("en-NG", { month: "short", day: "numeric" });
 };
 
+const safeNotificationLink = (link?: string): string => {
+  if (!link || link.includes("undefined")) return "/marketplace/messages";
+  return link;
+};
+
 const NotificationItem = ({
   notification,
   onRead,
@@ -60,7 +65,7 @@ const NotificationItem = ({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50",
+        "group flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50",
         !notification.read && "bg-primary/5"
       )}
       onClick={() => {
@@ -104,16 +109,30 @@ const NotificationItem = ({
 
 const NotificationCenter = () => {
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification, refresh } =
+    useNotifications();
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (notification.link) {
-      navigate(notification.link);
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      refresh();
     }
   };
 
+  const handleNotificationClick = async (notification: Notification) => {
+    await markAsRead(notification.id);
+    navigate(safeNotificationLink(notification.link));
+    setOpen(false);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+    await refresh();
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -132,7 +151,7 @@ const NotificationCenter = () => {
               variant="ghost"
               size="sm"
               className="text-xs h-auto py-1 px-2"
-              onClick={markAllAsRead}
+              onClick={handleMarkAllAsRead}
             >
               <Check className="h-3 w-3 mr-1" />
               Mark all as read
@@ -147,7 +166,7 @@ const NotificationCenter = () => {
                 <NotificationItem
                   key={notification.id}
                   notification={notification}
-                  onRead={() => markAsRead(notification.id)}
+                  onRead={() => { /* handled in click */ }}
                   onClear={() => clearNotification(notification.id)}
                   onClick={() => handleNotificationClick(notification)}
                 />

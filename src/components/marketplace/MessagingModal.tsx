@@ -31,6 +31,34 @@ interface Message {
   serverId?: number;
 }
 
+const mapServerMessage = (
+  m: Record<string, unknown>,
+  providerId: number,
+  providerName: string,
+): Message => {
+  const sid = Number(m.id);
+  return {
+    id: `srv_${sid}`,
+    serverId: sid,
+    senderId: m.senderId != null ? String(m.senderId) : String(providerId),
+    senderName: resolveMessageSenderName(
+      m as { senderRole?: string; senderType?: string },
+      providerName,
+      true,
+    ),
+    text: String(m.content ?? m.text ?? ""),
+    timestamp: m.sentAt
+      ? new Date(String(m.sentAt))
+      : m.createdAt
+        ? new Date(String(m.createdAt))
+        : new Date(),
+    isCustomer: m.senderType === "customer" || m.senderRole === "customer",
+    type: "text",
+    readAt: (m.readAt as string | null) ?? null,
+    status: "sent",
+  };
+};
+
 interface MessagingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -120,40 +148,11 @@ const MessagingModal = ({
           const serverMessages = res?.data ?? [];
           if (!Array.isArray(serverMessages)) return;
           setMessages((prev) => {
-            // Index existing rows by serverId so we can refresh `readAt`.
-            const byServerId = new Map<number, number>();
-            prev.forEach((m, i) => {
-              if (m.serverId != null) byServerId.set(m.serverId, i);
-            });
-            const next = [...prev];
-            let changed = false;
-            for (const m of serverMessages as any[]) {
-              const sid = Number(m.id);
-              const mapped: Message = {
-                id: `srv_${sid}`,
-                serverId: sid,
-                senderId: m.senderId != null ? String(m.senderId) : String(providerId),
-                senderName: resolveMessageSenderName(m, providerName, true),
-                text: m.content ?? m.text ?? "",
-                timestamp: m.sentAt ? new Date(m.sentAt) : m.createdAt ? new Date(m.createdAt) : new Date(),
-                isCustomer: m.senderType === "customer",
-                type: "text",
-                readAt: m.readAt ?? null,
-                status: "sent",
-              };
-              if (byServerId.has(sid)) {
-                const idx = byServerId.get(sid)!;
-                const existing = next[idx];
-                if (existing.readAt !== mapped.readAt) {
-                  next[idx] = { ...existing, readAt: mapped.readAt };
-                  changed = true;
-                }
-              } else {
-                next.push(mapped);
-                changed = true;
-              }
-            }
-            return changed ? next : prev;
+            const fetched = (serverMessages as Record<string, unknown>[]).map((m) =>
+              mapServerMessage(m, providerId, providerName),
+            );
+            const failed = prev.filter((m) => m.status === "failed");
+            return [...failed, ...fetched];
           });
         })
         .catch(() => { /* silent — keep last good state */ });
@@ -207,13 +206,18 @@ const MessagingModal = ({
     }
   }, [messages]);
 
-  const handleSendMessage = async (type: "text" | "image" | "voice" | "file" = "text", attachmentUrl?: string, attachmentName?: string) => {
-    if (type === "text" && !newMessage.trim()) return;
-
-    const content = type === "text" ? newMessage.trim() : (attachmentName || "");
-    const localId = `local_${Date.now()}`;
+  const handleSendMessage = async (
+    type: "text" | "image" | "voice" | "file" = "text",
+    attachmentUrl?: string,
+    attachmentName?: string,
+    textOverride?: string,
+  ) => {
+    const content =
+      type === "text" ? (textOverride ?? newMessage).trim() : (attachmentName || "");
+    if (type === "text" && !content) return;
+    const tempId = `temp_${Date.now()}`;
     const message: Message = {
-      id: localId,
+      id: tempId,
       senderId: "customer",
       senderName: "You",
       text: content,
@@ -272,22 +276,19 @@ const MessagingModal = ({
         // backend. Don't re-send — let the 5s poll adopt the server row.
         serverMsg = undefined;
       }
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === localId
-            ? {
-                ...m,
-                status: "sent",
-                serverId: serverMsg && (serverMsg as any).id ? Number((serverMsg as any).id) : m.serverId,
-                id: serverMsg && (serverMsg as any).id ? `srv_${(serverMsg as any).id}` : m.id,
-                timestamp: serverMsg && (serverMsg as any).sentAt
-                  ? new Date((serverMsg as any).sentAt)
-                  : m.timestamp,
-                readAt: (serverMsg as any)?.readAt ?? null,
-              }
-            : m,
-        ),
-      );
+
+      if (serverMsg && (serverMsg as { id?: number }).id) {
+        const mapped = mapServerMessage(
+          serverMsg as Record<string, unknown>,
+          providerId,
+          providerName,
+        );
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? mapped : m)));
+      } else {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, status: "sent" as const } : m)),
+        );
+      }
     } catch (err) {
       console.error("[MessagingModal] send failed", err);
       const message =
@@ -296,9 +297,15 @@ const MessagingModal = ({
           : "Could not send message";
       toast({ title: "Message not sent", description: message, variant: "destructive" });
       setMessages((prev) =>
-        prev.map((m) => (m.id === localId ? { ...m, status: "failed" } : m)),
+        prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)),
       );
     }
+  };
+
+  const retryMessage = (failed: Message) => {
+    if (failed.type !== "text" || !failed.text.trim()) return;
+    setMessages((prev) => prev.filter((m) => m.id !== failed.id));
+    void handleSendMessage("text", undefined, undefined, failed.text);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -427,7 +434,7 @@ const MessagingModal = ({
                         </span>
                         {message.isCustomer && (
                           <span
-                            className="text-xs text-muted-foreground"
+                            className="text-xs text-muted-foreground flex items-center gap-1"
                             aria-label={
                               message.status === "sending"
                                 ? "Sending"
@@ -441,7 +448,16 @@ const MessagingModal = ({
                             {message.status === "sending" ? (
                               <Clock className="h-3 w-3" />
                             ) : message.status === "failed" ? (
-                              <AlertCircle className="h-3 w-3 text-destructive" />
+                              <>
+                                <AlertCircle className="h-3 w-3 text-destructive" />
+                                <button
+                                  type="button"
+                                  className="text-destructive underline text-[10px]"
+                                  onClick={() => retryMessage(message)}
+                                >
+                                  Retry
+                                </button>
+                              </>
                             ) : message.readAt ? (
                               <CheckCheck className="h-3 w-3 text-primary" />
                             ) : (

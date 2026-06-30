@@ -1211,6 +1211,8 @@ export const adminMessagingService = {
     );
     return res.pagination?.totalItems ?? res.data?.length ?? 0;
   },
+  deleteConversation: (id: number) =>
+    apiDelete<{ success: boolean }>(`/admin/conversations/${id}`),
 };
 
 // ─── Wishlist (API sync for logged-in users) ──────────────
@@ -1293,7 +1295,11 @@ export interface Notification {
 }
 
 export const notificationsService = {
-  list: () => apiGet<PaginatedResponse<Notification>>("/notifications"),
+  list: (params?: { unread?: boolean; page?: number; pageSize?: number }) =>
+    apiGet<PaginatedResponse<Notification>>(
+      "/notifications",
+      params as Record<string, unknown>,
+    ),
   markRead: (id: number) => apiPatch<void>(`/notifications/${id}/read`),
   markAllRead: () => apiPatch<void>("/notifications/read-all"),
 };
@@ -1824,6 +1830,7 @@ export interface AdminUserDetail {
     category: string | null;
     city: string | null;
     state: string | null;
+    about?: string | null;
   } | null;
   customerProfile: { addresses: unknown[] } | null;
 }
@@ -1866,6 +1873,19 @@ export const adminService = {
       params as Record<string, unknown>,
     ),
   getUser: (id: number) => apiGet<AdminUserDetail>(`/admin/users/${id}`),
+  updateUser: (
+    id: number,
+    body: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      businessName?: string;
+      category?: string;
+      city?: string;
+      state?: string;
+      about?: string;
+    },
+  ) => apiPatch<AdminUserDetail>(`/admin/users/${id}`, body),
   createUser: (body: {
     name: string;
     email: string;

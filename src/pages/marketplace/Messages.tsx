@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Card } from "@/components/ui/card";
@@ -40,6 +40,7 @@ const Messages = () => {
   const [clearing, setClearing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const listKey = `conversations_${user?.id != null ? String(user.id) : "guest"}`;
   const scope = user?.id != null ? String(user.id) : "guest";
@@ -139,6 +140,15 @@ const Messages = () => {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [listKey, user?.id]);
+
+  useEffect(() => {
+    const cid =
+      searchParams.get("conversationId") ??
+      searchParams.get("c");
+    if (cid && /^\d+$/.test(cid)) {
+      navigate(`/marketplace/messages/${cid}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const handleOpenConversation = (conversation: Conversation) => {
     setConversations((prev) =>
