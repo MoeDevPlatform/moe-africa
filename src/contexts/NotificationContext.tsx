@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { notificationsService, Notification as ApiNotification } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import { clearNotificationCache } from "@/lib/notificationCache";
 
 export interface Notification {
   id: string;
+  userId?: number;
   type: "quote" | "response" | "order_status" | "wishlist" | "promo" | "custom_order" | "message";
   title: string;
   message: string;
@@ -21,19 +23,17 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   clearNotification: (id: string) => Promise<void>;
   clearAll: () => void;
-  refresh: (options?: { unreadOnly?: boolean }) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-
-const cacheKey = (userId: string | number) => `moe_notifications:${userId}`;
-const LEGACY_KEY = "moe_notifications";
 
 const mapType = (t: ApiNotification["type"]): Notification["type"] => {
   switch (t) {
     case "order_update": return "order_status";
     case "message": return "message";
     case "promotion": return "promo";
+    case "product_removed_by_admin": return "response";
     case "system":
     default: return "response";
   }
@@ -55,6 +55,7 @@ const rewriteLink = (link?: string | null): string | undefined => {
 
 const fromApi = (n: ApiNotification): Notification => ({
   id: String(n.id),
+  userId: n.userId,
   type: mapType(n.type),
   title: n.title,
   message: n.body,
@@ -66,92 +67,89 @@ const fromApi = (n: ApiNotification): Notification => ({
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadPoll, setUnreadPoll] = useState<Notification[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    try { localStorage.removeItem(LEGACY_KEY); } catch { /* noop */ }
+    clearNotificationCache();
   }, []);
 
-  const refresh = useCallback(async (options?: { unreadOnly?: boolean }) => {
-    if (!isAuthenticated || !user?.id) {
+  const refresh = useCallback(async () => {
+    const uid = user?.id;
+    if (!isAuthenticated || uid == null) {
       setNotifications([]);
-      setUnreadPoll([]);
+      userIdRef.current = null;
       return;
     }
-    try {
-      const res = await notificationsService.list(
-        options?.unreadOnly ? { unread: true } : undefined,
-      );
-      const rows: ApiNotification[] = Array.isArray(res) ? res : (res?.data ?? []);
-      const mapped = rows.map(fromApi);
-      if (options?.unreadOnly) {
-        setUnreadPoll(mapped);
-      } else {
-        setNotifications(mapped);
-        try { localStorage.setItem(cacheKey(user.id), JSON.stringify(mapped)); } catch { /* noop */ }
-      }
-    } catch {
-      if (!options?.unreadOnly && user?.id) {
-        try {
-          const raw = localStorage.getItem(cacheKey(user.id));
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            setNotifications(
-              parsed.map((n: Notification) => ({ ...n, timestamp: new Date(n.timestamp) })),
-            );
-          }
-        } catch { /* noop */ }
-      }
-    }
+    userIdRef.current = uid;
+
+    const res = await notificationsService.list({ unread: true });
+    const rows: ApiNotification[] = Array.isArray(res) ? res : (res?.data ?? []);
+    const mapped = rows
+      .map(fromApi)
+      .filter((n) => n.userId == null || n.userId === uid);
+    setNotifications(mapped);
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    if (!isAuthenticated || !user?.id) {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (!isAuthenticated || user?.id == null) {
       setNotifications([]);
-      setUnreadPoll([]);
+      userIdRef.current = null;
       return;
     }
-    refresh({ unreadOnly: true });
-    pollRef.current = setInterval(() => refresh({ unreadOnly: true }), 30_000);
+    refresh().catch(() => setNotifications([]));
+    pollRef.current = setInterval(() => {
+      refresh().catch(() => { /* keep last good state */ });
+    }, 30_000);
     return () => {
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
   }, [isAuthenticated, user?.id, refresh]);
 
-  const unreadCount = unreadPoll.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const addNotification: NotificationContextType["addNotification"] = (notification) => {
     const newNotification: Notification = {
       ...notification,
       id: `local-${Date.now()}`,
+      userId: user?.id,
       timestamp: new Date(),
       read: false,
     };
     setNotifications((prev) => [newNotification, ...prev]);
   };
 
+  const removeFromState = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
   const markAsRead = async (id: string) => {
     const numeric = Number(id);
+    removeFromState(id);
     if (!Number.isNaN(numeric) && isAuthenticated) {
-      await notificationsService.markRead(numeric);
-      await refresh({ unreadOnly: true });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-    } else {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      try {
+        await notificationsService.markRead(numeric);
+      } catch {
+        await refresh().catch(() => {});
+      }
     }
   };
 
   const markAllAsRead = async () => {
+    setNotifications([]);
     if (isAuthenticated) {
-      await notificationsService.markAllRead();
-      await refresh({ unreadOnly: true });
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    } else {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      try {
+        await notificationsService.markAllRead();
+      } catch {
+        await refresh().catch(() => setNotifications([]));
+      }
     }
   };
 
@@ -159,7 +157,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     await markAsRead(id);
   };
 
-  const clearAll = () => setNotifications([]);
+  const clearAll = () => {
+    void markAllAsRead();
+  };
 
   return (
     <NotificationContext.Provider

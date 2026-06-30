@@ -5,6 +5,7 @@ import {
   UserRole,
   artisanService,
 } from "@/lib/apiServices";
+import { clearNotificationCache } from "@/lib/notificationCache";
 
 interface AuthContextType {
   user: CustomerProfile | null;
@@ -79,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithTokens = useCallback(async (token: string, refreshToken: string) => {
     clearArtisanStash();
+    clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, token);
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     await refreshProfile();
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = await authService.login({ email, password });
     clearArtisanStash();
+    clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
     localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
     setUser(res.user);
@@ -101,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     const res = await authService.register({ name, email, password, role, serviceCategories });
     clearArtisanStash();
+    clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
     localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
     setUser(res.user);
@@ -119,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Object.keys(localStorage)
       .filter((k) => k.startsWith("conversation_") || k.startsWith("conversations_") || k === "conversations")
       .forEach((k) => localStorage.removeItem(k));
+    clearNotificationCache();
     setUser(null);
   }, []);
 

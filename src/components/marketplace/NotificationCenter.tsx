@@ -59,7 +59,7 @@ const NotificationItem = ({
 }: {
   notification: Notification;
   onRead: () => void;
-  onClear: () => void;
+  onClear: (e: React.MouseEvent) => void;
   onClick: () => void;
 }) => {
   return (
@@ -69,7 +69,6 @@ const NotificationItem = ({
         !notification.read && "bg-primary/5"
       )}
       onClick={() => {
-        onRead();
         onClick();
       }}
     >
@@ -98,7 +97,7 @@ const NotificationItem = ({
         className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
         onClick={(e) => {
           e.stopPropagation();
-          onClear();
+          onClear(e);
         }}
       >
         <X className="h-3 w-3" />
@@ -116,7 +115,7 @@ const NotificationCenter = () => {
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (next) {
-      refresh();
+      refresh().catch(() => {});
     }
   };
 
@@ -126,9 +125,13 @@ const NotificationCenter = () => {
     setOpen(false);
   };
 
+  const handleDismiss = async (e: React.MouseEvent, notification: Notification) => {
+    e.stopPropagation();
+    await clearNotification(notification.id);
+  };
+
   const handleMarkAllAsRead = async () => {
     await markAllAsRead();
-    await refresh();
   };
 
   return (
@@ -166,8 +169,8 @@ const NotificationCenter = () => {
                 <NotificationItem
                   key={notification.id}
                   notification={notification}
-                  onRead={() => { /* handled in click */ }}
-                  onClear={() => clearNotification(notification.id)}
+                  onRead={() => {}}
+                  onClear={(e) => handleDismiss(e, notification)}
                   onClick={() => handleNotificationClick(notification)}
                 />
               ))}

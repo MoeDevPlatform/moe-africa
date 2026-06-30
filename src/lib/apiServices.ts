@@ -1286,7 +1286,7 @@ export const cartService = {
 export interface Notification {
   id: number;
   userId: number;
-  type: "order_update" | "message" | "promotion" | "system";
+  type: "order_update" | "message" | "promotion" | "system" | "product_removed_by_admin";
   title: string;
   body: string;
   read: boolean;
