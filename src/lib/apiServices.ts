@@ -159,16 +159,21 @@ export interface ArtisanProfile {
   featured: boolean;
   /** Admin approval workflow (item 10). New signups are `pending`. */
   status?: "pending" | "approved" | "rejected";
-  serviceCategories?: string[];
+  /** Backend currently stores as comma-separated string; array accepted at register. */
+  serviceCategories?: string | string[];
   rushOrderEnabled?: boolean;
   rushOrderSurchargePercent?: number;
   createdAt: string;
 }
 
-async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
+async function uploadFileWithAuth(
+  path: string,
+  file: File,
+  fieldName = "file",
+): Promise<Response> {
   validateUploadFile(file);
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append(fieldName, file);
   const base = (import.meta.env?.VITE_API_BASE_URL ??
     import.meta.env?.VITE_MOE_API_BASE_URL ??
     "https://moe-backend.duckdns.org") as string;
@@ -180,9 +185,23 @@ async function uploadFileWithAuth(path: string, file: File): Promise<Response> {
   });
 }
 
-// Backend (local filesystem storage) enforces: JPEG/PNG/WebP, max 2MB.
-// Validate client-side so users get an instant, friendly error instead of a 400.
-export const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
+async function parseUploadUrl(res: Response): Promise<string> {
+  const body = await res.json().catch(() => ({}));
+  const url =
+    body?.url ??
+    body?.imageUrl ??
+    body?.data?.url ??
+    body?.data?.imageUrl ??
+    body?.location ??
+    body?.path;
+  if (typeof url !== "string" || !url) {
+    throw new MoeApiError("Image upload returned no URL", 500);
+  }
+  return url;
+}
+
+// Backend (local filesystem / Cloudinary) enforces: JPEG/PNG/WebP, max 5MB.
+export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const UPLOAD_ACCEPT_ATTR = UPLOAD_ACCEPTED_TYPES.join(",");
 
@@ -191,7 +210,7 @@ export function validateUploadFile(file: File): void {
     throw new MoeApiError("Only JPEG, PNG or WebP images are allowed", 400);
   }
   if (file.size > UPLOAD_MAX_BYTES) {
-    throw new MoeApiError("Image must be 2MB or smaller", 400);
+    throw new MoeApiError("Image must be 5MB or smaller", 400);
   }
 }
 
@@ -271,44 +290,41 @@ export const artisanService = {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Image upload failed", res.status);
     }
-    const body = await res.json().catch(() => ({}));
-    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
-    if (typeof url !== "string" || !url) {
-      throw new MoeApiError("Image upload returned no URL", 500);
-    }
-    return { url };
+    return { url: await parseUploadUrl(res) };
   },
   uploadStoreImage: async (file: File): Promise<{ url: string }> => {
-    const res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+    // Prefer dedicated store endpoint; fall back to product upload when missing.
+    // Field names tried in order: file (canonical), storeImage (some backends).
+    let res = await uploadFileWithAuth("/artisans/me/upload-image", file, "file");
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/upload-image", file, "storeImage");
+    }
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/products/upload-image", file, "file");
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Store image upload failed", res.status);
     }
-    const body = await res.json().catch(() => ({}));
-    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
-    if (typeof url !== "string" || !url) {
-      throw new MoeApiError("Store image upload returned no URL", 500);
-    }
-    return { url };
+    return { url: await parseUploadUrl(res) };
   },
   uploadCoverImage: async (file: File): Promise<{ url: string }> => {
-    // Try a dedicated cover endpoint first; fall back to the generic store image endpoint
-    // if the backend hasn't shipped it yet. Either way we get a public URL we can persist
-    // as `coverImageUrl` via PATCH /artisans/me.
-    let res = await uploadFileWithAuth("/artisans/me/upload-cover", file);
+    // Try dedicated cover endpoint first; fall back to store / product upload.
+    let res = await uploadFileWithAuth("/artisans/me/upload-cover", file, "file");
     if (res.status === 404 || res.status === 405) {
-      res = await uploadFileWithAuth("/artisans/me/upload-image", file);
+      res = await uploadFileWithAuth("/artisans/me/upload-cover", file, "coverImage");
+    }
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/upload-image", file, "file");
+    }
+    if (res.status === 404 || res.status === 405) {
+      res = await uploadFileWithAuth("/artisans/me/products/upload-image", file, "file");
     }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new MoeApiError(body.message || "Cover image upload failed", res.status);
     }
-    const body = await res.json().catch(() => ({}));
-    const url = body?.url ?? body?.imageUrl ?? body?.data?.url ?? body?.data?.imageUrl ?? body?.location ?? body?.path;
-    if (typeof url !== "string" || !url) {
-      throw new MoeApiError("Cover image upload returned no URL", 500);
-    }
-    return { url };
+    return { url: await parseUploadUrl(res) };
   },
 };
 
@@ -663,24 +679,27 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
           : undefined;
   // Issue #5 — accept aliases until backend standardises on
   // `averageRating` + `reviewCount` (tracked in backendRequirements.md).
+  // Coerce numeric strings — public-info sometimes returns ratings as strings,
+  // which previously collapsed to 0 and broke Highest Rated sorting.
+  const coerceRating = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
   const ratingValue =
-    typeof raw.averageRating === "number"
-      ? raw.averageRating
-      : typeof raw.rating === "number"
-        ? raw.rating
-        : typeof raw.avgRating === "number"
-          ? raw.avgRating
-          : 0;
+    coerceRating(raw.averageRating)
+    ?? coerceRating(raw.rating)
+    ?? coerceRating(raw.avgRating)
+    ?? 0;
   const reviewCountValue =
-    typeof raw.reviewCount === "number"
-      ? raw.reviewCount
-      : typeof raw.reviewsCount === "number"
-        ? raw.reviewsCount
-        : typeof raw.numReviews === "number"
-          ? raw.numReviews
-          : typeof raw._count?.reviews === "number"
-            ? raw._count.reviews
-            : 0;
+    coerceRating(raw.reviewCount)
+    ?? coerceRating(raw.reviewsCount)
+    ?? coerceRating(raw.numReviews)
+    ?? coerceRating(raw._count?.reviews)
+    ?? 0;
   return {
     ...(raw as Provider),
     brandName: raw.brandName ?? raw.businessName ?? raw.name ?? "",
@@ -699,6 +718,8 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
     rating: ratingValue,
     reviewCount: reviewCountValue,
+    ...(typeof raw.createdAt === "string" ? { createdAt: raw.createdAt } : {}),
+    averageRating: ratingValue,
     ...(productCount !== undefined ? { productCount } : {}),
     ...(raw.userId != null ? { userId: raw.userId } : {}),
   };

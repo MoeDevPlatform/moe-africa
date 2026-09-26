@@ -24,8 +24,9 @@ import CustomerInquiries from "@/components/artisan/CustomerInquiries";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-// Backend (local filesystem storage) caps uploads at 2MB.
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+// Match backend upload limit (backend_MoeV1.md / products controller): 5MB.
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const IMAGE_PLACEHOLDER = "/placeholder.svg";
 
 /** Normalize profile categories from API (array, comma-separated, or legacy single category). */
 function resolveServiceCategories(p: Pick<ArtisanProfile, "category" | "serviceCategories">): string[] {
@@ -161,13 +162,15 @@ const ArtisanDashboard = () => {
   const handleStoreImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStoreImageError("");
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file
+    e.target.value = "";
     if (!file) return;
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       setStoreImageError("Please choose a JPEG, PNG, or WebP image.");
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setStoreImageError("Image must be 2MB or smaller.");
+      setStoreImageError("Image must be 5MB or smaller.");
       return;
     }
     setStoreImageFile(file);
@@ -178,13 +181,15 @@ const ArtisanDashboard = () => {
   const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCoverImageError("");
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file
+    e.target.value = "";
     if (!file) return;
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       setCoverImageError("Please choose a JPEG, PNG, or WebP image.");
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setCoverImageError("Image must be 2MB or smaller.");
+      setCoverImageError("Image must be 5MB or smaller.");
       return;
     }
     setCoverImageFile(file);
@@ -214,6 +219,7 @@ const ArtisanDashboard = () => {
         try {
           const result = await artisanService.uploadStoreImage(storeImageFile);
           storeImageUrl = result.url;
+          setStoreImagePreview(result.url);
           // Stash so the artisan's own provider card/page can hydrate even
           // if the public endpoint doesn't echo storeImageUrl yet.
           localStorage.setItem("moe_artisan_store_url", storeImageUrl);
@@ -234,6 +240,8 @@ const ArtisanDashboard = () => {
         try {
           const result = await artisanService.uploadCoverImage(coverImageFile);
           coverImageUrl = result.url;
+          setCoverImagePreview(result.url);
+          localStorage.setItem("moe_artisan_cover_url", coverImageUrl);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Cover image upload failed";
           setCoverImageError(msg);
@@ -251,7 +259,8 @@ const ArtisanDashboard = () => {
       if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
       if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
       if (!categoriesEqual(businessForm.serviceCategories, prevCategories)) {
-        delta.serviceCategories = businessForm.serviceCategories;
+        // Backend currently expects a comma-separated string (temporary workaround).
+        delta.serviceCategories = businessForm.serviceCategories.join(",");
         // Keep legacy single `category` in sync for endpoints that still read it
         delta.category = businessForm.serviceCategories[0] ?? "";
       }
@@ -294,7 +303,7 @@ const ArtisanDashboard = () => {
         category: updated?.category ?? (delta.category as string | undefined) ?? artisanProfile?.category,
         serviceCategories:
           updated?.serviceCategories
-          ?? (delta.serviceCategories as string[] | undefined)
+          ?? (delta.serviceCategories as string | string[] | undefined)
           ?? artisanProfile?.serviceCategories,
         country: updated?.country ?? (delta.country as string | undefined) ?? artisanProfile?.country,
         state: updated?.state ?? (delta.state as string | undefined) ?? artisanProfile?.state,
@@ -676,7 +685,7 @@ const ArtisanDashboard = () => {
                                 src={src}
                                 alt="Store preview"
                                 className="h-20 w-20 object-cover rounded-lg border"
-                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGE_PLACEHOLDER; }}
                               />
                               <button
                                 type="button"
@@ -741,7 +750,7 @@ const ArtisanDashboard = () => {
                                 src={src}
                                 alt="Cover preview"
                                 className="h-20 w-40 object-cover rounded-lg border"
-                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGE_PLACEHOLDER; }}
                               />
                               <button
                                 type="button"

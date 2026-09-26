@@ -14,9 +14,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
-import { productsService, providersService } from "@/lib/apiServices";
+import { productsService, providersService, artisanReviewsService } from "@/lib/apiServices";
 import { apiGet } from "@/lib/moeApi";
 import type { Product, Provider } from "@/data/mockData";
+
+type ProviderWithMeta = Provider & {
+  averageRating?: number;
+  createdAt?: string;
+};
+
+/** Effective average rating for sorting — 0/null/undefined sort last. */
+const getAverageRating = (p: ProviderWithMeta, hydrated?: Record<number, number>): number => {
+  if (hydrated && typeof hydrated[p.id] === "number") return hydrated[p.id];
+  const raw = p.averageRating ?? p.rating;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const getCreatedAtMs = (p: ProviderWithMeta): number => {
+  if (typeof p.createdAt === "string" && p.createdAt) {
+    const t = Date.parse(p.createdAt);
+    if (Number.isFinite(t)) return t;
+  }
+  // Fallback: higher id ≈ more recently added
+  return p.id;
+};
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
@@ -25,6 +47,8 @@ const MarketplaceHome = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
   const [artisanSort, setArtisanSort] = useState("featured");
+  /** Ratings hydrated from reviews when public-info omits averageRating (fixes Highest Rated). */
+  const [hydratedRatings, setHydratedRatings] = useState<Record<number, number>>({});
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [0, 500000],
     materials: [],
@@ -236,34 +260,66 @@ const MarketplaceHome = () => {
     if (viewed) setRecentlyViewed(JSON.parse(viewed));
   }, []);
 
+  // When sorting by Highest Rated, hydrate missing ratings from the reviews API
+  // (public-info often returns 0 while cards fetch live averages asynchronously).
+  useEffect(() => {
+    if (artisanSort !== "rating") return;
+    const missing = filteredProviders.filter(
+      (p) => getAverageRating(p as ProviderWithMeta) <= 0 && p.id,
+    );
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      missing.map(async (p) => {
+        try {
+          const res = await artisanReviewsService.list(p.id);
+          const rows = Array.isArray(res) ? res : res?.data ?? [];
+          if (!rows.length) return [p.id, 0] as const;
+          const avg = rows.reduce((s, r) => s + (r.rating ?? 0), 0) / rows.length;
+          return [p.id, avg] as const;
+        } catch {
+          return [p.id, 0] as const;
+        }
+      }),
+    ).then((pairs) => {
+      if (cancelled) return;
+      setHydratedRatings((prev) => {
+        const next = { ...prev };
+        for (const [id, avg] of pairs) next[id] = avg;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [artisanSort, filteredProviders]);
+
   const recommendedProviders = useMemo(() => {
-    const list = [...filteredProviders];
+    const list = [...filteredProviders] as ProviderWithMeta[];
     switch (artisanSort) {
       case "rating":
-        list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        // Highest rated first; null/undefined/0 ratings sink to the bottom
+        list.sort(
+          (a, b) =>
+            getAverageRating(b, hydratedRatings) - getAverageRating(a, hydratedRatings),
+        );
         break;
       case "recent":
-        list.sort((a, b) => {
-          const aCreated = (a as { createdAt?: string }).createdAt;
-          const bCreated = (b as { createdAt?: string }).createdAt;
-          if (aCreated && bCreated) {
-            return Date.parse(bCreated) - Date.parse(aCreated);
-          }
-          // Fallback: higher id ≈ more recently added
-          return b.id - a.id;
-        });
+        list.sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
         break;
       case "featured":
       default:
-        list.sort(
-          (a, b) =>
-            Number(!!b.featured) - Number(!!a.featured) ||
-            (b.rating ?? 0) - (a.rating ?? 0),
-        );
+        // Featured artisans first, then the rest (by rating as tiebreaker)
+        list.sort((a, b) => {
+          const feat = Number(!!b.featured) - Number(!!a.featured);
+          if (feat !== 0) return feat;
+          return getAverageRating(b, hydratedRatings) - getAverageRating(a, hydratedRatings);
+        });
         break;
     }
     return list.slice(0, 6);
-  }, [filteredProviders, artisanSort]);
+  }, [filteredProviders, artisanSort, hydratedRatings]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

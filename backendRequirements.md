@@ -552,3 +552,26 @@ look" suggestions, recommendations, and any cached aggregates.
 **User-facing consequence if not built:** Admin clicks Remove, sees a
 success toast, but the product reappears on next page load because the
 `DELETE` call 404s and the row was never deleted server-side.
+
+---
+
+## Artisan `serviceCategories` — array vs string (TEMPORARY WORKAROUND)
+
+**Current backend contract:** `PATCH /artisans/me` validates
+`serviceCategories` as a **string** and rejects arrays with
+`serviceCategories must be a string`. Signup/`POST /auth/register` already
+accepts `serviceCategories: string[]` (stored comma-separated on the profile).
+
+**Frontend workaround (in place):** the Business Profile multi-select UI
+keeps an array in React state; on save it sends
+`serviceCategories: selected.join(",")`. On load it splits the string
+(or accepts an array) back into chips.
+
+**Required backend follow-up:**
+1. Accept `serviceCategories` as `string[]` on `PATCH /artisans/me`
+   (and keep accepting the legacy comma-separated string for older clients).
+2. Prefer storing as a relation or JSON array rather than a single
+   comma-joined column so filtering/search stay reliable.
+3. Echo `serviceCategories` as `string[]` on `GET /artisans/me`.
+
+Until then the comma-string workaround remains.
