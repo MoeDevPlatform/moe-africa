@@ -159,7 +159,7 @@ export interface ArtisanProfile {
   featured: boolean;
   /** Admin approval workflow (item 10). New signups are `pending`. */
   status?: "pending" | "approved" | "rejected";
-  /** Backend currently stores as comma-separated string; array accepted at register. */
+  /** Canonical shape is string[]; load path still tolerates legacy CSV strings. */
   serviceCategories?: string | string[];
   rushOrderEnabled?: boolean;
   rushOrderSurchargePercent?: number;

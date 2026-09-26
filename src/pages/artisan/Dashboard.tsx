@@ -259,8 +259,8 @@ const ArtisanDashboard = () => {
       if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
       if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
       if (!categoriesEqual(businessForm.serviceCategories, prevCategories)) {
-        // Backend currently expects a comma-separated string (temporary workaround).
-        delta.serviceCategories = businessForm.serviceCategories.join(",");
+        // PATCH /artisans/me accepts string[] (PostgreSQL TEXT[]); load still tolerates legacy CSV.
+        delta.serviceCategories = [...businessForm.serviceCategories];
         // Keep legacy single `category` in sync for endpoints that still read it
         delta.category = businessForm.serviceCategories[0] ?? "";
       }

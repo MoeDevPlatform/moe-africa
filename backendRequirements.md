@@ -555,23 +555,19 @@ success toast, but the product reappears on next page load because the
 
 ---
 
-## Artisan `serviceCategories` — array vs string (TEMPORARY WORKAROUND)
+## Artisan `serviceCategories` — DONE
 
-**Current backend contract:** `PATCH /artisans/me` validates
-`serviceCategories` as a **string** and rejects arrays with
-`serviceCategories must be a string`. Signup/`POST /auth/register` already
-accepts `serviceCategories: string[]` (stored comma-separated on the profile).
+**Backend (shipped):**
+- `PATCH /artisans/me` accepts `serviceCategories` as `string[]` or a legacy
+  comma-separated string (normalized via `@Transform`).
+- Storage migrated from `TEXT` → PostgreSQL `TEXT[]` (`String[]` in Prisma),
+  with existing CSV values converted in migration
+  `20260926140000_service_categories_array`.
+- `GET /artisans/me` (and public/search/admin profiles) echo
+  `serviceCategories` as `string[]`.
+- Register and auth profile patch write/read arrays consistently.
 
-**Frontend workaround (in place):** the Business Profile multi-select UI
-keeps an array in React state; on save it sends
-`serviceCategories: selected.join(",")`. On load it splits the string
-(or accepts an array) back into chips.
-
-**Required backend follow-up:**
-1. Accept `serviceCategories` as `string[]` on `PATCH /artisans/me`
-   (and keep accepting the legacy comma-separated string for older clients).
-2. Prefer storing as a relation or JSON array rather than a single
-   comma-joined column so filtering/search stay reliable.
-3. Echo `serviceCategories` as `string[]` on `GET /artisans/me`.
-
-Until then the comma-string workaround remains.
+**Frontend:**
+- Business Profile save sends `serviceCategories: string[]`.
+- Load still tolerates either shape via `resolveServiceCategories` (array or
+  legacy CSV / single `category` fallback).
