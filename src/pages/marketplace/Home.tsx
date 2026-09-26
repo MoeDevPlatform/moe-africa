@@ -1,6 +1,6 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
@@ -20,6 +20,7 @@ import type { Product, Provider } from "@/data/mockData";
 
 const MarketplaceHome = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { categories: dynamicCategories } = useCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
@@ -39,6 +40,16 @@ const MarketplaceHome = () => {
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   /** Per-category labels indicating what the count represents. */
   const [categoryCountKind, setCategoryCountKind] = useState<Record<string, "artisan" | "product">>({});
+
+  // Scroll to Browse by Category when landing with the hash (e.g. from All Categories nav)
+  useEffect(() => {
+    if (location.hash !== "#browse-by-category") return;
+    // Defer so the section is in the DOM after paint
+    const id = window.setTimeout(() => {
+      document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [location.hash]);
 
   useEffect(() => {
     // Pass preferences to product/artisan APIs so server-side filtering
@@ -258,7 +269,7 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Categories Section */}
-        <section className="mb-8 md:mb-12">
+        <section id="browse-by-category" className="mb-8 md:mb-12">
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Category</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {

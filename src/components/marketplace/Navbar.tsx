@@ -135,11 +135,11 @@ const MarketplaceNavbar = () => {
 
           {/* Navigation */}
           <nav className="flex items-center gap-1 sm:gap-2">
-            <Link to="/marketplace">
-              <Button variant="ghost" className="hidden lg:inline-flex">
+            <Button asChild variant="ghost" className="hidden lg:inline-flex">
+              <Link to="/marketplace/artisans">
                 Explore
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             
             <NotificationCenter />
             

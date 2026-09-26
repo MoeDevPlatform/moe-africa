@@ -132,7 +132,7 @@ const currentSeason = (): "harmattan" | "rainy" => {
 };
 
 const quickLinks = [
-  { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace" },
+  { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace#browse-by-category" },
   { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace/products" },
   { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
   { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?featured=true", badge: "New" },
@@ -241,7 +241,13 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                 <Link
                   key={link.slug}
                   to={link.path}
-                  onClick={onClose}
+                  onClick={(e) => {
+                    onClose();
+                    if (link.slug === "all-categories" && window.location.pathname === "/marketplace") {
+                      e.preventDefault();
+                      document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors group"
                 >
                   <span className="text-muted-foreground group-hover:text-accent-foreground transition-colors">

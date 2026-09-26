@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Product } from "@/data/mockData";
 import CustomerInquiries from "@/components/artisan/CustomerInquiries";
 import { useCategories } from "@/contexts/CategoriesContext";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 // Backend (local filesystem storage) caps uploads at 2MB.
