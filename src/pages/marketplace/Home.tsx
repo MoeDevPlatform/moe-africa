@@ -24,6 +24,7 @@ const MarketplaceHome = () => {
   const { categories: dynamicCategories } = useCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
+  const [artisanSort, setArtisanSort] = useState("featured");
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [0, 500000],
     materials: [],
@@ -235,7 +236,34 @@ const MarketplaceHome = () => {
     if (viewed) setRecentlyViewed(JSON.parse(viewed));
   }, []);
 
-  const recommendedProviders = filteredProviders.filter((p) => !p.featured).slice(0, 6);
+  const recommendedProviders = useMemo(() => {
+    const list = [...filteredProviders];
+    switch (artisanSort) {
+      case "rating":
+        list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        break;
+      case "recent":
+        list.sort((a, b) => {
+          const aCreated = (a as { createdAt?: string }).createdAt;
+          const bCreated = (b as { createdAt?: string }).createdAt;
+          if (aCreated && bCreated) {
+            return Date.parse(bCreated) - Date.parse(aCreated);
+          }
+          // Fallback: higher id ≈ more recently added
+          return b.id - a.id;
+        });
+        break;
+      case "featured":
+      default:
+        list.sort(
+          (a, b) =>
+            Number(!!b.featured) - Number(!!a.featured) ||
+            (b.rating ?? 0) - (a.rating ?? 0),
+        );
+        break;
+    }
+    return list.slice(0, 6);
+  }, [filteredProviders, artisanSort]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -403,7 +431,7 @@ const MarketplaceHome = () => {
             <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
               {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
             </h2>
-            <Select defaultValue="featured">
+            <Select value={artisanSort} onValueChange={setArtisanSort}>
               <SelectTrigger className="w-full sm:w-40 h-9 text-sm" aria-label="Sort artisans">
                 <SelectValue />
               </SelectTrigger>
