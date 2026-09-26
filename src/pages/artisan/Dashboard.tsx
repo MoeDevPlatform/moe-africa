@@ -5,7 +5,7 @@ import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
 import AddProductModal from "@/components/artisan/AddProductModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { artisanService, ArtisanProfile } from "@/lib/apiServices";
+import { artisanService, ArtisanProfile, metaService, ServiceCategoryOption } from "@/lib/apiServices";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +21,38 @@ import {
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
 import CustomerInquiries from "@/components/artisan/CustomerInquiries";
-import { useCategories } from "@/contexts/CategoriesContext";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 // Backend (local filesystem storage) caps uploads at 2MB.
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
+/** Normalize profile categories from API (array, comma-separated, or legacy single category). */
+function resolveServiceCategories(p: Pick<ArtisanProfile, "category" | "serviceCategories">): string[] {
+  if (Array.isArray(p.serviceCategories) && p.serviceCategories.length > 0) {
+    return [...p.serviceCategories];
+  }
+  const raw = p.serviceCategories as unknown;
+  if (typeof raw === "string" && raw.trim()) {
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  if (p.category?.trim()) {
+    return p.category.includes(",")
+      ? p.category.split(",").map((s) => s.trim()).filter(Boolean)
+      : [p.category.trim()];
+  }
+  return [];
+}
+
+function categoriesEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
+}
+
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
-  const { categories: profileCategories } = useCategories();
   const { user, refreshProfile } = useAuth();
   const [artisanProfile, setArtisanProfile] = useState<ArtisanProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,10 +64,11 @@ const ArtisanDashboard = () => {
   const [editingProfile, setEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [availableServiceCategories, setAvailableServiceCategories] = useState<ServiceCategoryOption[]>([]);
   const [businessForm, setBusinessForm] = useState({
     businessName: "",
     description: "",
-    category: "",
+    serviceCategories: [] as string[],
     country: "",
     state: "",
     city: "",
@@ -84,6 +107,10 @@ const ArtisanDashboard = () => {
   };
 
   useEffect(() => {
+    metaService.getServiceCategories().then(setAvailableServiceCategories);
+  }, []);
+
+  useEffect(() => {
     artisanService
       .getMyProfile()
       .then((p) => {
@@ -96,7 +123,7 @@ const ArtisanDashboard = () => {
         setBusinessForm({
           businessName: p.businessName ?? "",
           description: p.description ?? "",
-          category: p.category ?? "",
+          serviceCategories: resolveServiceCategories(p),
           country: p.country ?? "",
           state: p.state ?? "",
           city: p.city ?? "",
@@ -113,7 +140,7 @@ const ArtisanDashboard = () => {
           setArtisanProfile(fallback);
           setBusinessForm({
             businessName: fallback.businessName,
-            description: "", category: "", country: "", state: "", city: "", address: "",
+            description: "", serviceCategories: [], country: "", state: "", city: "", address: "",
           });
         }
       })
@@ -121,6 +148,15 @@ const ArtisanDashboard = () => {
 
     loadProducts();
   }, [user]);
+
+  const toggleServiceCategory = (name: string) => {
+    setBusinessForm((p) => ({
+      ...p,
+      serviceCategories: p.serviceCategories.includes(name)
+        ? p.serviceCategories.filter((c) => c !== name)
+        : [...p.serviceCategories, name],
+    }));
+  };
 
   const handleStoreImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStoreImageError("");
@@ -164,8 +200,8 @@ const ArtisanDashboard = () => {
       setProfileError("Business name is required.");
       return;
     }
-    if (!businessForm.category) {
-      setProfileError("Please select a category.");
+    if (businessForm.serviceCategories.length === 0) {
+      setProfileError("Please select at least one category.");
       return;
     }
 
@@ -210,10 +246,15 @@ const ArtisanDashboard = () => {
 
       // Send STRUCTURED location fields separately — never concatenated.
       // Backend gap: see backend_MoeV1.md for required DTO update.
+      const prevCategories = resolveServiceCategories(artisanProfile ?? { category: "", serviceCategories: [] });
       const delta: Record<string, unknown> = {};
       if (businessForm.businessName !== (artisanProfile?.businessName ?? "")) delta.businessName = businessForm.businessName;
       if (businessForm.description !== (artisanProfile?.description ?? "")) delta.description = businessForm.description;
-      if (businessForm.category !== (artisanProfile?.category ?? "")) delta.category = businessForm.category;
+      if (!categoriesEqual(businessForm.serviceCategories, prevCategories)) {
+        delta.serviceCategories = businessForm.serviceCategories;
+        // Keep legacy single `category` in sync for endpoints that still read it
+        delta.category = businessForm.serviceCategories[0] ?? "";
+      }
       if (businessForm.country !== (artisanProfile?.country ?? "")) delta.country = businessForm.country;
       if (businessForm.state !== (artisanProfile?.state ?? "")) delta.state = businessForm.state;
       if (businessForm.city !== (artisanProfile?.city ?? "")) delta.city = businessForm.city;
@@ -251,6 +292,10 @@ const ArtisanDashboard = () => {
         businessName: updated?.businessName ?? delta.businessName as string ?? artisanProfile?.businessName ?? "",
         description: updated?.description ?? (delta.description as string | undefined) ?? artisanProfile?.description,
         category: updated?.category ?? (delta.category as string | undefined) ?? artisanProfile?.category,
+        serviceCategories:
+          updated?.serviceCategories
+          ?? (delta.serviceCategories as string[] | undefined)
+          ?? artisanProfile?.serviceCategories,
         country: updated?.country ?? (delta.country as string | undefined) ?? artisanProfile?.country,
         state: updated?.state ?? (delta.state as string | undefined) ?? artisanProfile?.state,
         city: updated?.city ?? (delta.city as string | undefined) ?? artisanProfile?.city,
@@ -348,7 +393,7 @@ const ArtisanDashboard = () => {
           {[
             { label: "Products", value: products.length, icon: Package },
             { label: "Rating", value: artisanProfile?.rating?.toFixed(1) || "—", icon: Star },
-            { label: "Category", value: artisanProfile?.category || "—", icon: Store },
+            { label: "Category", value: resolveServiceCategories(artisanProfile ?? { category: "" }).join(", ") || "—", icon: Store },
             { label: "Status", value: artisanProfile?.featured ? "Featured" : "Active", icon: BarChart3 },
           ].map(({ label, value, icon: Icon }) => (
             <Card key={label}>
@@ -522,22 +567,31 @@ const ArtisanDashboard = () => {
                       />
                     </div>
 
-                    {/* Category — dropdown */}
+                    {/* Category — multi-select pills (same as artisan signup) */}
                     <div className="space-y-2">
-                      <Label>Category *</Label>
-                      <Select
-                        value={businessForm.category}
-                        onValueChange={(v) => setBusinessForm((p) => ({ ...p, category: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your craft category" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card">
-                          {profileCategories.map((c) => (
-                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Service categories *</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Pick the crafts you offer. You can refine these later.
+                      </p>
+                      {availableServiceCategories.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">Loading categories…</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {availableServiceCategories.map((cat) => {
+                            const active = businessForm.serviceCategories.includes(cat.name);
+                            return (
+                              <Badge
+                                key={cat.id}
+                                variant={active ? "default" : "outline"}
+                                onClick={() => toggleServiceCategory(cat.name)}
+                                className="cursor-pointer"
+                              >
+                                {cat.name}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Structured location: Country → State → City → Address */}
@@ -756,8 +810,7 @@ const ArtisanDashboard = () => {
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
                         <p className="font-medium">
-                          {profileCategories.find((c) => c.value === artisanProfile?.category)?.label
-                            || artisanProfile?.category || "—"}
+                          {resolveServiceCategories(artisanProfile ?? { category: "" }).join(", ") || "—"}
                         </p>
                       </div>
                       <div>
