@@ -12,6 +12,9 @@ import {
   type CategoryDef,
   getCategoryIcon,
   DEFAULT_CATEGORY_TYPES,
+  PRODUCT_CATEGORIES,
+  toCategoryValue,
+  toCategoryLabel,
 } from "@/lib/categories";
 
 interface CategoriesContextValue {
@@ -32,12 +35,15 @@ function normalizeApiCategory(row: {
   sortOrder?: number;
   order?: number;
 }): CategoryDef {
-  const value = row.value ?? row.slug ?? "";
+  // Prefer snake_case slug; fall back to normalizing the label so we never
+  // treat a display string (e.g. "Paintings and Canvas") as the API value.
+  const value = toCategoryValue(row.value ?? row.slug ?? row.label);
+  const label = toCategoryLabel(value) || row.label;
   const iconKey = row.iconKey ?? row.icon ?? null;
   return {
     id: row.id,
     value,
-    label: row.label,
+    label,
     iconKey,
     icon: getCategoryIcon(iconKey),
     order: row.order ?? row.sortOrder ?? 0,
@@ -51,14 +57,22 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const refetchCategories = useCallback(async () => {
     setIsLoading(true);
+    const fallback = (): CategoryDef[] =>
+      PRODUCT_CATEGORIES.map((c, i) => ({
+        value: c.value,
+        label: c.label,
+        icon: getCategoryIcon(null),
+        order: i,
+        types: DEFAULT_CATEGORY_TYPES[c.value] ?? [],
+      }));
     try {
       const rows = await categoriesService.list();
       const normalized = (Array.isArray(rows) ? rows : [])
         .map(normalizeApiCategory)
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      setCategories(normalized);
+      setCategories(normalized.length > 0 ? normalized : fallback());
     } catch {
-      setCategories([]);
+      setCategories(fallback());
     } finally {
       setIsLoading(false);
     }

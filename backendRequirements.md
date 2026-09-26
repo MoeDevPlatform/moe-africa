@@ -106,12 +106,13 @@ can swap to it without UI changes.
 
 ### Category Value Alignment
 **Status:** 🔴 ACTION REQUIRED
-**Problem:** Products saved with `category: "accessories"` exist in the database from when the Add Product form incorrectly included "Accessories" as an option.
+**Problem:** Products saved with `category: "accessories"` exist in the database from when the Add Product form incorrectly included "Accessories" as an option. The Add Product UI also previously sent display labels (e.g. `"Paintings and Canvas"`) instead of snake_case slugs.
+**Frontend (done):** Add/Edit Product now submits canonical snake_case values via `PRODUCT_CATEGORIES` / `toCategoryValue()`.
 **Backend must:**
-1. Run a one-time data migration to update all products where `category = 'accessories'` to `category = 'jewellery'`
-2. Confirm the backend category enum/validation accepts all 7 canonical values: `tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`, `jewellery`, `home_and_decor`
+1. Run a one-time data migration to update all products where `category = 'accessories'` to `category = 'jewellery'`, and `category = 'canvas'` (or label strings) to `paintings_and_canvas`
+2. Confirm the backend category enum/validation accepts all **8** canonical values: `tailoring`, `arts_and_crafts`, `shoemaking`, `beauty`, `leatherwork`, `jewellery`, `home_and_decor`, `paintings_and_canvas`
 3. Reject any value not in this list with `400 Bad Request`
-**User-facing consequence if not built:** Products added under old "Accessories" category are invisible on the marketplace and not counted in Browse by Category.
+**User-facing consequence if not built:** Products added under old "Accessories" / "Paintings and Canvas" labels fail validation or are invisible on the marketplace and not counted in Browse by Category.
 
 ### Product Reviews
 **Status:** 🔴 NOT YET BUILT

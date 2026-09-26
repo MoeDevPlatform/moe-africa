@@ -8,32 +8,39 @@ import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package, Watch, Brief
 import { products as mockProducts } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
 import type { Product } from "@/data/mockData";
+import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
 
 const CategoryProducts = () => {
   const { category } = useParams<{ category: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+  const categorySlug = toCategoryValue(category || "");
   
   const subcategory = searchParams.get('subcategory');
 
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await productsService.list({ category });
+        const res = await productsService.list({ category: categorySlug || undefined });
         setCategoryProducts(res.data);
       } catch {
-        setCategoryProducts(mockProducts.filter((p) => p.category === category));
+        setCategoryProducts(mockProducts.filter((p) => p.category === categorySlug || p.category === category));
       }
     };
     loadProducts();
-  }, [category]);
+  }, [category, categorySlug]);
 
   const categoryIcons: Record<string, any> = {
     tailoring: Shirt,
     shoemaking: Footprints,
     beauty: Sparkle,
     leatherwork: Briefcase,
+    arts_and_crafts: Palette,
+    jewellery: Gem,
+    home_and_decor: Home,
+    paintings_and_canvas: Palette,
+    // legacy
     crafts: Palette,
     accessories: Watch,
     furniture: Home,
@@ -42,21 +49,8 @@ const CategoryProducts = () => {
     canvas: Palette,
   };
 
-  const categoryNames: Record<string, string> = {
-    tailoring: "Tailoring",
-    shoemaking: "Shoemaking",
-    beauty: "Hair & Beauty",
-    leatherwork: "Leatherworks",
-    crafts: "Crafts",
-    accessories: "Accessories",
-    furniture: "Home & Decor",
-    art: "Crafts",
-    jewelry: "Jewelry",
-    canvas: "Canvas & Painting",
-  };
-
-  const Icon = categoryIcons[category || ""] || Package;
-  const categoryName = categoryNames[category || ""] || "Products";
+  const Icon = categoryIcons[categorySlug] || Package;
+  const categoryName = toCategoryLabel(categorySlug) || "Products";
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">

@@ -13,6 +13,7 @@ import { ImagePlus, X, Loader2, AlertCircle } from "lucide-react";
 import { artisanService } from "@/lib/apiServices";
 import { Product } from "@/data/mockData";
 import { toast } from "sonner";
+import { PRODUCT_CATEGORIES, toCategoryValue } from "@/lib/categories";
 
 interface AddProductModalProps {
   open: boolean;
@@ -22,7 +23,6 @@ interface AddProductModalProps {
   editProduct?: Product | null;
 }
 
-import { useCategories } from "@/contexts/CategoriesContext";
 const LEGACY_CATEGORY_LABELS: Record<string, string> = {
   canvas: "Canvas & Painting (legacy)",
   crafts: "Art & Crafts (legacy)",
@@ -48,8 +48,8 @@ interface UploadedImage {
 }
 
 const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: AddProductModalProps) => {
-  const { categories: dynamicCategories } = useCategories();
-  const canonicalCategories = dynamicCategories.map((c) => ({ value: c.value, label: c.label }));
+  // Canonical snake_case values for API — never send display labels.
+  const canonicalCategories = PRODUCT_CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
   const isEdit = !!editProduct;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -76,7 +76,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setForm({
         name: editProduct.name ?? "",
         description: editProduct.description ?? "",
-        category: editProduct.category ?? "",
+        category: toCategoryValue(editProduct.category ?? ""),
         priceMin:
           editProduct.priceRange?.min && editProduct.priceRange.min > 0
             ? String(editProduct.priceRange.min)
@@ -205,7 +205,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
         description: form.description.trim(),
-        category: form.category,
+        category: toCategoryValue(form.category),
         currency: "NGN",
         priceMin: Number(form.priceMin),
         priceMax: Number(form.priceMax),
@@ -292,9 +292,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                     {c.label}
                   </SelectItem>
                 ))}
-                {/* Surface the legacy value only when this product still uses it,
-                    so the artisan can save without being forced to remap. */}
-                {form.category && LEGACY_CATEGORY_LABELS[form.category] && (
+                {/* Surface the legacy value only when this product still uses it
+                    and it has not already been remapped to a canonical slug. */}
+                {form.category &&
+                  LEGACY_CATEGORY_LABELS[form.category] &&
+                  !canonicalCategories.some((c) => c.value === form.category) && (
                   <SelectItem value={form.category}>
                     {LEGACY_CATEGORY_LABELS[form.category]}
                   </SelectItem>

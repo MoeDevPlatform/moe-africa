@@ -5,34 +5,41 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package } from "lucide-react";
+import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package, Sparkles, Briefcase, Home } from "lucide-react";
 import { getProvidersByCategory as mockGetProvidersByCategory } from "@/data/mockData";
 import { providersService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
+import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
 
 const CategoryProviders = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const [providers, setProviders] = useState<Provider[]>([]);
+  const categorySlug = toCategoryValue(category || "");
 
   useEffect(() => {
     const loadProviders = async () => {
-      if (!category) return;
+      if (!categorySlug) return;
       try {
-        const data = await providersService.getByCategory(category);
+        const data = await providersService.getByCategory(categorySlug);
         setProviders(data);
       } catch {
-        setProviders(mockGetProvidersByCategory(category));
+        setProviders(mockGetProvidersByCategory(categorySlug));
       }
     };
     loadProviders();
-  }, [category]);
+  }, [categorySlug]);
 
   const categoryIcons: Record<string, any> = {
     tailoring: Shirt,
     shoemaking: Footprints,
-    beauty: Gem,
-    leatherwork: Package,
+    beauty: Sparkles,
+    leatherwork: Briefcase,
+    arts_and_crafts: Palette,
+    jewellery: Gem,
+    home_and_decor: Home,
+    paintings_and_canvas: Palette,
+    // legacy
     crafts: Palette,
     accessories: Gem,
     furniture: Sofa,
@@ -40,20 +47,8 @@ const CategoryProviders = () => {
     canvas: Palette,
   };
 
-  const categoryNames: Record<string, string> = {
-    tailoring: "Tailoring",
-    shoemaking: "Shoemaking",
-    beauty: "Beauty & Wellness",
-    leatherwork: "Leatherwork",
-    crafts: "Arts & Crafts",
-    accessories: "Accessories",
-    furniture: "Furniture",
-    art: "Art & Crafts",
-    canvas: "Canvas & Painting",
-  };
-
-  const Icon = categoryIcons[category || ""] || Package;
-  const categoryName = categoryNames[category || ""] || "Services";
+  const Icon = categoryIcons[categorySlug] || Package;
+  const categoryName = toCategoryLabel(categorySlug) || "Services";
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">

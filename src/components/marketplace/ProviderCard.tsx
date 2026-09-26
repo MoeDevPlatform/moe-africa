@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
 import { artisanReviewsService } from "@/lib/apiServices";
+import { toCategoryLabel } from "@/lib/categories";
 // Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
 // back to the mock dataset count only when the field is missing — this prevents a freshly
 // created artisan from showing "0 products" after they actually added one.
@@ -105,7 +106,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         </div>
         {provider.category && (
           <p className="text-sm text-muted-foreground mb-2 capitalize">
-            {(provider.category || "").replace(/_/g, " ")}
+            {toCategoryLabel(provider.category)}
           </p>
         )}
         
