@@ -1,73 +1,124 @@
-# Welcome to your Lovable project
+# MOE — African Artisan Marketplace
 
-## Project info
+MOE is a peer-to-peer marketplace connecting buyers with skilled African artisans and service providers. Built for the African market, MOE enables discovery, communication, and commerce between customers and craftspeople across the continent.
 
-**URL**: https://lovable.dev/projects/d68e45a3-5c94-4da3-b400-33241e98eff3
+🌍 **Live Demo:** [moe-africa-mvp.vercel.app](https://moe-africa-mvp.vercel.app/)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- *Marketplace* — Browse and discover artisans by category, location, and rating
+- *Artisan Profiles* — Detailed provider pages with portfolio, reviews, and ratings
+- *Product Listings* — Product and service listings with customization options
+- *Messaging* — Direct buyer-to-artisan communication with conversation history
+- *Cart & Checkout* — Full e-commerce flow with shipping and payment
+- **Saved Payment Methods* — Securely store and reuse payment cards at checkout
+- *Notifications* — Real-time alerts for messages and order updates
+- *Authentication* — Secure buyer and artisan account flows
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d68e45a3-5c94-4da3-b400-33241e98eff3) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## Tech Stack
 
-**Use your preferred IDE**
+### Frontend
+- *React* + *TypeScript*
+- *Tailwind CSS*
+- *React Router* — client-side routing
+- *React Hook Form* + *Zod* — form validation
+- *Vercel* — deployment and hosting
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Backend
+- **NestJS** — REST API
+- **Prisma ORM** — database access layer
+- **PostgreSQL** — primary database
+- **PM2** — process management on the server
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## Project Structure
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```
+moe-frontend/
+├── src/
+│   ├── pages/
+│   │   └── marketplace/       # Marketplace, Cart, Checkout, Messages
+│   ├── components/
+│   │   └── marketplace/       # ProviderCard, MessagingModal, NotificationCenter, etc.
+│   ├── contexts/              # Cart, Auth, Notification context providers
+│   ├── lib/
+│   │   └── apiServices.ts     # All API service calls
+│   └── App.tsx                # Route definitions
+├── backend-spec/
+│   └── backendRequirements.md # Backend contract documentation for the NestJS team
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Getting Started
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Prerequisites
+- Node.js >= 18
+- npm or yarn
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/AsukuOnukaba/moe-frontend.git
+cd moe-frontend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Fill in your API base URL and other config
+
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at `http://localhost:5173` by default.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Environment Variables
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_BASE_URL` | Base URL for the NestJS backend API |
+| `VITE_APP_ENV` | `development` or `production` |
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## Backend
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The NestJS backend lives in a separate repository. API contracts and required endpoint specifications are documented in `backend-spec/backendRequirements.md` within this repo, maintained in sync with frontend development.
 
-## How can I deploy this project?
+**Backend repo:** [github.com/AsukuOnukaba/moe-backend](https://github.com/AsukuOnukaba/moe-backend)
 
-Simply open [Lovable](https://lovable.dev/projects/d68e45a3-5c94-4da3-b400-33241e98eff3) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+## Deployment
 
-Yes, you can!
+The frontend is deployed on **Vercel** via GitHub integration. Every push to `main` triggers an automatic deployment.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The backend is deployed on a **Hetzner Ubuntu server** managed with PM2.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```bash
+# Backend deploy
+bash deploy.sh
+```
+
+---
+
+## Contributing
+
+This project is currently in active MVP development. If you'd like to contribute, please open an issue first to discuss the change.
+
+---
+
+## License
+
+Private — All rights reserved © MOE Africa
