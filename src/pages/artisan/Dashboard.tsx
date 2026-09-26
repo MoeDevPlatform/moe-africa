@@ -28,27 +28,55 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const IMAGE_PLACEHOLDER = "/placeholder.svg";
 
+const normCat = (s: string) => s.trim().toLowerCase();
+
 /** Normalize profile categories from API (array, comma-separated, or legacy single category). */
 function resolveServiceCategories(p: Pick<ArtisanProfile, "category" | "serviceCategories">): string[] {
+  let raw: string[] = [];
   if (Array.isArray(p.serviceCategories) && p.serviceCategories.length > 0) {
-    return [...p.serviceCategories];
-  }
-  const raw = p.serviceCategories as unknown;
-  if (typeof raw === "string" && raw.trim()) {
-    return raw.split(",").map((s) => s.trim()).filter(Boolean);
-  }
-  if (p.category?.trim()) {
-    return p.category.includes(",")
+    raw = p.serviceCategories.map((s) => String(s).trim()).filter(Boolean);
+  } else if (typeof p.serviceCategories === "string" && p.serviceCategories.trim()) {
+    raw = p.serviceCategories.split(",").map((s) => s.trim()).filter(Boolean);
+  } else if (p.category?.trim()) {
+    raw = p.category.includes(",")
       ? p.category.split(",").map((s) => s.trim()).filter(Boolean)
       : [p.category.trim()];
   }
-  return [];
+  // Dedupe case-insensitively, keep first occurrence's casing for now
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of raw) {
+    const key = normCat(s);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+/** Map saved values onto canonical meta category names (case-insensitive). */
+function canonicalizeCategories(
+  saved: string[],
+  available: ServiceCategoryOption[],
+): string[] {
+  if (available.length === 0) return saved;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const s of saved) {
+    const match = available.find((c) => normCat(c.name) === normCat(s));
+    const name = match?.name ?? s.trim();
+    const key = normCat(name);
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
 }
 
 function categoriesEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
+  const sortedA = [...a].map(normCat).sort();
+  const sortedB = [...b].map(normCat).sort();
   return sortedA.every((v, i) => v === sortedB[i]);
 }
 
@@ -111,6 +139,21 @@ const ArtisanDashboard = () => {
     metaService.getServiceCategories().then(setAvailableServiceCategories);
   }, []);
 
+  // Remap saved categories onto canonical pill names once meta list is available
+  // (fixes case mismatch e.g. "tailoring" → "Tailoring").
+  useEffect(() => {
+    if (editingProfile) return;
+    if (!artisanProfile || availableServiceCategories.length === 0) return;
+    const canonical = canonicalizeCategories(
+      resolveServiceCategories(artisanProfile),
+      availableServiceCategories,
+    );
+    setBusinessForm((prev) => {
+      if (categoriesEqual(prev.serviceCategories, canonical)) return prev;
+      return { ...prev, serviceCategories: canonical };
+    });
+  }, [artisanProfile, availableServiceCategories, editingProfile]);
+
   useEffect(() => {
     artisanService
       .getMyProfile()
@@ -124,7 +167,10 @@ const ArtisanDashboard = () => {
         setBusinessForm({
           businessName: p.businessName ?? "",
           description: p.description ?? "",
-          serviceCategories: resolveServiceCategories(p),
+          serviceCategories: canonicalizeCategories(
+            resolveServiceCategories(p),
+            availableServiceCategories,
+          ),
           country: p.country ?? "",
           state: p.state ?? "",
           city: p.city ?? "",
@@ -150,13 +196,21 @@ const ArtisanDashboard = () => {
     loadProducts();
   }, [user]);
 
+  const isCategorySelected = (name: string) =>
+    businessForm.serviceCategories.some((c) => normCat(c) === normCat(name));
+
   const toggleServiceCategory = (name: string) => {
-    setBusinessForm((p) => ({
-      ...p,
-      serviceCategories: p.serviceCategories.includes(name)
-        ? p.serviceCategories.filter((c) => c !== name)
-        : [...p.serviceCategories, name],
-    }));
+    setBusinessForm((p) => {
+      const exists = p.serviceCategories.some((c) => normCat(c) === normCat(name));
+      if (exists) {
+        return {
+          ...p,
+          serviceCategories: p.serviceCategories.filter((c) => normCat(c) !== normCat(name)),
+        };
+      }
+      // Always store the canonical pill label from the meta list
+      return { ...p, serviceCategories: [...p.serviceCategories, name] };
+    });
   };
 
   const handleStoreImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -547,7 +601,32 @@ const ArtisanDashboard = () => {
                   </div>
                   <Button
                     variant={editingProfile ? "ghost" : "outline"} size="sm"
-                    onClick={() => setEditingProfile(!editingProfile)}
+                    onClick={() => {
+                      if (artisanProfile) {
+                        // Entering edit or cancelling: reset from saved profile with
+                        // case-insensitive canonical category names.
+                        setBusinessForm({
+                          businessName: artisanProfile.businessName ?? "",
+                          description: artisanProfile.description ?? "",
+                          serviceCategories: canonicalizeCategories(
+                            resolveServiceCategories(artisanProfile),
+                            availableServiceCategories,
+                          ),
+                          country: artisanProfile.country ?? "",
+                          state: artisanProfile.state ?? "",
+                          city: artisanProfile.city ?? "",
+                          address: artisanProfile.address ?? "",
+                        });
+                        setStoreImageFile(null);
+                        setStoreImagePreview("");
+                        setCoverImageFile(null);
+                        setCoverImagePreview("");
+                        setRemoveStoreImage(false);
+                        setRemoveCoverImage(false);
+                        setProfileError("");
+                      }
+                      setEditingProfile(!editingProfile);
+                    }}
                   >
                     {editingProfile ? "Cancel" : <><Pencil className="h-4 w-4 mr-1" /> Edit</>}
                   </Button>
@@ -587,16 +666,22 @@ const ArtisanDashboard = () => {
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           {availableServiceCategories.map((cat) => {
-                            const active = businessForm.serviceCategories.includes(cat.name);
+                            const active = isCategorySelected(cat.name);
                             return (
-                              <Badge
+                              <button
                                 key={cat.id}
-                                variant={active ? "default" : "outline"}
+                                type="button"
                                 onClick={() => toggleServiceCategory(cat.name)}
-                                className="cursor-pointer"
+                                className="p-0 border-0 bg-transparent"
+                                aria-pressed={active}
                               >
-                                {cat.name}
-                              </Badge>
+                                <Badge
+                                  variant={active ? "default" : "outline"}
+                                  className="cursor-pointer"
+                                >
+                                  {cat.name}
+                                </Badge>
+                              </button>
                             );
                           })}
                         </div>
