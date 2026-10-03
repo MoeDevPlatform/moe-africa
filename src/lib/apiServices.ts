@@ -99,6 +99,9 @@ export const authService = {
       "https://moe-backend.duckdns.org") as string;
     return `${base}/auth/google`;
   },
+  /** Exchange a Clerk session token for MOE access/refresh tokens. */
+  clerkVerify: (token: string) =>
+    apiPost<AuthResponse & { isNewUser?: boolean }>("/auth/clerk-verify", { token }),
   logout: () => apiPost<void>("/auth/logout"),
   getProfile: () => apiGet<CustomerProfile>("/auth/profile"),
   updateProfile: (

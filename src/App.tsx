@@ -67,12 +67,15 @@ import PrivacyPolicy from "./pages/marketplace/PrivacyPolicy";
 import TermsOfService from "./pages/marketplace/TermsOfService";
 import CookiePolicy from "./pages/marketplace/CookiePolicy";
 import FloatingRefreshButton from "./components/marketplace/FloatingRefreshButton";
+import ClerkSessionBridge from "./components/auth/ClerkSessionBridge";
+import { isClerkEnabled } from "./lib/clerk";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+    {isClerkEnabled && <ClerkSessionBridge />}
     <CategoriesProvider>
     <NotificationProvider>
       <WishlistProvider>
