@@ -47,10 +47,42 @@ export const providerMatchesLocation = (
   return true;
 };
 
+export const DEFAULT_ARTISAN_FILTERS: FilterState = {
+  priceRange: [0, 500000],
+  materials: [],
+  styleTags: [],
+  deliveryEstimate: null,
+  country: null,
+  state: null,
+  minRating: null,
+  availableOnly: false,
+};
+
+/** Applies location / rating / availability filters to an artisan list. */
+export const applyArtisanFilters = <
+  T extends { city?: string; state?: string; country?: string; rating?: number | string; reviewCount?: number },
+>(list: T[], f: FilterState): T[] => {
+  let out = list;
+  if (f.country || f.state) out = out.filter((p) => providerMatchesLocation(p, f));
+  if (f.minRating) {
+    const min = f.minRating;
+    out = out.filter((p) => (p.reviewCount ?? 0) > 0 && Number(p.rating ?? 0) >= min);
+  }
+  if (f.availableOnly) {
+    out = out.filter((p) => {
+      const c = (p as T & { productCount?: number }).productCount;
+      return typeof c === "number" ? c > 0 : true;
+    });
+  }
+  return out;
+};
+
 interface FilterDrawerProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   children?: React.ReactNode;
+  /** Only show artisan-relevant filters (location, rating, availability). */
+  artisansOnly?: boolean;
 }
 
 const FALLBACK_MATERIALS = [
@@ -82,7 +114,7 @@ const DELIVERY_OPTIONS = [
   { id: "2-weeks", label: "Under 2 weeks", days: 14 },
 ];
 
-const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps) => {
+const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false }: FilterDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState<FilterState>(filters);
   const [meta, setMeta] = useState<ProductFilterMeta | null>(null);
@@ -245,6 +277,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
             />
           </div>
 
+          {!artisansOnly && <>
           {/* Price Range */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Price Range</Label>
@@ -322,6 +355,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
               ))}
             </div>
           </div>
+          </>}
         </div>
 
         <SheetFooter className="border-t pt-4 gap-2">
