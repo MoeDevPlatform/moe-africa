@@ -572,3 +572,104 @@ success toast, but the product reappears on next page load because the
 - Business Profile save sends `serviceCategories: string[]`.
 - Load still tolerates either shape via `resolveServiceCategories` (array or
   legacy CSV / single `category` fallback).
+
+---
+
+## 13. Clerk authentication — `POST /auth/clerk-verify` — REQUIRED (shipped)
+
+Clerk (`@clerk/react`) now fronts sign-in/sign-up on `/auth` when
+`VITE_CLERK_PUBLISHABLE_KEY` is set. Clerk only authenticates the browser;
+MOE's own JWTs still gate orders, wishlist, messaging, etc. The bridge is
+`ClerkSessionBridge`, which exchanges the Clerk session for MOE tokens.
+
+### Endpoint
+
+`POST /auth/clerk-verify` — body `{ "token": "<Clerk session JWT>" }`
+(obtained client-side via `useAuth().getToken()`).
+
+Response: same shape as `/auth/login`, plus `isNewUser`:
+
+```json
+{ "token": "...", "refreshToken": "...", "user": { ... }, "isNewUser": true }
+```
+
+Errors: `401 AUTH_INVALID_CREDENTIALS` (bad/expired/malformed token or
+unknown Clerk user), `403 FORBIDDEN` (suspended), `400 VALIDATION_ERROR`
+(server missing `CLERK_SECRET_KEY`, or Clerk account has no email).
+
+### Server behaviour (`AuthService.handleClerkLogin`)
+
+1. `verifyToken(token, { secretKey, authorizedParties? })` from `@clerk/backend`.
+2. `clerk.users.getUser(sub)` → primary email, first/last name, avatar,
+   Google `providerUserId`.
+3. Lookup order:
+   - `User.clerkId === sub` → existing linked user.
+   - else `User.email === primaryEmail` → **existing MOE account** (password
+     or legacy Google): set `clerkId` (+ `googleId` if missing). Roles and
+     artisan profile are untouched.
+   - else → **new user**: create `User` (random password hash, `clerkId`,
+     `avatarUrl`, `googleId`) and apply the sign-up metadata below.
+4. Issue access/refresh tokens via the normal `issueTokens` path.
+
+### Sign-up metadata contract (`unsafeMetadata`)
+
+The Sign Up tab renders MOE's Customer / Artisan selector and the service
+category chips **above** the Clerk card and passes the choice through Clerk:
+
+```tsx
+<SignUp unsafeMetadata={{ role, serviceCategories }} />
+// role: "customer" | "artisan"; serviceCategories: string[] (names, artisan only)
+```
+
+Clerk copies this onto `user.unsafeMetadata` once the sign-up completes —
+for **both** Google and email sign-ups. On first `/auth/clerk-verify` for a
+new user the backend reads it and does exactly what `/auth/register` does:
+
+| `unsafeMetadata.role` | Result |
+|---|---|
+| `"artisan"` | `UserRole(artisan)` + `ArtisanProfile { brandName: name, serviceCategories, status: "pending" }` |
+| anything else / missing | `UserRole(customer)` |
+
+`unsafeMetadata` is client-writable, so the server treats it as untrusted:
+only `customer`/`artisan` are honoured, `serviceCategories` must be an array
+of strings (non-strings dropped, trimmed, empties removed). It is read
+**only when creating a new user** — it can never escalate an existing
+account.
+
+### Env (backend)
+
+```
+CLERK_SECRET_KEY=sk_...                       # required for the endpoint
+CLERK_AUTHORIZED_PARTIES=https://moe-africa-mvp.vercel.app   # recommended in prod (comma-separated)
+```
+
+Migration: `20260606120000_add_clerk_id` adds `User.clerkId TEXT UNIQUE`.
+
+### Clerk Dashboard — REQUIRED manual steps
+
+These cannot be done in code. Until they are done, Clerk will show a
+**Username** field and will not collect names, so `User.name` falls back to
+the email local-part.
+
+**User & Authentication → Email, Phone, Username**
+- Username → **OFF** (MOE has no usernames)
+- First name → **ON**, required
+- Last name → **ON**, required
+- Email address → ON, required (already)
+
+**User & Authentication → Social Connections** — Google → ON (done).
+
+The frontend hides the username field via `appearance.elements`
+(`formFieldRow__username`, `formFieldInput__username`,
+`formFieldLabel__username: "hidden"`) as a stop-gap, but if Username is still
+*required* in the dashboard, Clerk will block submission — flip the setting.
+
+### Frontend notes
+
+- Legacy email/password sign-in stays available under
+  "Sign in with your existing MOE account" on the Sign In tab (for users who
+  joined before Google sign-in). `AuthContext` and `/auth/login` are unchanged.
+- Clerk's own header, "Don't have an account?" footer link and outer panel
+  are hidden (`headerTitle`, `headerSubtitle`, `footerAction` +
+  `.moe-clerk-embed` CSS) — MOE renders the heading and tab switcher. The
+  "Secured by Clerk" badge stays visible (required on the free plan).
