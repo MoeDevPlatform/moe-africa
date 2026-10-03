@@ -63,7 +63,7 @@ export function useArtisanSearch(base: { category?: string | null; featured?: bo
       if (filters.state) q.state = filters.state;
       let list = await providersService.searchAll(q);
 
-      if (filters.availableOnly) list = list.filter((p) => Number(p.productCount ?? 0) > 0);
+      if (filters.availableOnly) list = list.filter((p) => Number((p as Provider & { productCount?: number }).productCount ?? 0) > 0);
 
       const min = Number(filters.priceRange[0]) || 0;
       const maxRaw = Number(filters.priceRange[1]);
