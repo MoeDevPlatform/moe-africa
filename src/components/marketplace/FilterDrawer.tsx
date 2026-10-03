@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -388,16 +388,16 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             </div>
           </div>
           </>}
-        </div>
 
-        <SheetFooter className="border-t pt-4 gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={handleApply} className="flex-1">
-            Apply Filters
-          </Button>
-        </SheetFooter>
+          <div className="flex gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={handleApply} className="flex-1">
+              Apply Filters
+            </Button>
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );
