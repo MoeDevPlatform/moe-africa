@@ -388,16 +388,16 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             </div>
           </div>
           </>}
-        </div>
 
-        <SheetFooter className="border-t pt-4 gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={handleApply} className="flex-1">
-            Apply Filters
-          </Button>
-        </SheetFooter>
+          <div className="flex gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={handleApply} className="flex-1">
+              Apply Filters
+            </Button>
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );
