@@ -10,11 +10,14 @@ import { getProvidersByCategory as mockGetProvidersByCategory } from "@/data/moc
 import { providersService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
 import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
+import FilterDrawer, { applyArtisanFilters, DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
 
 const CategoryProviders = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_ARTISAN_FILTERS);
+  const visible = applyArtisanFilters(providers, filters);
   const categorySlug = toCategoryValue(category || "");
 
   useEffect(() => {
@@ -64,14 +67,19 @@ const CategoryProviders = () => {
           Back to Marketplace
         </Button>
 
-        <div className="flex items-center gap-3 mb-8">
-          <Icon className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-4xl font-display font-bold">{categoryName}</h1>
-            <p className="text-muted-foreground mt-1">
-              {providers.length} {providers.length === 1 ? "artisan" : "artisans"} available
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <Icon className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-4xl font-display font-bold">{categoryName}</h1>
+              <p className="text-muted-foreground mt-1">
+                {visible.length} {visible.length === 1 ? "artisan" : "artisans"} available
+              </p>
+            </div>
           </div>
+          {providers.length > 0 && (
+            <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
+          )}
         </div>
 
         {providers.length === 0 ? (
@@ -85,17 +93,22 @@ const CategoryProviders = () => {
               Browse Other Categories
             </Button>
           </div>
+        ) : visible.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">No artisans match these filters.</p>
+            <Button variant="outline" onClick={() => setFilters(DEFAULT_ARTISAN_FILTERS)}>Clear filters</Button>
+          </div>
         ) : (
           <>
             {/* Featured Artisans in this category */}
             <FeaturedArtisans 
-              providers={providers} 
+              providers={visible} 
               title={`Featured ${categoryName} Artisans`} 
             />
 
             {/* All Providers */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {providers.filter(p => !p.featured).map((provider) => (
+              {visible.filter(p => !p.featured).map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
             </div>
