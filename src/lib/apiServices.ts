@@ -2040,7 +2040,7 @@ export const adminService = {
 export interface CuratedSectionPublic {
   sectionKey: string;
   label: string;
-  items: Array<Record<string, any>>;
+  items: Array<Record<string, unknown>>;
   keywords?: string[];
 }
 
@@ -2067,7 +2067,8 @@ export interface AdminSectionItem {
   itemId: string;
   position: number;
   isActive: boolean;
-  preview?: Record<string, any> | null;
+  preview?: Record<string, unknown> | null;
+  compositeScore?: number | null;
 }
 
 export interface AdminSection {

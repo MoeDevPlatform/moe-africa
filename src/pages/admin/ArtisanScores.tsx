@@ -43,8 +43,8 @@ const ArtisanScores = () => {
           : `Recalculated ${res.processed ?? 0} artisans`,
       );
       load();
-    } catch (err: any) {
-      toast.error(err?.message || "Recalculation failed");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Recalculation failed");
     } finally {
       setRecalculating(false);
     }

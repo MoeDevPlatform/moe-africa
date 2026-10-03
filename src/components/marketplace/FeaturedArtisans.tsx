@@ -41,19 +41,22 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
       .get("featured_artisans")
       .then((res) => {
         if (cancelled) return;
-        const mapped = (res.items ?? []).map((raw: Record<string, any>) => ({
-          id: Number(raw.id),
-          brandName: raw.brandName || raw.name || "Artisan",
-          about: raw.about || raw.description || "",
-          city: raw.city || "",
-          state: raw.state || "",
-          heroImage: raw.heroImage || raw.images?.[0] || FALLBACK_IMAGE,
-          rating: Number(raw.rating) || 0,
-          reviewCount: Number(raw.reviewCount) || 0,
-          verified: Boolean(raw.verified),
-          styleTags: Array.isArray(raw.styleTags) ? raw.styleTags : [],
-          category: raw.category || "",
-        })).filter((a) => Number.isFinite(a.id) && a.id > 0);
+        const mapped = (res.items ?? []).map((raw: Record<string, unknown>) => {
+          const images = Array.isArray(raw.images) ? (raw.images as string[]) : [];
+          return {
+            id: Number(raw.id),
+            brandName: String(raw.brandName || raw.name || "Artisan"),
+            about: String(raw.about || raw.description || ""),
+            city: String(raw.city || ""),
+            state: String(raw.state || ""),
+            heroImage: String(raw.heroImage || images[0] || FALLBACK_IMAGE),
+            rating: Number(raw.rating) || 0,
+            reviewCount: Number(raw.reviewCount) || 0,
+            verified: Boolean(raw.verified),
+            styleTags: Array.isArray(raw.styleTags) ? (raw.styleTags as string[]) : [],
+            category: String(raw.category || ""),
+          };
+        }).filter((a) => Number.isFinite(a.id) && a.id > 0);
         setItems(mapped);
       })
       .catch(() => {

@@ -125,29 +125,30 @@ const ProductSection = ({ title, icon, products, loading }: ProductSectionProps)
   );
 };
 
-function mapSectionItem(raw: Record<string, any>): FeaturedProduct | null {
+function mapSectionItem(raw: Record<string, unknown>): FeaturedProduct | null {
   const id = Number(raw.id);
   if (!Number.isFinite(id) || id <= 0) return null;
-  const images = Array.isArray(raw.images) ? raw.images : [];
+  const images = Array.isArray(raw.images) ? (raw.images as string[]) : [];
+  const priceRange = raw.priceRange as { min?: number } | undefined;
   const price =
-    typeof raw.priceRange?.min === "number"
-      ? raw.priceRange.min
+    typeof priceRange?.min === "number"
+      ? priceRange.min
       : typeof raw.price === "number"
         ? raw.price
         : 0;
   const tags = Array.isArray(raw.tags)
-    ? raw.tags
+    ? (raw.tags as string[])
     : typeof raw.tags === "string"
       ? raw.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
       : [];
   return {
     id,
-    name: raw.name ?? "Product",
+    name: typeof raw.name === "string" ? raw.name : "Product",
     price,
     imageUrl: images[0] || FALLBACK_IMAGE,
     providerId: Number(raw.providerId) || 0,
-    providerName: raw.providerName || "Artisan",
-    category: raw.category ?? "",
+    providerName: typeof raw.providerName === "string" ? raw.providerName : "Artisan",
+    category: typeof raw.category === "string" ? raw.category : "",
     tags,
   };
 }

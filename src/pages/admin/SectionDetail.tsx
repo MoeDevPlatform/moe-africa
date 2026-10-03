@@ -69,22 +69,22 @@ const SectionDetail = () => {
           /* scores optional for search UI */
         }
         setResults(
-          providers.map((p: any) => ({
+          providers.map((p) => ({
             id: p.id,
-            label: p.brandName || p.name || `Artisan #${p.id}`,
+            label: p.brandName || `Artisan #${p.id}`,
             score: scoreMap.get(p.id),
           })),
         );
       } else {
         setResults(
-          (res.products ?? []).map((p: any) => ({
+          (res.products ?? []).map((p) => ({
             id: p.id,
             label: p.name || `Product #${p.id}`,
           })),
         );
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Search failed");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Search failed");
     } finally {
       setSearching(false);
     }
@@ -98,8 +98,8 @@ const SectionDetail = () => {
       });
       toast.success("Item added");
       load();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to add item");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to add item");
     }
   };
 
@@ -108,8 +108,8 @@ const SectionDetail = () => {
       await adminService.removeSectionItem(sectionKey, itemId);
       toast.success("Item removed");
       load();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to remove");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove");
     }
   };
 
@@ -122,8 +122,8 @@ const SectionDetail = () => {
       );
       toast.success("Order saved");
       load();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save order");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save order");
     } finally {
       setSaving(false);
     }
@@ -138,8 +138,8 @@ const SectionDetail = () => {
       await adminService.setSeasonalKeywords(keywords);
       toast.success("Seasonal keywords updated");
       load();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to update keywords");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update keywords");
     }
   };
 
@@ -223,12 +223,14 @@ const SectionDetail = () => {
                       <span className="text-xs text-muted-foreground w-6">{index + 1}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {item.preview?.name || `${item.itemType} #${item.itemId}`}
+                          {(typeof item.preview?.name === "string"
+                            ? item.preview.name
+                            : null) || `${item.itemType} #${item.itemId}`}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {item.itemType} · id {item.itemId}
-                          {(item as any).compositeScore != null
-                            ? ` · score ${Math.round((item as any).compositeScore)}`
+                          {item.compositeScore != null
+                            ? ` · score ${Math.round(item.compositeScore)}`
                             : ""}
                         </p>
                       </div>
