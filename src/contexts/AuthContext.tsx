@@ -28,7 +28,16 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Keep a single context instance across hot reloads. Without this, editing
+// this file creates a new context object while already-mounted consumers
+// (e.g. NotificationProvider) still look up the old one, which throws
+// "useAuth must be used within AuthProvider" and blanks the screen.
+const globalForAuth = globalThis as unknown as {
+  __moeAuthContext?: React.Context<AuthContextType | undefined>;
+};
+const AuthContext =
+  globalForAuth.__moeAuthContext ??
+  (globalForAuth.__moeAuthContext = createContext<AuthContextType | undefined>(undefined));
 
 const ACCESS_TOKEN_KEY = "moe_access_token";
 const REFRESH_TOKEN_KEY = "moe_refresh_token";
