@@ -175,7 +175,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
   };
 
   const activeFilterCount = 
-    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < priceMax ? 1 : 0) +
+    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < effectiveMax ? 1 : 0) +
     localFilters.materials.length +
     localFilters.styleTags.length +
     (localFilters.deliveryEstimate ? 1 : 0) +
@@ -285,9 +285,9 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
                   aria-label="Maximum price"
                   placeholder="Max"
                   className="pl-7"
-                  value={localFilters.priceRange[1] < priceMax ? localFilters.priceRange[1] : ""}
+                  value={localFilters.priceRange[1] < effectiveMax ? localFilters.priceRange[1] : ""}
                   onChange={(e) => {
-                    const v = e.target.value === "" ? priceMax : Math.max(0, Number(e.target.value) || 0);
+                    const v = e.target.value === "" ? effectiveMax : Math.max(0, Number(e.target.value) || 0);
                     setLocalFilters({ ...localFilters, priceRange: [localFilters.priceRange[0], v] });
                   }}
                 />
