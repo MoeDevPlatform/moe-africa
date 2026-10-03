@@ -356,7 +356,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold truncate">{provider.brandName}</h4>
                               <p className="text-sm text-muted-foreground truncate">
-                                {provider.category} • {provider.city}, {provider.state}
+                                {provider.category} • {[provider.city, provider.state].filter(Boolean).join(", ")}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
