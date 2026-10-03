@@ -149,14 +149,19 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
     setLocalFilters({ ...localFilters, styleTags: newStyles });
   };
 
+  const effectiveMax = artisansOnly ? DEFAULT_ARTISAN_FILTERS.priceRange[1] : priceMax;
+  const priceInvalid =
+    localFilters.priceRange[1] < effectiveMax && Number(localFilters.priceRange[0]) > Number(localFilters.priceRange[1]);
+
   const handleApply = () => {
+    if (priceInvalid) return;
     onFiltersChange(localFilters);
     setOpen(false);
   };
 
   const handleClear = () => {
     const clearedFilters: FilterState = {
-      priceRange: [0, priceMax],
+      priceRange: [0, artisansOnly ? DEFAULT_ARTISAN_FILTERS.priceRange[1] : priceMax],
       materials: [],
       styleTags: [],
       deliveryEstimate: null,
@@ -182,7 +187,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
   const selectedCountry = countries.find((c) => c.name === localFilters.country);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) setLocalFilters(filters); setOpen(o); }}>
       <SheetTrigger asChild>
         {children || (
           <Button variant="outline" className="gap-2">
@@ -290,6 +295,10 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             </div>
           </div>
 
+          {priceInvalid && (
+            <p className="-mt-4 text-sm text-destructive" role="alert">Min price can't be higher than max price.</p>
+          )}
+
           {/* Rating */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Artisan Rating</Label>
@@ -390,10 +399,10 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           </>}
 
           <div className="flex gap-2 border-t pt-4">
-            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+            <Button variant="outline" onClick={() => { setLocalFilters(filters); setOpen(false); }} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleApply} className="flex-1">
+            <Button onClick={handleApply} disabled={priceInvalid} className="flex-1">
               Apply Filters
             </Button>
           </div>
