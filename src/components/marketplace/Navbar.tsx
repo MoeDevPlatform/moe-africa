@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 import SearchResults from "./SearchResults";
 import NotificationCenter from "./NotificationCenter";
@@ -19,6 +20,8 @@ import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { isClerkEnabled } from "@/lib/clerk";
+import ClerkNavAuth from "@/components/auth/ClerkNavAuth";
 
 const supportLinks = [
   { name: "Help Center", path: "/marketplace/support/help" },
@@ -29,6 +32,14 @@ const supportLinks = [
   { name: "Track My Order", path: "/marketplace/support/track-order" },
   { name: "Return / Refund Policy", path: "/marketplace/support/return-policy" },
 ];
+
+/** Hover label for icon-only navbar buttons. Relies on the app-level <TooltipProvider>. */
+const IconTooltip = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent side="bottom">{label}</TooltipContent>
+  </Tooltip>
+);
 
 const MarketplaceNavbar = () => {
   const navigate = useNavigate();
@@ -68,6 +79,54 @@ const MarketplaceNavbar = () => {
       setShowMegaMenu(false);
     }, 200); // 200ms delay before closing
   }, []);
+
+  // Legacy (AuthContext / backend token) profile menu. Kept intact while Clerk
+  // is rolled out gradually — see src/lib/clerk.ts.
+  const legacyUserMenu = isAuthenticated ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
+          <Avatar className="h-8 w-8">
+            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 bg-card">
+        <div className="px-3 py-2">
+          <p className="font-medium text-sm">{user?.name}</p>
+          <p className="text-xs text-muted-foreground">{user?.email}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/marketplace/settings" className="cursor-pointer gap-2">
+            <User className="h-4 w-4" /> My Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/marketplace/orders" className="cursor-pointer gap-2">
+            <Package className="h-4 w-4" /> My Orders
+          </Link>
+        </DropdownMenuItem>
+        {isArtisan && (
+          <DropdownMenuItem asChild>
+            <Link to="/artisan/dashboard" className="cursor-pointer gap-2">
+              <Store className="h-4 w-4" /> Artisan Dashboard
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+          onClick={() => { logout(); navigate("/"); }}
+        >
+          <LogOut className="h-4 w-4" /> Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
 
   return (
     <>
@@ -141,38 +200,50 @@ const MarketplaceNavbar = () => {
               </Link>
             </Button>
             
-            <NotificationCenter />
+            <IconTooltip label="Notifications">
+              <span className="inline-flex">
+                <NotificationCenter />
+              </span>
+            </IconTooltip>
             
-            <Link to="/marketplace/messages">
-              <Button variant="ghost" size="icon" aria-label="View messages">
-                <MessageSquare className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </Link>
+            <IconTooltip label="Messages">
+              <Link to="/marketplace/messages">
+                <Button variant="ghost" size="icon" aria-label="View messages">
+                  <MessageSquare className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </Link>
+            </IconTooltip>
 
-            <Link to="/marketplace/wishlist">
-              <Button variant="ghost" size="icon" className="relative" aria-label={`View wishlist${getWishlistCount() > 0 ? `, ${getWishlistCount()} items` : ''}`}>
-                <Heart className="h-5 w-5" aria-hidden="true" />
-                {getWishlistCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
-                    {getWishlistCount()}
-                  </span>
-                )}
-              </Button>
-            </Link>
+            <IconTooltip label="Wishlist">
+              <Link to="/marketplace/wishlist">
+                <Button variant="ghost" size="icon" className="relative" aria-label={`View wishlist${getWishlistCount() > 0 ? `, ${getWishlistCount()} items` : ''}`}>
+                  <Heart className="h-5 w-5" aria-hidden="true" />
+                  {getWishlistCount() > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
+                      {getWishlistCount()}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+            </IconTooltip>
 
-            <Link to="/marketplace/orders" className="hidden sm:block">
-              <Button variant="ghost" size="icon" aria-label="View your orders">
-                <Package className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </Link>
+            <IconTooltip label="Orders">
+              <Link to="/marketplace/orders" className="hidden sm:block">
+                <Button variant="ghost" size="icon" aria-label="View your orders">
+                  <Package className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </Link>
+            </IconTooltip>
 
             {/* Support Dropdown */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="hidden sm:flex" aria-label="Open support menu">
-                  <HelpCircle className="h-5 w-5" aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
+              <IconTooltip label="Help & Support">
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hidden sm:flex" aria-label="Open support menu">
+                    <HelpCircle className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </IconTooltip>
               <DropdownMenuContent align="end" className="w-48 bg-card">
                 {supportLinks.map((link) => (
                   <DropdownMenuItem key={link.path} asChild>
@@ -184,68 +255,32 @@ const MarketplaceNavbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/marketplace/settings" className="hidden sm:block">
-              <Button variant="ghost" size="icon" aria-label="Settings">
-                <Settings className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </Link>
+            <IconTooltip label="Settings">
+              <Link to="/marketplace/settings" className="hidden sm:block">
+                <Button variant="ghost" size="icon" aria-label="Settings">
+                  <Settings className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </Link>
+            </IconTooltip>
             
-            <Link to="/marketplace/cart">
-              <Button variant="ghost" size="icon" className="relative" aria-label={`Shopping cart${getItemCount() > 0 ? `, ${getItemCount()} items` : ''}`}>
-                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-                {getItemCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
-                    {getItemCount()}
-                  </span>
-                )}
-              </Button>
-            </Link>
-
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
-                    <Avatar className="h-8 w-8">
-                      {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-card">
-                  <div className="px-3 py-2">
-                    <p className="font-medium text-sm">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/marketplace/settings" className="cursor-pointer gap-2">
-                      <User className="h-4 w-4" /> My Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/marketplace/orders" className="cursor-pointer gap-2">
-                      <Package className="h-4 w-4" /> My Orders
-                    </Link>
-                  </DropdownMenuItem>
-                  {isArtisan && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/artisan/dashboard" className="cursor-pointer gap-2">
-                        <Store className="h-4 w-4" /> Artisan Dashboard
-                      </Link>
-                    </DropdownMenuItem>
+            <IconTooltip label="Cart">
+              <Link to="/marketplace/cart">
+                <Button variant="ghost" size="icon" className="relative" aria-label={`Shopping cart${getItemCount() > 0 ? `, ${getItemCount()} items` : ''}`}>
+                  <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+                  {getItemCount() > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
+                      {getItemCount()}
+                    </span>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-                    onClick={() => { logout(); navigate("/"); }}
-                  >
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
+                </Button>
+              </Link>
+            </IconTooltip>
+
+            {isClerkEnabled ? (
+              // Clerk <UserButton /> when signed in; <SignInButton />/<SignUpButton /> when
+              // signed out — unless the user still holds a legacy backend session.
+              <ClerkNavAuth legacyAuthenticated={legacyUserMenu} />
+            ) : legacyUserMenu ?? (
               <Link to="/auth" className="hidden sm:block">
                 <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
                   <User className="h-4 w-4" aria-hidden="true" />

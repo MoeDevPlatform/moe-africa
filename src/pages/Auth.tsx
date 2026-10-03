@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { SignIn, SignUp } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CLERK_ROUTES, isClerkEnabled } from "@/lib/clerk";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, authService, metaService, ServiceCategoryOption } from "@/lib/apiServices";
@@ -15,8 +18,35 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect } from "react";
 import logo from "@/assets/logo.png";
 
+// Embedded Clerk components inherit the card's width; hash routing keeps them
+// self-contained on /auth without extra React Router routes.
+const clerkAppearance = {
+  elements: { rootBox: "w-full", cardBox: "w-full shadow-none border-0" },
+};
+
+/**
+ * Wraps the legacy email/password forms. When Clerk is enabled they're tucked
+ * behind a toggle so existing MOE users can still sign in with their current
+ * credentials; when Clerk is disabled the forms render exactly as before.
+ */
+const LegacyAuthSection = ({ title, children }: { title: string; children: React.ReactNode }) => {
+  if (!isClerkEnabled) return <>{children}</>;
+  return (
+    <Collapsible className="mt-4">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="w-full text-center text-sm text-primary hover:underline">
+          {title}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-4">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const { login, register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -115,13 +145,22 @@ const Auth = () => {
           </CardHeader>
 
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            <Tabs defaultValue={defaultTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
+                {isClerkEnabled && (
+                  <SignIn
+                    routing="hash"
+                    signUpUrl={CLERK_ROUTES.signUp}
+                    fallbackRedirectUrl={CLERK_ROUTES.afterAuth}
+                    appearance={clerkAppearance}
+                  />
+                )}
+                <LegacyAuthSection title="Have an existing MOE account? Sign in with email & password">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div>
                     <Label htmlFor="signin-email">Email</Label>
@@ -159,28 +198,43 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
-                  <div className="relative my-2">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                    <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={handleGoogle}
-                    disabled={isLoading}
-                  >
-                    <Mail className="h-4 w-4" /> Continue with Google
-                  </Button>
+                  {/* Google via Clerk when enabled; legacy backend OAuth otherwise. */}
+                  {!isClerkEnabled && (
+                    <>
+                      <div className="relative my-2">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                        <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleGoogle}
+                        disabled={isLoading}
+                      >
+                        <Mail className="h-4 w-4" /> Continue with Google
+                      </Button>
+                    </>
+                  )}
                   <div className="text-center">
                     <a href="#" className="text-sm text-primary hover:underline">
                       Forgot password?
                     </a>
                   </div>
                 </form>
+                </LegacyAuthSection>
               </TabsContent>
 
               <TabsContent value="signup">
+                {isClerkEnabled && (
+                  <SignUp
+                    routing="hash"
+                    signInUrl={CLERK_ROUTES.signIn}
+                    fallbackRedirectUrl={CLERK_ROUTES.afterAuth}
+                    appearance={clerkAppearance}
+                  />
+                )}
+                <LegacyAuthSection title="Joining as an artisan or prefer a MOE account? Sign up with email & password">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   {/* Role Selection */}
                   <div className="space-y-3">
@@ -330,20 +384,25 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
                   </Button>
-                  <div className="relative my-2">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                    <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={handleGoogle}
-                    disabled={isLoading}
-                  >
-                    <Mail className="h-4 w-4" /> Continue with Google
-                  </Button>
+                  {!isClerkEnabled && (
+                    <>
+                      <div className="relative my-2">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                        <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleGoogle}
+                        disabled={isLoading}
+                      >
+                        <Mail className="h-4 w-4" /> Continue with Google
+                      </Button>
+                    </>
+                  )}
                 </form>
+                </LegacyAuthSection>
               </TabsContent>
             </Tabs>
           </CardContent>

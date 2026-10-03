@@ -18,14 +18,14 @@ const helpTopics = [
     icon: CreditCard,
     title: "Payments & Billing",
     description: "Payment methods, refunds, and billing inquiries",
-    link: "/marketplace/support/faqs",
+    link: "/help/payments",
     keywords: ["payment", "billing", "refund", "card", "charge", "invoice", "pay"],
   },
   {
     icon: Truck,
     title: "Shipping & Delivery",
     description: "Delivery times, shipping costs, and international orders",
-    link: "/marketplace/support/faqs",
+    link: "/help/shipping",
     keywords: ["shipping", "delivery", "time", "cost", "international", "dispatch"],
   },
   {
@@ -39,14 +39,14 @@ const helpTopics = [
     icon: MessageSquare,
     title: "Contact Artisans",
     description: "How to message artisans and custom order inquiries",
-    link: "/marketplace/support/faqs",
+    link: "/help/contact-artisans",
     keywords: ["message", "artisan", "contact", "custom", "order", "chat", "inquiry"],
   },
   {
     icon: BookOpen,
     title: "Getting Started",
     description: "New to MOE? Learn how to browse, order, and customize",
-    link: "/marketplace/support/faqs",
+    link: "/help/getting-started",
     keywords: ["start", "new", "browse", "account", "signup", "how", "begin", "guide"],
   },
 ];

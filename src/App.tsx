@@ -52,6 +52,10 @@ import OrderSupport from "./pages/marketplace/support/OrderSupport";
 import ReportIssue from "./pages/marketplace/support/ReportIssue";
 import TrackOrder from "./pages/marketplace/support/TrackOrder";
 import ReturnPolicy from "./pages/marketplace/support/ReturnPolicy";
+import PaymentsHelp from "./pages/marketplace/support/help/PaymentsHelp";
+import ShippingHelp from "./pages/marketplace/support/help/ShippingHelp";
+import ContactArtisansHelp from "./pages/marketplace/support/help/ContactArtisansHelp";
+import GettingStartedHelp from "./pages/marketplace/support/help/GettingStartedHelp";
 
 // Footer Pages
 import About from "./pages/marketplace/About";
@@ -119,6 +123,12 @@ const App = () => (
                   <Route path="/marketplace/support/report" element={<ReportIssue />} />
                   <Route path="/marketplace/support/track-order" element={<TrackOrder />} />
                   <Route path="/marketplace/support/return-policy" element={<ReturnPolicy />} />
+
+                  {/* Help Center topic pages */}
+                  <Route path="/help/payments" element={<PaymentsHelp />} />
+                  <Route path="/help/shipping" element={<ShippingHelp />} />
+                  <Route path="/help/contact-artisans" element={<ContactArtisansHelp />} />
+                  <Route path="/help/getting-started" element={<GettingStartedHelp />} />
                   
                   {/* Artisan Routes */}
                   <Route path="/artisan/dashboard" element={<ProtectedRoute requiredRole="artisan"><ArtisanDashboard /></ProtectedRoute>} />

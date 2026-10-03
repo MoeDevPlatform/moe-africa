@@ -11,6 +11,9 @@ import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
+} from "@/components/ui/carousel";
 import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
@@ -500,11 +503,22 @@ const MarketplaceHome = () => {
           </div>
 
           {recommendedProviders.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {recommendedProviders.map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
-              ))}
-            </div>
+            // Single horizontal row — same Embla carousel + arrow style as Seasonal Picks.
+            // Cards have a fixed width; scrollbar is hidden and swipe/drag scroll stays on.
+            <Carousel opts={{ align: "start", loop: true }} className="w-full">
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {recommendedProviders.map((provider) => (
+                  <CarouselItem
+                    key={provider.id}
+                    className="pl-2 md:pl-4 basis-[85%] sm:basis-[340px] lg:basis-[380px]"
+                  >
+                    <ProviderCard provider={provider} />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden sm:flex -left-4" />
+              <CarouselNext className="hidden sm:flex -right-4" />
+            </Carousel>
           ) : !isLoading ? (
             <EmptySection title="No artisans to recommend yet" description="Artisans will show up here once they join the platform." />
           ) : null}
