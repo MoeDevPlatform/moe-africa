@@ -100,21 +100,3 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
-
-/* Clerk <SignIn/> / <SignUp/> embedded inside MOE's own card on /auth:
-   drop Clerk's outer panel so there is a single container. Scoped so the
-   UserButton popover (also a .cl-cardBox) keeps its shadow. */
-.moe-clerk-embed .cl-cardBox {
-  box-shadow: none !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-}
-.moe-clerk-embed .cl-card {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  padding-top: 0 !important;
-}
-/* Title/subtitle are hidden via appearance; collapse the now-empty wrapper too. */
-.moe-clerk-embed .cl-header {
-  display: none !important;
-}

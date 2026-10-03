@@ -613,17 +613,25 @@ unknown Clerk user), `403 FORBIDDEN` (suspended), `400 VALIDATION_ERROR`
 
 ### Sign-up metadata contract (`unsafeMetadata`)
 
-The Sign Up tab renders MOE's Customer / Artisan selector and the service
-category chips **above** the Clerk card and passes the choice through Clerk:
+Clerk is used **only** for the "Continue with Google" button (no embedded
+Clerk UI). Email/password sign-up still goes through `/auth/register`. The
+Google button on the Sign Up tab passes the currently selected role and
+categories through Clerk's OAuth flow:
 
 ```tsx
-<SignUp unsafeMetadata={{ role, serviceCategories }} />
+// src/components/auth/ClerkGoogleButton.tsx (@clerk/react v6 signal API)
+signUp.sso({
+  strategy: "oauth_google",
+  redirectCallbackUrl: "/sso-callback",   // <AuthenticateWithRedirectCallback />
+  redirectUrl: "/marketplace",
+  unsafeMetadata: { role, serviceCategories },
+});
 // role: "customer" | "artisan"; serviceCategories: string[] (names, artisan only)
 ```
 
-Clerk copies this onto `user.unsafeMetadata` once the sign-up completes —
-for **both** Google and email sign-ups. On first `/auth/clerk-verify` for a
-new user the backend reads it and does exactly what `/auth/register` does:
+Clerk copies this onto `user.unsafeMetadata` once the sign-up completes. On
+first `/auth/clerk-verify` for a new user the backend reads it and does
+exactly what `/auth/register` does:
 
 | `unsafeMetadata.role` | Result |
 |---|---|
@@ -645,31 +653,29 @@ CLERK_AUTHORIZED_PARTIES=https://moe-africa-mvp.vercel.app   # recommended in pr
 
 Migration: `20260606120000_add_clerk_id` adds `User.clerkId TEXT UNIQUE`.
 
-### Clerk Dashboard — REQUIRED manual steps
-
-These cannot be done in code. Until they are done, Clerk will show a
-**Username** field and will not collect names, so `User.name` falls back to
-the email local-part.
-
-**User & Authentication → Email, Phone, Username**
-- Username → **OFF** (MOE has no usernames)
-- First name → **ON**, required
-- Last name → **ON**, required
-- Email address → ON, required (already)
+### Clerk Dashboard — manual steps
 
 **User & Authentication → Social Connections** — Google → ON (done).
 
-The frontend hides the username field via `appearance.elements`
-(`formFieldRow__username`, `formFieldInput__username`,
-`formFieldLabel__username: "hidden"`) as a stop-gap, but if Username is still
-*required* in the dashboard, Clerk will block submission — flip the setting.
+**User & Authentication → Email, Phone, Username** — recommended:
+Username → **OFF**. Since no Clerk form is rendered any more this no longer
+affects the UI, but a *required* username would make Clerk demand a
+"continue sign-up" step after Google OAuth, which MOE doesn't render.
+Name/avatar come from the Google profile automatically.
+
+**Paths** — add `/sso-callback` under *Paths* if your instance restricts
+redirect URLs (dev instances don't).
 
 ### Frontend notes
 
-- Legacy email/password sign-in stays available under
-  "Sign in with your existing MOE account" on the Sign In tab (for users who
-  joined before Google sign-in). `AuthContext` and `/auth/login` are unchanged.
-- Clerk's own header, "Don't have an account?" footer link and outer panel
-  are hidden (`headerTitle`, `headerSubtitle`, `footerAction` +
-  `.moe-clerk-embed` CSS) — MOE renders the heading and tab switcher. The
-  "Secured by Clerk" badge stays visible (required on the free plan).
+- `/auth` renders the original MOE email/password forms (Sign In; Sign Up
+  with Customer/Artisan selector and category chips). `AuthContext`,
+  `/auth/login` and `/auth/register` are unchanged.
+- "Continue with Google" at the top of both tabs → `ClerkGoogleButton` →
+  Clerk OAuth redirect → `/sso-callback` (`SSOCallback` page) → `/marketplace`.
+  There `ClerkSessionBridge` sees the Clerk session and calls
+  `/auth/clerk-verify` to obtain MOE tokens.
+- When `VITE_CLERK_PUBLISHABLE_KEY` is unset, the forms fall back to the
+  original backend Google OAuth button at the bottom of each form.
+- No Clerk-rendered UI (`<SignIn/>`, `<SignUp/>`, `<UserButton/>`) is used;
+  the navbar uses the MOE avatar menu driven by `AuthContext`.

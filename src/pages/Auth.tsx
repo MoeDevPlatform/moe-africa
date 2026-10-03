@@ -1,81 +1,21 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { SignIn, SignUp } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CLERK_ROUTES, isClerkEnabled } from "@/lib/clerk";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, authService, metaService, ServiceCategoryOption } from "@/lib/apiServices";
 import { MoeApiError } from "@/lib/moeApi";
-import { User, Palette, Eye, EyeOff, Mail, ChevronDown } from "lucide-react";
+import { User, Palette, Eye, EyeOff, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect } from "react";
 import logo from "@/assets/logo.png";
-
-// Embedded Clerk components live inside MOE's own card, so strip Clerk's
-// chrome: no inner border/shadow, no duplicate header (MOE renders "Welcome to
-// MOE" + the tab switcher), no "Don't have an account?" footer link (the tabs
-// cover it). The "Secured by Clerk" badge is intentionally left visible —
-// Clerk's free plan requires it.
-//
-// CLERK DASHBOARD (required, cannot be done in code):
-//   User & Authentication → Email, Phone, Username
-//     • Username  → OFF   (MOE has no usernames)
-//     • First name / Last name → ON, required  (backend builds `User.name` from these)
-// The `__username` rules below only hide the field visually as a stop-gap; if
-// Username is still *required* in the dashboard Clerk will block submission.
-const clerkAppearance = {
-  elements: {
-    rootBox: { width: "100%" },
-    cardBox: { width: "100%", boxShadow: "none", border: "none" },
-    card: { boxShadow: "none", border: "none", background: "transparent", paddingLeft: 0, paddingRight: 0 },
-    footer: { background: "transparent" },
-    headerTitle: "hidden",
-    headerSubtitle: "hidden",
-    footerAction: "hidden",
-    formFieldInput__username: "hidden",
-    formFieldLabel__username: "hidden",
-    formFieldRow__username: "hidden",
-  },
-};
-
-/**
- * Legacy email/password sign-in for accounts created before Clerk. When Clerk
- * is enabled it sits below the Clerk card as a clearly visible expander; when
- * Clerk is disabled the form renders inline exactly as before.
- */
-const LegacyAuthSection = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) => {
-  const [open, setOpen] = useState(false);
-  if (!isClerkEnabled) return <>{children}</>;
-  return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mt-6 border-t pt-6">
-      <CollapsibleTrigger asChild>
-        <Button type="button" variant="outline" className="w-full justify-between">
-          {title}
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-        </Button>
-      </CollapsibleTrigger>
-      {description && (
-        <p className="mt-2 text-center text-xs text-muted-foreground">{description}</p>
-      )}
-      <CollapsibleContent className="pt-4">{children}</CollapsibleContent>
-    </Collapsible>
-  );
-};
+import { isClerkEnabled } from "@/lib/clerk";
+import ClerkGoogleButton from "@/components/auth/ClerkGoogleButton";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -186,20 +126,8 @@ const Auth = () => {
               </TabsList>
 
               <TabsContent value="signin">
-                {isClerkEnabled && (
-                  <div className="moe-clerk-embed">
-                    <SignIn
-                      routing="hash"
-                      signUpUrl={CLERK_ROUTES.signUp}
-                      fallbackRedirectUrl={CLERK_ROUTES.afterAuth}
-                      appearance={clerkAppearance}
-                    />
-                  </div>
-                )}
-                <LegacyAuthSection
-                  title="Sign in with your existing MOE account"
-                  description="If you joined MOE before Google sign-in was added, use this option."
-                >
+                {/* Google via Clerk OAuth redirect; the legacy backend OAuth button below is used when Clerk is off. */}
+                {isClerkEnabled && <ClerkGoogleButton mode="signIn" disabled={isLoading} />}
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div>
                     <Label htmlFor="signin-email">Email</Label>
@@ -237,7 +165,6 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
-                  {/* Google via Clerk when enabled; legacy backend OAuth otherwise. */}
                   {!isClerkEnabled && (
                     <>
                       <div className="relative my-2">
@@ -261,14 +188,28 @@ const Auth = () => {
                     </a>
                   </div>
                 </form>
-                </LegacyAuthSection>
               </TabsContent>
 
-              <TabsContent value="signup" className="space-y-4">
-                {/* Role selection — shared by the Clerk and legacy sign-up paths.
-                    Rendered above the Clerk card so artisans can pick their
-                    account type before Google/email sign-up; the choice travels
-                    to the backend via Clerk `unsafeMetadata`. */}
+              <TabsContent value="signup">
+                {/* Role + categories ride along as Clerk unsafeMetadata so POST /auth/clerk-verify
+                    can create an artisan profile for Google sign-ups too. */}
+                {isClerkEnabled && (
+                  <ClerkGoogleButton
+                    mode="signUp"
+                    disabled={isLoading}
+                    unsafeMetadata={{
+                      role,
+                      serviceCategories: role === "artisan" ? serviceCategories : [],
+                    }}
+                    hint={
+                      role === "artisan"
+                        ? "You'll join as an artisan with the categories selected below."
+                        : "Joining as an artisan? Choose your account type below first."
+                    }
+                  />
+                )}
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  {/* Role Selection */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">I want to join as</Label>
                     <RadioGroup
@@ -333,21 +274,6 @@ const Auth = () => {
                     </div>
                   )}
 
-                {isClerkEnabled ? (
-                  <div className="moe-clerk-embed">
-                    <SignUp
-                      routing="hash"
-                      signInUrl={CLERK_ROUTES.signIn}
-                      fallbackRedirectUrl={CLERK_ROUTES.afterAuth}
-                      appearance={clerkAppearance}
-                      unsafeMetadata={{
-                        role,
-                        serviceCategories: role === "artisan" ? serviceCategories : [],
-                      }}
-                    />
-                  </div>
-                ) : (
-                <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstname">First Name</Label>
@@ -449,7 +375,6 @@ const Auth = () => {
                     </>
                   )}
                 </form>
-                )}
               </TabsContent>
             </Tabs>
           </CardContent>

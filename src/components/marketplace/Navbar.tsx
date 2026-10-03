@@ -20,8 +20,6 @@ import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { isClerkEnabled } from "@/lib/clerk";
-import ClerkNavAuth from "@/components/auth/ClerkNavAuth";
 
 const supportLinks = [
   { name: "Help Center", path: "/marketplace/support/help" },
@@ -80,9 +78,8 @@ const MarketplaceNavbar = () => {
     }, 200); // 200ms delay before closing
   }, []);
 
-  // Legacy (AuthContext / backend token) profile menu. Kept intact while Clerk
-  // is rolled out gradually — see src/lib/clerk.ts.
-  const legacyUserMenu = isAuthenticated ? (
+  // MOE profile menu, driven by AuthContext (backend session).
+  const userMenu = isAuthenticated ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
@@ -276,11 +273,7 @@ const MarketplaceNavbar = () => {
               </Link>
             </IconTooltip>
 
-            {isClerkEnabled ? (
-              // Clerk <UserButton /> when signed in; <SignInButton />/<SignUpButton /> when
-              // signed out — unless the user still holds a legacy backend session.
-              <ClerkNavAuth legacyAuthenticated={legacyUserMenu} />
-            ) : legacyUserMenu ?? (
+            {userMenu ?? (
               <Link to="/auth" className="hidden sm:block">
                 <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
                   <User className="h-4 w-4" aria-hidden="true" />

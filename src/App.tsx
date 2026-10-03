@@ -39,6 +39,7 @@ import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import SSOCallback from "./pages/auth/SSOCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
 import ArtisanDashboard from "./pages/artisan/Dashboard";
@@ -90,6 +91,7 @@ const App = () => (
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/sso-callback" element={<SSOCallback />} />
                   
                   {/* Footer & Static Pages */}
                   <Route path="/about" element={<About />} />
