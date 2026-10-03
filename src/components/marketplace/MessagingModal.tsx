@@ -148,7 +148,7 @@ const MessagingModal = ({
           const serverMessages = res?.data ?? [];
           if (!Array.isArray(serverMessages)) return;
           setMessages((prev) => {
-            const fetched = (serverMessages as Record<string, unknown>[]).map((m) =>
+            const fetched = (serverMessages as unknown as Record<string, unknown>[]).map((m) =>
               mapServerMessage(m, providerId, providerName),
             );
             const failed = prev.filter((m) => m.status === "failed");
