@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isArtisan: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (
     name: string,
     email: string,
@@ -46,6 +46,8 @@ const AuthContext =
 
 const ACCESS_TOKEN_KEY = "moe_access_token";
 const REFRESH_TOKEN_KEY = "moe_refresh_token";
+const REMEMBER_KEY = "moe_remember_me";
+const SESSION_ALIVE_KEY = "moe_session_alive";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CustomerProfile | null>(null);
@@ -78,6 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session on mount
   useEffect(() => {
+    try {
+      if (localStorage.getItem(REMEMBER_KEY) === "0" && !sessionStorage.getItem(SESSION_ALIVE_KEY)) {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+    } catch { /* noop */ }
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (token) {
       refreshProfile().finally(() => setIsLoading(false));
@@ -109,8 +118,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     const res = await authService.login({ email, password });
+    // Remember me: unchecked sessions end when the tab/browser is closed.
+    try {
+      localStorage.setItem(REMEMBER_KEY, rememberMe ? "1" : "0");
+      sessionStorage.setItem(SESSION_ALIVE_KEY, "1");
+    } catch { /* noop */ }
     clearArtisanStash();
     clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);

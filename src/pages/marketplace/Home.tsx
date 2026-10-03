@@ -7,7 +7,7 @@ import ProviderCard from "@/components/marketplace/ProviderCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
-import FilterDrawer, { FilterState } from "@/components/marketplace/FilterDrawer";
+import FilterDrawer, { FilterState, providerMatchesLocation } from "@/components/marketplace/FilterDrawer";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,6 +57,10 @@ const MarketplaceHome = () => {
     materials: [],
     styleTags: [],
     deliveryEstimate: null,
+    country: null,
+    state: null,
+    minRating: null,
+    availableOnly: false,
   });
   const { preferences, hasPreferences } = usePreferences();
 
@@ -145,7 +149,12 @@ const MarketplaceHome = () => {
 
   // Apply filters to products
   const filteredProducts = useMemo(() => {
+    const providerById = new Map(allProviders.map((p) => [p.id, p]));
     return allProducts.filter((product) => {
+      if (filters.country || filters.state) {
+        const prov = providerById.get(product.providerId);
+        if (!prov || !providerMatchesLocation(prov, filters)) return false;
+      }
       if ((product.priceRange?.min ?? 0) < filters.priceRange[0] || (product.priceRange?.max ?? Infinity) > filters.priceRange[1]) return false;
       if (filters.materials.length > 0) {
         const pm = (product.materials ?? "").toLowerCase();
@@ -161,7 +170,7 @@ const MarketplaceHome = () => {
       }
       return true;
     });
-  }, [allProducts, filters]);
+  }, [allProducts, allProviders, filters]);
 
   // Client-side preference filter — applied on top of the API response so the
   // marketplace visibly responds even if the backend ignores the query params.
@@ -213,6 +222,24 @@ const MarketplaceHome = () => {
       });
     }
 
+    if (filters.country || filters.state) {
+      providers = providers.filter((p) => providerMatchesLocation(p, filters));
+    }
+    if (filters.minRating) {
+      const min = filters.minRating;
+      providers = providers.filter((p) => {
+        const r = hydratedRatings[p.id] ?? Number(p.rating ?? 0);
+        return (p.reviewCount ?? 0) > 0 || hydratedRatings[p.id] ? r >= min : false;
+      });
+    }
+    if (filters.availableOnly) {
+      providers = providers.filter((p) => {
+        const live = (p as typeof p & { productCount?: number }).productCount;
+        if (typeof live === "number") return live > 0;
+        return allProducts.some((pr) => pr.providerId === p.id);
+      });
+    }
+
     if (hasPreferences && preferences.categories.length > 0) {
       providers = [...providers].sort((a, b) => {
         const aM = preferences.categories.some((c) => (a.category || "").toLowerCase().includes(c.toLowerCase()));
@@ -224,7 +251,7 @@ const MarketplaceHome = () => {
     }
 
     return providers;
-  }, [selectedCategory, allProviders, filters, preferences, hasPreferences]);
+  }, [selectedCategory, allProviders, allProducts, hydratedRatings, filters, preferences, hasPreferences]);
 
   // Deal products from actual data
   const dealProducts = useMemo(() => {

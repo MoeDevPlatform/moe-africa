@@ -67,6 +67,8 @@ import ShippingInfo from "./pages/marketplace/ShippingInfo";
 import PrivacyPolicy from "./pages/marketplace/PrivacyPolicy";
 import TermsOfService from "./pages/marketplace/TermsOfService";
 import CookiePolicy from "./pages/marketplace/CookiePolicy";
+import ScrollToTopButton from "./components/common/ScrollToTopButton";
+import ScrollToTopOnRouteChange from "./components/common/ScrollToTopOnRouteChange";
 import FloatingRefreshButton from "./components/marketplace/FloatingRefreshButton";
 import ClerkSessionBridge from "./components/auth/ClerkSessionBridge";
 import { isClerkEnabled } from "./lib/clerk";
@@ -86,7 +88,9 @@ const App = () => (
               <Toaster />
               <Sonner />
               <FloatingRefreshButton />
+              <ScrollToTopButton />
               <BrowserRouter>
+                <ScrollToTopOnRouteChange />
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />

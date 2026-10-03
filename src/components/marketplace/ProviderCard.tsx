@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
-import { artisanReviewsService } from "@/lib/apiServices";
+import { artisanReviewsService, productsService } from "@/lib/apiServices";
 import { toCategoryLabel } from "@/lib/categories";
 // Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
 // back to the mock dataset count only when the field is missing — this prevents a freshly
@@ -20,8 +20,19 @@ interface ProviderCardProps {
 const ProviderCard = ({ provider }: ProviderCardProps) => {
   const navigate = useNavigate();
   const liveCount = (provider as Provider & { productCount?: number }).productCount;
+  // Source of truth: the same products list the profile page renders.
+  const [fetchedCount, setFetchedCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!provider.id) return;
+    let cancelled = false;
+    productsService
+      .getByProvider(provider.id)
+      .then((list) => { if (!cancelled) setFetchedCount(Array.isArray(list) ? list.length : 0); })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, [provider.id]);
   const productCount =
-    typeof liveCount === "number" ? liveCount : getProductsByProviderId(provider.id).length;
+    fetchedCount ?? (typeof liveCount === "number" ? liveCount : getProductsByProviderId(provider.id).length);
 
   // Issue: backend `/service-providers/public-info` does not always include
   // aggregate rating/reviewCount. If we have none, hydrate from the

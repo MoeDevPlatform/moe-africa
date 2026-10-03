@@ -6,6 +6,10 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { countries } from "@/data/countryStateData";
 import { filterMetaService, type ProductFilterMeta } from "@/lib/apiServices";
 
 export interface FilterState {
@@ -13,7 +17,35 @@ export interface FilterState {
   materials: string[];
   styleTags: string[];
   deliveryEstimate: string | null;
+  country?: string | null;
+  state?: string | null;
+  minRating?: number | null;
+  availableOnly?: boolean;
 }
+
+/** Client-side location match against an artisan's country/state/city. */
+export const providerMatchesLocation = (
+  p: { city?: string; state?: string; country?: string },
+  f: Pick<FilterState, "country" | "state">,
+) => {
+  const norm = (v?: string | null) => (v || "").toLowerCase().trim();
+  if (f.country) {
+    const pc = norm((p as { country?: string }).country);
+    if (pc) {
+      if (pc !== norm(f.country)) return false;
+    } else {
+      // No country on record: infer from the state belonging to the chosen country.
+      const c = countries.find((x) => x.name === f.country);
+      const ps = norm(p.state);
+      if (!c || !c.states.some((s) => norm(s) === ps || ps.includes(norm(s)))) return false;
+    }
+  }
+  if (f.state) {
+    const st = norm(f.state);
+    if (!norm(p.state).includes(st) && !norm(p.city).includes(st)) return false;
+  }
+  return true;
+};
 
 interface FilterDrawerProps {
   filters: FilterState;
@@ -97,6 +129,10 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
       materials: [],
       styleTags: [],
       deliveryEstimate: null,
+      country: null,
+      state: null,
+      minRating: null,
+      availableOnly: false,
     };
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
@@ -106,7 +142,13 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
     (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < priceMax ? 1 : 0) +
     localFilters.materials.length +
     localFilters.styleTags.length +
-    (localFilters.deliveryEstimate ? 1 : 0);
+    (localFilters.deliveryEstimate ? 1 : 0) +
+    (localFilters.country ? 1 : 0) +
+    (localFilters.state ? 1 : 0) +
+    (localFilters.minRating ? 1 : 0) +
+    (localFilters.availableOnly ? 1 : 0);
+
+  const selectedCountry = countries.find((c) => c.name === localFilters.country);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -137,6 +179,72 @@ const FilterDrawer = ({ filters, onFiltersChange, children }: FilterDrawerProps)
         </SheetHeader>
         
         <div className="flex-1 overflow-y-auto py-4 space-y-6">
+          {/* Location */}
+          <div>
+            <Label className="text-sm font-semibold mb-3 block">Location</Label>
+            <div className="space-y-2">
+              <Select
+                value={localFilters.country ?? "any"}
+                onValueChange={(v) =>
+                  setLocalFilters({ ...localFilters, country: v === "any" ? null : v, state: null })
+                }
+              >
+                <SelectTrigger aria-label="Filter by country"><SelectValue placeholder="Any country" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any country</SelectItem>
+                  {countries.map((c) => (
+                    <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedCountry ? (
+                <Select
+                  value={localFilters.state ?? "any"}
+                  onValueChange={(v) => setLocalFilters({ ...localFilters, state: v === "any" ? null : v })}
+                >
+                  <SelectTrigger aria-label="Filter by state"><SelectValue placeholder="Any state" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any state</SelectItem>
+                    {selectedCountry.states.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input disabled placeholder="Select a country first" aria-label="State or city" />
+              )}
+            </div>
+          </div>
+
+          {/* Rating */}
+          <div>
+            <Label className="text-sm font-semibold mb-3 block">Artisan Rating</Label>
+            <div className="flex flex-wrap gap-2">
+              {[null, 3, 4].map((r) => (
+                <Badge
+                  key={String(r)}
+                  variant={(localFilters.minRating ?? null) === r ? "default" : "outline"}
+                  className="cursor-pointer"
+                  role="radio"
+                  aria-checked={(localFilters.minRating ?? null) === r}
+                  onClick={() => setLocalFilters({ ...localFilters, minRating: r })}
+                >
+                  {r ? `${r}★ & above` : "Any"}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Availability */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="available-only" className="text-sm font-semibold">Only artisans with products</Label>
+            <Switch
+              id="available-only"
+              checked={!!localFilters.availableOnly}
+              onCheckedChange={(v) => setLocalFilters({ ...localFilters, availableOnly: v })}
+            />
+          </div>
+
           {/* Price Range */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Price Range</Label>
