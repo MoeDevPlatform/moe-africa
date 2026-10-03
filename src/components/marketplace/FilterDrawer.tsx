@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -210,7 +209,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           </SheetTitle>
         </SheetHeader>
         
-        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+        <div className="overflow-y-auto py-4 pb-6 space-y-6">
           {/* Location */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Location</Label>
@@ -318,34 +317,17 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           </div>
 
           {/* Availability */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <Label htmlFor="available-only" className="text-sm font-semibold">Only artisans with products</Label>
             <Switch
               id="available-only"
+              className="shrink-0"
               checked={!!localFilters.availableOnly}
               onCheckedChange={(v) => setLocalFilters({ ...localFilters, availableOnly: v })}
             />
           </div>
 
           {!artisansOnly && <>
-          {/* Price Range */}
-          <div>
-            <Label className="text-sm font-semibold mb-3 block">Price Range</Label>
-            <div className="space-y-3 px-1">
-              <Slider
-                value={localFilters.priceRange}
-                onValueChange={(value) => setLocalFilters({ ...localFilters, priceRange: value as [number, number] })}
-                max={priceMax}
-                step={5000}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>₦{localFilters.priceRange[0].toLocaleString()}</span>
-                <span>₦{localFilters.priceRange[1].toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
           {/* Materials */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Materials</Label>
