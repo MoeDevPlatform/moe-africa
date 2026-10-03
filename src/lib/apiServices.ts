@@ -719,7 +719,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     rating: ratingValue,
     reviewCount: reviewCountValue,
     ...(typeof raw.createdAt === "string" ? { createdAt: raw.createdAt } : {}),
-    averageRating: ratingValue,
+    ...({ averageRating: ratingValue } as Record<string, unknown>),
     ...(productCount !== undefined ? { productCount } : {}),
     ...(raw.userId != null ? { userId: raw.userId } : {}),
   };
