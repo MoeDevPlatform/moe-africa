@@ -676,9 +676,27 @@ redirect URLs (dev instances don't).
   `/auth/login` and `/auth/register` are unchanged.
 - "Continue with Google" at the top of both tabs → `ClerkGoogleButton` →
   Clerk OAuth redirect → `/sso-callback` (`SSOCallback` page) → `/marketplace`.
-  There `ClerkSessionBridge` sees the Clerk session and calls
-  `/auth/clerk-verify` to obtain MOE tokens.
+  There `ClerkSessionBridge` sees the Clerk session and:
+  1. Immediately paints a **provisional** AuthContext user from Clerk
+     (`isClerkUser: true`) so the navbar shows the avatar right away.
+  2. Calls `POST /auth/clerk-verify` with `getToken()` and replaces that
+     provisional profile with real MOE tokens + `/auth/profile`.
+- If `/auth/clerk-verify` is unavailable, Clerk users can still browse with
+  the provisional UI but cannot call authenticated MOE APIs (orders,
+  wishlist, messaging) until verify succeeds.
+- `/auth` redirects to `/marketplace` when either Clerk `isSignedIn` or a
+  MOE session is already present (avoids the "You're already signed in"
+  dead-end).
+- Navbar sign-out calls both Clerk `signOut()` and MOE `logout()`.
 - When `VITE_CLERK_PUBLISHABLE_KEY` is unset, the forms fall back to the
   original backend Google OAuth button at the bottom of each form.
-- No Clerk-rendered UI (`<SignIn/>`, `<SignUp/>`, `<UserButton/>`) is used;
-  the navbar uses the MOE avatar menu driven by `AuthContext`.
+- No Clerk-rendered UI (`<SignIn/>`, `<SignUp/>`, `<UserButton/>`) is used.
+
+### Ops checklist (if Google works but navbar still says Sign In)
+
+1. Confirm the deployed frontend includes `ClerkSessionBridge` +
+   `authService.clerkVerify`.
+2. Confirm the API host has `CLERK_SECRET_KEY` set and
+   `POST /auth/clerk-verify` returns 401 (not 404) for a bogus token.
+3. Confirm browser network tab shows a successful `clerk-verify` after
+   `/sso-callback` (CORS allowlist must include the Vercel origin).

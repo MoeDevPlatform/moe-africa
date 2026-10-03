@@ -16,6 +16,7 @@ import { useEffect } from "react";
 import logo from "@/assets/logo.png";
 import { isClerkEnabled } from "@/lib/clerk";
 import ClerkGoogleButton from "@/components/auth/ClerkGoogleButton";
+import { AlreadySignedInRedirect } from "@/components/auth/AlreadySignedInRedirect";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -107,6 +108,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center px-4 py-12">
+      <AlreadySignedInRedirect />
       <div className="w-full max-w-md">
         <Link to="/" className="flex justify-center mb-8">
           <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-16 w-auto" />

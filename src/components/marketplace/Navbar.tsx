@@ -346,14 +346,7 @@ const MarketplaceNavbar = () => {
               </Link>
             </IconTooltip>
 
-            {userMenu ?? (
-              <Link to="/auth" className="hidden sm:block">
-                <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
-                  <User className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden lg:inline">Sign In</span>
-                </Button>
-              </Link>
-            )}
+            {userMenu}
           </nav>
         </div>
 
