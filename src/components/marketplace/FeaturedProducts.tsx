@@ -2,16 +2,17 @@ import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
 } from "@/components/ui/carousel";
 import EmptySection from "@/components/marketplace/EmptySection";
+import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
-import { productsService, providersService } from "@/lib/apiServices";
-import type { Product, Provider } from "@/data/mockData";
+import { productsService, sectionsService } from "@/lib/apiServices";
+import type { Product } from "@/data/mockData";
 
 interface FeaturedProduct {
   id: number;
@@ -82,9 +83,25 @@ interface ProductSectionProps {
   title: string;
   icon: React.ReactNode;
   products: FeaturedProduct[];
+  loading?: boolean;
 }
 
-const ProductSection = ({ title, icon, products }: ProductSectionProps) => {
+const ProductSection = ({ title, icon, products, loading }: ProductSectionProps) => {
+  if (loading) {
+    return (
+      <div className="mb-8 md:mb-12">
+        <div className="flex items-center gap-2 mb-4 md:mb-6">
+          {icon}
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
+        </div>
+        <div className="flex gap-4 overflow-hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-40 rounded-xl shrink-0" />
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (products.length === 0) return null;
 
   return (
@@ -108,86 +125,99 @@ const ProductSection = ({ title, icon, products }: ProductSectionProps) => {
   );
 };
 
+function mapSectionItem(raw: Record<string, any>): FeaturedProduct | null {
+  const id = Number(raw.id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const images = Array.isArray(raw.images) ? raw.images : [];
+  const price =
+    typeof raw.priceRange?.min === "number"
+      ? raw.priceRange.min
+      : typeof raw.price === "number"
+        ? raw.price
+        : 0;
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags
+    : typeof raw.tags === "string"
+      ? raw.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+      : [];
+  return {
+    id,
+    name: raw.name ?? "Product",
+    price,
+    imageUrl: images[0] || FALLBACK_IMAGE,
+    providerId: Number(raw.providerId) || 0,
+    providerName: raw.providerName || "Artisan",
+    category: raw.category ?? "",
+    tags,
+  };
+}
+
 const FeaturedProducts = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [providerMap, setProviderMap] = useState<Record<number, Provider>>({});
+  const [bestSellers, setBestSellers] = useState<FeaturedProduct[]>([]);
+  const [seasonalPicks, setSeasonalPicks] = useState<FeaturedProduct[]>([]);
+  const [editorPicks, setEditorPicks] = useState<FeaturedProduct[]>([]);
+  const [trending, setTrending] = useState<FeaturedProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.allSettled([
-      productsService.list().then((res) => setProducts(res.data)),
-      providersService.list().then((res) => {
-        const map: Record<number, Provider> = {};
-        res.data.forEach((p) => { map[p.id] = p; });
-        setProviderMap(map);
-      }),
-    ]).finally(() => setIsLoading(false));
+    let cancelled = false;
+    setIsLoading(true);
+
+    const loadSection = async (key: string) => {
+      try {
+        const res = await sectionsService.get(key);
+        return (res.items ?? [])
+          .map((item) => mapSectionItem(item))
+          .filter((p): p is FeaturedProduct => Boolean(p));
+      } catch {
+        return [] as FeaturedProduct[];
+      }
+    };
+
+    Promise.all([
+      loadSection("featured_picks"),
+      loadSection("seasonal_picks"),
+      loadSection("featured_styles"),
+      productsService.list().then((res) => res.data).catch(() => [] as Product[]),
+    ]).then(([featured, seasonal, styles, allProducts]) => {
+      if (cancelled) return;
+      setBestSellers(featured);
+      setSeasonalPicks(seasonal);
+      setEditorPicks(styles);
+      // Trending stays on existing client-side filter logic.
+      setTrending(
+        allProducts
+          .filter((p) =>
+            p.tags.some((t) => ["Modern", "Afrocentric", "Custom"].includes(t)),
+          )
+          .slice(0, 8)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.priceRange.min,
+            imageUrl: p.images[0] || FALLBACK_IMAGE,
+            providerId: p.providerId,
+            providerName: "Artisan",
+            category: p.category,
+            tags: p.tags,
+          })),
+      );
+    }).finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const transformProduct = (p: Product): FeaturedProduct => ({
-    id: p.id,
-    name: p.name,
-    price: p.priceRange.min,
-    imageUrl: p.images[0] || FALLBACK_IMAGE,
-    providerId: p.providerId,
-    providerName: providerMap[p.providerId]?.brandName || "Artisan",
-    category: p.category,
-    tags: p.tags,
-  });
+  const hasAny =
+    bestSellers.length > 0 ||
+    seasonalPicks.length > 0 ||
+    editorPicks.length > 0 ||
+    trending.length > 0;
 
-  // Best Sellers — providers with high ratings
-  const bestSellers = products
-    .filter((p) => {
-      const prov = providerMap[p.providerId];
-      return prov && prov.rating >= 4.7;
-    })
-    .slice(0, 8)
-    .map(transformProduct);
-
-  // Seasonal Picks — driven by the current West African season (Task 9).
-  // Calendar fallback: if Intl returns "UTC" or is ambiguous, default to the
-  // West African seasonal calendar (Harmattan: Nov–Feb, Rainy: Mar–Oct).
-  const seasonalTags = (() => {
-    const month = new Date().getMonth(); // 0–11
-    let tz = "";
-    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { tz = ""; }
-    const useWestAfrica = !tz || tz === "UTC" || tz.startsWith("Africa/");
-    if (useWestAfrica) {
-      // Nov, Dec, Jan, Feb → Harmattan / festive
-      const isHarmattan = month >= 10 || month <= 1;
-      return isHarmattan
-        ? ["Traditional", "Wedding", "Aso-Ebi", "Festive", "Christmas"]
-        : ["Rainy", "Modern", "Casual", "Lightweight"];
-    }
-    // Generic Northern-hemisphere fallback
-    if (month >= 2 && month <= 4) return ["Spring", "Floral", "Light"];
-    if (month >= 5 && month <= 7) return ["Summer", "Casual", "Lightweight"];
-    if (month >= 8 && month <= 10) return ["Autumn", "Warm", "Earthy"];
-    return ["Winter", "Wedding", "Festive", "Holiday"];
-  })();
-
-  const seasonalPicks = products
-    .filter((p) => p.tags.some((t) => seasonalTags.includes(t)))
-    .slice(0, 8)
-    .map(transformProduct);
-
-  // Editor's Recommendations
-  const editorPicks = products
-    .filter((p) => p.tags.some((t) => ["Luxury", "Premium", "Executive"].includes(t)))
-    .slice(0, 8)
-    .map(transformProduct);
-
-  // Trending Right Now
-  const trending = products
-    .filter((p) => p.tags.some((t) => ["Modern", "Afrocentric", "Custom"].includes(t)))
-    .slice(0, 8)
-    .map(transformProduct);
-
-  if (isLoading) return null;
-
-  const hasAny = bestSellers.length > 0 || seasonalPicks.length > 0 || editorPicks.length > 0 || trending.length > 0;
-
-  if (!hasAny) {
+  if (!isLoading && !hasAny) {
     return (
       <section className="mb-12 md:mb-16">
         <EmptySection
@@ -200,10 +230,31 @@ const FeaturedProducts = () => {
 
   return (
     <section className="mb-12 md:mb-16">
-      <ProductSection title="Best Sellers" icon={<TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />} products={bestSellers} />
-      <ProductSection title="Seasonal Picks" icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-accent" />} products={seasonalPicks} />
-      <ProductSection title="Editor's Recommendations" icon={<Award className="h-5 w-5 md:h-6 md:w-6 text-secondary" />} products={editorPicks} />
-      <ProductSection title="Trending Right Now" icon={<Star className="h-5 w-5 md:h-6 md:w-6 text-primary" />} products={trending} />
+      <ProductSection
+        title="Best Sellers"
+        icon={<TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
+        products={bestSellers}
+        loading={isLoading}
+      />
+      <ProductSection
+        title="Seasonal Picks"
+        icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-accent" />}
+        products={seasonalPicks}
+        loading={isLoading}
+      />
+      <RecentlyViewed />
+      <ProductSection
+        title="Editor's Recommendations"
+        icon={<Award className="h-5 w-5 md:h-6 md:w-6 text-secondary" />}
+        products={editorPicks}
+        loading={isLoading}
+      />
+      <ProductSection
+        title="Trending Right Now"
+        icon={<Star className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
+        products={trending}
+        loading={isLoading}
+      />
     </section>
   );
 };

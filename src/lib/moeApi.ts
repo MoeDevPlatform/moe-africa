@@ -164,6 +164,10 @@ export async function apiPatch<T>(path: string, body?: unknown, query?: Record<s
   return request<T>("PATCH", path, { query, body });
 }
 
+export async function apiPut<T>(path: string, body?: unknown, query?: Record<string, unknown>) {
+  return request<T>("PUT", path, { query, body });
+}
+
 export async function apiDelete<T = void>(path: string, query?: Record<string, unknown>) {
   return request<T>("DELETE", path, { query });
 }

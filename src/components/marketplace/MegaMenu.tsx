@@ -16,6 +16,7 @@ import { useCategories } from "@/contexts/CategoriesContext";
 import { type CategoryDef } from "@/lib/categories";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 // Category thumbnail images for the third column
 const categoryThumbnails: Record<string, string> = {
@@ -196,6 +197,10 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
 
   const handleCategoryClick = (categorySlug: string) => {
     onClose();
+    trackBehaviour("category_browse", {
+      entityType: "category",
+      entityId: categorySlug,
+    });
     navigate(`/marketplace/products?category=${categorySlug}`);
   };
 

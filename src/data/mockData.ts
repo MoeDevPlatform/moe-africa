@@ -28,6 +28,13 @@ export interface Product {
   status?: "pending" | "approved" | "rejected" | "draft";
   /** When true, cart requires a customisation payload (item 7). Defaults to false. */
   customisationRequired?: boolean;
+  stockCount?: number | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  keywords?: { term: string }[];
+  viewsToday?: number;
+  viewsThisWeek?: number;
+  isHighDemand?: boolean;
 }
 
 export interface Provider {
@@ -50,6 +57,11 @@ export interface Provider {
   customOrdersEnabled: boolean;
   category: string;
   styleTags: string[];
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  keywords?: { term: string }[];
+  description?: string | null;
+  businessName?: string | null;
 }
 
 export const providers: Provider[] = [

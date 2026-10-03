@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { cartService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast as sonnerToast } from "sonner";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 export interface CartItem {
   id: string;
@@ -141,6 +142,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
     if (added) {
       syncAdd(item);
+      trackBehaviour("add_to_cart", {
+        entityType: "product",
+        entityId: item.productId,
+      });
     } else {
       sonnerToast.info("This item is already in your cart");
     }

@@ -20,6 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
+import SEOMeta from "@/components/common/SEOMeta";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 const ProviderDetail = () => {
   const { id } = useParams();
@@ -98,6 +100,7 @@ const ProviderDetail = () => {
           return;
         }
         setProvider(prov);
+        trackBehaviour("artisan_view", { entityType: "artisan", entityId: providerId });
         const prods = await productsService.getByProvider(providerId);
         if (cancelled) return;
         setProducts(prods);
@@ -158,8 +161,16 @@ const ProviderDetail = () => {
     );
   }
 
+  const seoTitle = `${provider.metaTitle || provider.businessName || provider.brandName} | MOE Africa`;
+  const seoDescription =
+    provider.metaDescription ||
+    (provider.description || provider.about
+      ? String(provider.description || provider.about).slice(0, 155)
+      : undefined);
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      <SEOMeta title={seoTitle} description={seoDescription} />
       <MarketplaceNavbar />
 
       <main>

@@ -12,6 +12,8 @@ import { providersService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
 import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
 import FilterDrawer, { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
+import SEOMeta from "@/components/common/SEOMeta";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 const CategoryProviders = () => {
   const { category } = useParams<{ category: string }>();
@@ -35,6 +37,11 @@ const CategoryProviders = () => {
     loadProviders();
   }, [categorySlug]);
 
+  useEffect(() => {
+    if (!isFiltered) return;
+    trackBehaviour("filter_applied", { metadata: { filters } });
+  }, [filters, isFiltered]);
+
   const categoryIcons: Record<string, any> = {
     tailoring: Shirt,
     shoemaking: Footprints,
@@ -57,6 +64,10 @@ const CategoryProviders = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">
+      <SEOMeta
+        title={`${categoryName} Artisans in Africa | MOE Africa`}
+        description={`Find skilled ${categoryName} artisans on MOE Africa. Browse handmade ${categoryName} products and custom orders.`}
+      />
       <MarketplaceNavbar />
 
       <main className="flex-1 container mx-auto px-4 py-12">

@@ -22,6 +22,9 @@ import AdminSettings from "./pages/admin/Settings";
 import Categories from "./pages/admin/Categories";
 import AdminMessages from "./pages/admin/Messages";
 import Orders from "./pages/admin/Orders";
+import AdminSections from "./pages/admin/Sections";
+import AdminSectionDetail from "./pages/admin/SectionDetail";
+import AdminArtisanScores from "./pages/admin/ArtisanScores";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/marketplace/Landing";
 import MarketplaceHome from "./pages/marketplace/Home";
@@ -146,8 +149,11 @@ const App = () => (
                   <Route path="/admin/login" element={<Login />} />
                   <Route path="/admin" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Dashboard /></ProtectedRoute>} />
                   <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Dashboard /></ProtectedRoute>} />
+                  <Route path="/admin/artisans/scores" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminArtisanScores /></ProtectedRoute>} />
                   <Route path="/admin/artisans" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Artisans /></ProtectedRoute>} />
                   <Route path="/admin/artisans/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><ArtisanDetailAdmin /></ProtectedRoute>} />
+                  <Route path="/admin/sections" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSections /></ProtectedRoute>} />
+                  <Route path="/admin/sections/:sectionKey" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSectionDetail /></ProtectedRoute>} />
                   <Route path="/admin/providers" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Artisans /></ProtectedRoute>} />
                   <Route path="/admin/products" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Products /></ProtectedRoute>} />
                   <Route path="/admin/products/:id" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><ProductDetailAdmin /></ProtectedRoute>} />

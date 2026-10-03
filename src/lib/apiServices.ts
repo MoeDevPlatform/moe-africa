@@ -6,7 +6,7 @@
  * backend is unreachable, so the frontend works offline.
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete, MoeApiError } from "./moeApi";
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete, MoeApiError } from "./moeApi";
 import { FALLBACK_IMAGE } from "./imageFallback";
 import {
   Product,
@@ -549,6 +549,23 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     // Item 10 — preserve approval status for artisan dashboard / admin UI.
     ...(raw.status ? { status: raw.status } : {}),
     ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),
+    stockCount:
+      typeof raw.stockCount === "number"
+        ? raw.stockCount
+        : raw.stockCount === null
+          ? null
+          : undefined,
+    metaTitle: typeof raw.metaTitle === "string" ? raw.metaTitle : raw.metaTitle ?? null,
+    metaDescription:
+      typeof raw.metaDescription === "string" ? raw.metaDescription : raw.metaDescription ?? null,
+    keywords: Array.isArray(raw.keywords)
+      ? raw.keywords
+          .map((k: any) => ({ term: String(k?.term ?? k?.keyword?.term ?? "").trim() }))
+          .filter((k: { term: string }) => k.term.length > 0)
+      : [],
+    ...(typeof raw.viewsToday === "number" ? { viewsToday: raw.viewsToday } : {}),
+    ...(typeof raw.viewsThisWeek === "number" ? { viewsThisWeek: raw.viewsThisWeek } : {}),
+    ...(typeof raw.isHighDemand === "boolean" ? { isHighDemand: raw.isHighDemand } : {}),
   };
 };
 
@@ -576,6 +593,20 @@ export const productsService = {
       return normalizeProduct(raw);
     } catch {
       return mockGetProductById(id);
+    }
+  },
+
+  getByIds: async (ids: number[]): Promise<Product[]> => {
+    if (!ids.length) return [];
+    try {
+      const raw = await apiGet<Record<string, any>[]>("/products/by-ids", {
+        ids: ids.join(","),
+      });
+      return Array.isArray(raw) ? raw.map(normalizeProduct) : [];
+    } catch {
+      return ids
+        .map((id) => mockGetProductById(id))
+        .filter((p): p is Product => Boolean(p));
     }
   },
 
@@ -1799,6 +1830,19 @@ export interface AdminDashboardStats {
   totalProducts: number;
   productsByStatus: { pending: number; approved: number; rejected: number };
   totalOrders: number;
+  curation?: {
+    sections: Array<{
+      sectionKey: string;
+      label: string;
+      isActive: boolean;
+      activeItemCount: number;
+      updatedAt: string;
+    }>;
+  };
+  scoring?: {
+    scoredArtisans: number;
+    lastCalculatedAt: string | null;
+  };
 }
 
 export interface AdminArtisanRow {
@@ -1951,7 +1995,125 @@ export const adminService = {
   setUserStatus: (id: number, status: "active" | "suspended") =>
     apiPatch<{ id: number; status: string }>(`/admin/users/${id}/status`, { status }),
   deleteUser: (id: number) => apiDelete<{ success: boolean }>(`/admin/users/${id}`),
+
+  listSections: () => apiGet<AdminSection[]>("/admin/sections"),
+  getSection: (sectionKey: string) =>
+    apiGet<AdminSection>(`/admin/sections/${sectionKey}`),
+  replaceSectionItems: (
+    sectionKey: string,
+    items: Array<{ itemType: string; itemId: string; position: number }>,
+  ) => apiPut<AdminSection>(`/admin/sections/${sectionKey}/items`, { items }),
+  addSectionItem: (
+    sectionKey: string,
+    item: { itemType: string; itemId: string; position?: number },
+  ) => apiPost<AdminSection>(`/admin/sections/${sectionKey}/items`, item),
+  removeSectionItem: (sectionKey: string, itemId: string) =>
+    apiDelete<AdminSection>(`/admin/sections/${sectionKey}/items/${itemId}`),
+  reorderSectionItems: (
+    sectionKey: string,
+    items: Array<{ itemId: string; position: number }>,
+  ) =>
+    apiPatch<AdminSection>(`/admin/sections/${sectionKey}/items/reorder`, {
+      items,
+    }),
+  setSeasonalKeywords: (keywords: string[]) =>
+    apiPatch<AdminSection>("/admin/sections/seasonal_picks/keywords", {
+      keywords,
+    }),
+
+  listArtisanScores: (params?: { page?: number; pageSize?: number }) =>
+    apiGet<ArtisanScoresResponse>(
+      "/admin/artisans/scores",
+      params as Record<string, unknown>,
+    ),
+  recalculateArtisanScores: () =>
+    apiPost<{ ok: boolean; status: string; processed?: number }>(
+      "/admin/artisans/scores/recalculate",
+      {},
+    ),
+  getArtisanScore: (id: number) =>
+    apiGet<ArtisanScoreRow>(`/admin/artisans/${id}/score`),
+
+  eventsSummary: () => apiGet<AdminEventsSummary>("/admin/events/summary"),
 };
+
+export interface CuratedSectionPublic {
+  sectionKey: string;
+  label: string;
+  items: Array<Record<string, any>>;
+  keywords?: string[];
+}
+
+export const sectionsService = {
+  get: (sectionKey: string) =>
+    apiGet<CuratedSectionPublic>(`/sections/${sectionKey}`),
+  seasonalMatched: () =>
+    apiGet<CuratedSectionPublic>("/sections/seasonal_picks/matched"),
+};
+
+export const eventsService = {
+  track: (body: {
+    sessionId: string;
+    eventType: string;
+    entityType?: string;
+    entityId?: string;
+    metadata?: Record<string, unknown>;
+  }) => apiPost<void>("/events", body),
+};
+
+export interface AdminSectionItem {
+  id: string;
+  itemType: string;
+  itemId: string;
+  position: number;
+  isActive: boolean;
+  preview?: Record<string, any> | null;
+}
+
+export interface AdminSection {
+  sectionKey: string;
+  label: string;
+  isActive: boolean;
+  keywords: string[];
+  updatedAt: string;
+  items: AdminSectionItem[];
+}
+
+export interface ArtisanScoreRow {
+  artisanId: number;
+  name?: string;
+  email?: string;
+  category?: string | null;
+  status?: string;
+  orderCompletionRate: number;
+  avgResponseTimeHrs: number | null;
+  reviewQualityScore: number;
+  activityScore: number;
+  compositeScore: number;
+  lastCalculatedAt: string;
+}
+
+export interface ArtisanScoresResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: ArtisanScoreRow[];
+}
+
+export interface AdminEventsSummary {
+  last24h: Array<{
+    entityType: string | null;
+    entityId: string | null;
+    eventType: string;
+    count: number;
+  }>;
+  last7d: Array<{
+    entityType: string | null;
+    entityId: string | null;
+    eventType: string;
+    count: number;
+  }>;
+}
 
 // ─── Admin Orders ─────────────────────────────────────────
 

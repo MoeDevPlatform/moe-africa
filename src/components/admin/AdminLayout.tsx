@@ -12,6 +12,8 @@ import {
   LogOut,
   Settings as SettingsIcon,
   MessageSquare,
+  LayoutList,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +46,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
     { name: "Artisans", href: "/admin/artisans", icon: Users },
+    { name: "Artisan Scores", href: "/admin/artisans/scores", icon: Gauge },
     { name: "Products", href: "/admin/products", icon: Package },
+    { name: "Sections", href: "/admin/sections", icon: LayoutList },
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
     { name: "Customer Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMessages },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
@@ -87,7 +91,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
           <nav className="flex-1 space-y-1 px-4 py-6">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
+              const isActive =
+                item.href === "/admin/artisans"
+                  ? location.pathname === "/admin/artisans" ||
+                    (/^\/admin\/artisans\/\d+/.test(location.pathname) &&
+                      !location.pathname.startsWith("/admin/artisans/scores"))
+                  : location.pathname === item.href ||
+                    location.pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.name}

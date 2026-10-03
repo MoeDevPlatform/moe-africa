@@ -1,6 +1,7 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { wishlistService, type WishlistItemApi } from "@/lib/apiServices";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -188,6 +189,10 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     if (!serverDown) {
       wishlistService.add(item.productId).catch(() => {});
     }
+    trackBehaviour("wishlist_add", {
+      entityType: "product",
+      entityId: item.productId,
+    });
   }, [isAuthenticated, serverDown]);
 
   const removeItem = useCallback((productId: number) => {

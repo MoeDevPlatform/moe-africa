@@ -61,6 +61,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     materials: "",
     estimatedDelivery: "",
     tags: [] as string[],
+    stockCount: "",
   });
   const [tagInput, setTagInput] = useState("");
   const [submitError, setSubmitError] = useState("");
@@ -93,12 +94,26 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               ? `${(editProduct as unknown as { estimatedDeliveryDays?: number }).estimatedDeliveryDays} days`
               : "",
         tags: Array.isArray(editProduct.tags) ? editProduct.tags : [],
+        stockCount:
+          typeof editProduct.stockCount === "number"
+            ? String(editProduct.stockCount)
+            : "",
       });
       setImages(
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
       );
     } else {
-      setForm({ name: "", description: "", category: "", priceMin: "", priceMax: "", materials: "", estimatedDelivery: "", tags: [] });
+      setForm({
+        name: "",
+        description: "",
+        category: "",
+        priceMin: "",
+        priceMax: "",
+        materials: "",
+        estimatedDelivery: "",
+        tags: [],
+        stockCount: "",
+      });
       setImages([]);
     }
     setSubmitError("");
@@ -212,6 +227,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         materials: form.materials.trim() || undefined,
         estimatedDelivery: form.estimatedDelivery.trim() || undefined,
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
+        ...(form.stockCount.trim() !== ""
+          ? { stockCount: Number(form.stockCount) }
+          : {}),
       };
       // Only include `images` when we have uploaded URLs — omit entirely
       // when empty so a stricter DTO (required array) won't reject a
@@ -236,7 +254,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setImages([]);
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
-        materials: "", estimatedDelivery: "", tags: [],
+        materials: "", estimatedDelivery: "", tags: [], stockCount: "",
       });
       setSubmitError("");
     } catch (err: unknown) {
@@ -341,6 +359,17 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="stockCount">Stock count (optional)</Label>
+            <Input
+              id="stockCount"
+              type="number"
+              min={0}
+              placeholder="Leave empty if not tracked"
+              value={form.stockCount}
+              onChange={(e) => updateForm("stockCount", e.target.value)}
+              className="mb-4"
+            />
+
             <Label htmlFor="delivery">Estimated Delivery (days)</Label>
             <Input
               id="delivery"

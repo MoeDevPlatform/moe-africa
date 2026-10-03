@@ -453,14 +453,8 @@ const MarketplaceHome = () => {
           </div>
         </section>
 
-        {/* Featured Artisans */}
-        {filteredProviders.some((p) => p.featured) ? (
-          <FeaturedArtisans providers={filteredProviders} />
-        ) : !isLoading ? (
-          <section className="mb-12 md:mb-16">
-            <EmptySection title="No featured artisans yet" description="Featured artisans will appear here as they are added to the platform." />
-          </section>
-        ) : null}
+        {/* Featured Artisans — curated via GET /sections/featured_artisans */}
+        <FeaturedArtisans />
 
         {/* Featured Products */}
         <FeaturedProducts />

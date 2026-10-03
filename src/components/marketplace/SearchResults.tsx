@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiGet } from "@/lib/moeApi";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 interface SearchResultsProps {
   searchQuery: string;
@@ -196,6 +197,10 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
         );
         if (cancelled) return;
 
+        // Debounced query acts as search submit (no separate submit button).
+        if (q.length >= 2) {
+          trackBehaviour("search", { metadata: { searchTerm: q } });
+        }
         setProviders((json.providers ?? []).map(mapProvider));
         setProducts((json.products ?? []).map(mapProduct));
       } catch (e: any) {

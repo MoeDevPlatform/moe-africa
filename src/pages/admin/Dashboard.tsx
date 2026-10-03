@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Package, ShoppingBag, AlertCircle, UserCircle } from "lucide-react";
+import { Users, Package, ShoppingBag, AlertCircle, UserCircle, LayoutList, Gauge } from "lucide-react";
 import { adminService, type AdminDashboardStats } from "@/lib/apiServices";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
@@ -154,6 +155,81 @@ const Dashboard = () => {
                   </span>
                 </Link>
               ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="border-border bg-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display flex items-center gap-2">
+                  <LayoutList className="h-5 w-5 text-accent" /> Homepage curation
+                </CardTitle>
+                <CardDescription>Active curated item counts</CardDescription>
+              </div>
+              <Link to="/admin/sections" className="text-sm font-medium underline">
+                Manage
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {isLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : (stats?.curation?.sections?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">No curated sections yet.</p>
+              ) : (
+                stats!.curation!.sections.map((s) => (
+                  <Link
+                    key={s.sectionKey}
+                    to={`/admin/sections/${s.sectionKey}`}
+                    className="flex items-center justify-between rounded-md border border-border p-3 hover:bg-muted transition-colors"
+                  >
+                    <div>
+                      <span className="text-sm font-medium">{s.label}</span>
+                      <p className="text-xs text-muted-foreground font-mono">{s.sectionKey}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={s.isActive ? "default" : "secondary"}>
+                        {s.activeItemCount}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display flex items-center gap-2">
+                  <Gauge className="h-5 w-5 text-accent" /> Artisan scoring
+                </CardTitle>
+                <CardDescription>Internal ranking status</CardDescription>
+              </div>
+              <Link to="/admin/artisans/scores" className="text-sm font-medium underline">
+                View scores
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between rounded-md border border-border p-3">
+                    <span className="text-sm">Scored artisans</span>
+                    <span className="font-display text-lg font-semibold">
+                      {stats?.scoring?.scoredArtisans ?? 0}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Last calculated:{" "}
+                    {stats?.scoring?.lastCalculatedAt
+                      ? new Date(stats.scoring.lastCalculatedAt).toLocaleString()
+                      : "Never"}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

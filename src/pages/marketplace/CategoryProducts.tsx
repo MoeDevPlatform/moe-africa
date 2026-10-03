@@ -9,6 +9,7 @@ import { products as mockProducts } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
 import type { Product } from "@/data/mockData";
 import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
+import SEOMeta from "@/components/common/SEOMeta";
 
 const CategoryProducts = () => {
   const { category } = useParams<{ category: string }>();
@@ -54,6 +55,10 @@ const CategoryProducts = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">
+      <SEOMeta
+        title={`${categoryName} Artisans in Africa | MOE Africa`}
+        description={`Find skilled ${categoryName} artisans on MOE Africa. Browse handmade ${categoryName} products and custom orders.`}
+      />
       <MarketplaceNavbar />
 
       <main className="flex-1 container mx-auto px-4 py-12">

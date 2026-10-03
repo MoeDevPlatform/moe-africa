@@ -42,6 +42,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import SEOMeta from "@/components/common/SEOMeta";
+import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
+import { pushRecentlyViewed } from "@/lib/recentlyViewed";
+import { trackBehaviour } from "@/lib/trackBehaviour";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -78,6 +82,8 @@ const ProductDetail = () => {
       const p = await productsService.getById(productId);
       if (p) {
         setProduct(p);
+        pushRecentlyViewed(p.id);
+        trackBehaviour("product_view", { entityType: "product", entityId: p.id });
         const prov = await providersService.getById(p.providerId);
         if (prov) {
           setProvider(prov);
@@ -223,8 +229,15 @@ const ProductDetail = () => {
     </>
   );
 
+  const seoTitle = `${product.metaTitle || product.name} | MOE Africa`;
+  const seoDescription =
+    product.metaDescription ||
+    (product.description ? product.description.slice(0, 155) : undefined);
+  const seoKeywords = (product.keywords ?? []).map((k) => k.term).join(", ");
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      <SEOMeta title={seoTitle} description={seoDescription} keywords={seoKeywords} />
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-8 md:py-12 pb-32 lg:pb-12">
@@ -314,6 +327,27 @@ const ProductDetail = () => {
                   +₦{rushOrderCost.toLocaleString()} rush order fee
                 </p>
               )}
+            </div>
+
+            {/* Demand / view / stock indicators (below price, above actions) */}
+            <div className="flex flex-wrap gap-2">
+              {product.isHighDemand ? (
+                <Badge className="bg-orange-500/15 text-orange-700 hover:bg-orange-500/20 border-none">
+                  🔥 High demand
+                </Badge>
+              ) : typeof product.viewsToday === "number" &&
+                product.viewsToday >= 3 ? (
+                <Badge className="bg-muted text-muted-foreground hover:bg-muted border-none">
+                  👁 {product.viewsToday} people viewed this today
+                </Badge>
+              ) : null}
+              {typeof product.stockCount === "number" &&
+                product.stockCount > 0 &&
+                product.stockCount <= 5 && (
+                  <Badge className="bg-amber-500/15 text-amber-800 hover:bg-amber-500/20 border-none">
+                    ⚠ Only {product.stockCount} left
+                  </Badge>
+                )}
             </div>
 
             {/* 6. Delivery */}
@@ -446,6 +480,8 @@ const ProductDetail = () => {
             </TabsContent>
           </Tabs>
         </section>
+
+        <RecentlyViewed excludeProductId={product.id} />
 
         {/* Complete Your Look — cross-artisan style suggestions */}
         <CompleteYourLook currentProduct={product} />
