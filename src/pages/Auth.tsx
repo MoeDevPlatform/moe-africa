@@ -194,21 +194,36 @@ const Auth = () => {
 
               <TabsContent value="signup">
                 {/* Role + categories ride along as Clerk unsafeMetadata so POST /auth/clerk-verify
-                    can create an artisan profile for Google sign-ups too. */}
-                {isClerkEnabled && (
-                  <ClerkGoogleButton
-                    mode="signUp"
-                    disabled={isLoading}
-                    unsafeMetadata={{
-                      role,
-                      serviceCategories: role === "artisan" ? serviceCategories : [],
-                    }}
-                    hint={
-                      role === "artisan"
-                        ? "You'll join as an artisan with the categories selected below."
-                        : "Joining as an artisan? Choose your account type below first."
-                    }
-                  />
+                    can create an artisan profile for Google sign-ups too. Google sign-up is only
+                    offered for customers — artisan accounts require email sign-up so service
+                    categories and store setup can be collected. */}
+                {role === "customer" ? (
+                  <>
+                    {isClerkEnabled && (
+                      <ClerkGoogleButton mode="signUp" disabled={isLoading} />
+                    )}
+                    {!isClerkEnabled && (
+                      <>
+                        <div className="relative my-2">
+                          <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                          <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={handleGoogle}
+                          disabled={isLoading}
+                        >
+                          <Mail className="h-4 w-4" /> Continue with Google
+                        </Button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Artisan accounts require email sign-up so we can collect your service categories and set up your store correctly.
+                  </p>
                 )}
                 <form onSubmit={handleSignUp} className="space-y-4">
                   {/* Role Selection */}
