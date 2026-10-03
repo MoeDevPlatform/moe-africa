@@ -577,10 +577,12 @@ success toast, but the product reappears on next page load because the
 
 ## 13. Clerk authentication — `POST /auth/clerk-verify` — REQUIRED (shipped)
 
-Clerk (`@clerk/react`) now fronts sign-in/sign-up on `/auth` when
-`VITE_CLERK_PUBLISHABLE_KEY` is set. Clerk only authenticates the browser;
-MOE's own JWTs still gate orders, wishlist, messaging, etc. The bridge is
-`ClerkSessionBridge`, which exchanges the Clerk session for MOE tokens.
+Clerk (`@clerk/react`) powers only the "Continue with Google" button on
+`/auth` when `VITE_CLERK_PUBLISHABLE_KEY` is set. Email/password still uses
+MOE's own forms and `/auth/login` / `/auth/register`. Clerk authenticates the
+browser; MOE JWTs still gate orders, wishlist, messaging, etc. The bridge is
+`ClerkSessionBridge`, which exchanges the Clerk session for MOE tokens via
+`POST /auth/clerk-verify`.
 
 ### Endpoint
 
