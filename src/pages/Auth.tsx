@@ -16,7 +16,33 @@ import { useEffect } from "react";
 import logo from "@/assets/logo.png";
 import { isClerkEnabled } from "@/lib/clerk";
 import ClerkGoogleButton from "@/components/auth/ClerkGoogleButton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { z } from "zod";
+import { Check, X as XIcon } from "lucide-react";
 import { AlreadySignedInRedirect } from "@/components/auth/AlreadySignedInRedirect";
+
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Must contain at least one special character");
+
+const PASSWORD_RULES = [
+  { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+  { label: "One uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
+  { label: "One lowercase letter", test: (p: string) => /[a-z]/.test(p) },
+  { label: "One number", test: (p: string) => /[0-9]/.test(p) },
+  { label: "One special character", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
+const STRENGTH = [
+  { label: "Weak", className: "bg-destructive" },
+  { label: "Fair", className: "bg-secondary" },
+  { label: "Strong", className: "bg-accent" },
+  { label: "Very Strong", className: "bg-primary" },
+];
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -29,6 +55,7 @@ const Auth = () => {
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // Sign up state
   const [firstName, setFirstName] = useState("");
@@ -62,7 +89,7 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(signInEmail, signInPassword);
+      await login(signInEmail, signInPassword, rememberMe);
       toast.success("Welcome back!");
       navigate("/marketplace");
     } catch (err: any) {
@@ -77,6 +104,11 @@ const Auth = () => {
     e.preventDefault();
     if (signUpPassword !== confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+    const pw = passwordSchema.safeParse(signUpPassword);
+    if (!pw.success) {
+      toast.error(pw.error.issues[0]?.message || "Password is too weak");
       return;
     }
     if (signUpPassword.length < 8) {
@@ -163,6 +195,14 @@ const Auth = () => {
                         {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="remember-me"
+                      checked={rememberMe}
+                      onCheckedChange={(v) => setRememberMe(v === true)}
+                    />
+                    <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">Remember me</Label>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -348,6 +388,32 @@ const Auth = () => {
                         {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {signUpPassword && (() => {
+                      const passed = PASSWORD_RULES.filter((r) => r.test(signUpPassword)).length;
+                      const level = passed <= 2 ? 0 : passed === 3 ? 1 : passed === 4 ? 2 : 3;
+                      const st = STRENGTH[level];
+                      return (
+                        <div className="mt-2 space-y-2" aria-live="polite">
+                          <div className="flex gap-1">
+                            {STRENGTH.map((_, i) => (
+                              <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= level ? st.className : "bg-muted"}`} />
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Strength: <span className="font-medium text-foreground">{st.label}</span></p>
+                          <ul className="space-y-0.5">
+                            {PASSWORD_RULES.map((r) => {
+                              const ok = r.test(signUpPassword);
+                              return (
+                                <li key={r.label} className={`flex items-center gap-1.5 text-xs ${ok ? "text-primary" : "text-destructive"}`}>
+                                  {ok ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
+                                  {r.label}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <Label htmlFor="confirm-password">Confirm Password</Label>
