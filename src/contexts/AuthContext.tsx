@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, type Context } from "react";
 import {
   authService,
   CustomerProfile,
@@ -33,7 +33,7 @@ interface AuthContextType {
 // (e.g. NotificationProvider) still look up the old one, which throws
 // "useAuth must be used within AuthProvider" and blanks the screen.
 const globalForAuth = globalThis as unknown as {
-  __moeAuthContext?: React.Context<AuthContextType | undefined>;
+  __moeAuthContext?: Context<AuthContextType | undefined>;
 };
 const AuthContext =
   globalForAuth.__moeAuthContext ??
