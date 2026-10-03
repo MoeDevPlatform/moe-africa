@@ -344,6 +344,11 @@ export interface CustomerProfile {
   artisanProfile?: ArtisanProfile;
   preferences?: UserPreference;
   createdAt: string;
+  /**
+   * True when the UI is showing a Clerk session before (or without) a MOE
+   * backend token. Authenticated MOE features still need `/auth/clerk-verify`.
+   */
+  isClerkUser?: boolean;
 }
 
 // ─── Preferences ──────────────────────────────────────────

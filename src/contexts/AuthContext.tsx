@@ -23,6 +23,11 @@ interface AuthContextType {
   ) => Promise<void>;
   /** Persist tokens + hydrate profile (used by OTP verify + Google OAuth callback). */
   loginWithTokens: (token: string, refreshToken: string) => Promise<void>;
+  /**
+   * Show a signed-in UI immediately from a Clerk session, before (or if)
+   * POST /auth/clerk-verify has issued MOE tokens. Does not write tokens.
+   */
+  setProvisionalUser: (profile: CustomerProfile) => void;
   logout: () => void;
   updateUser: (updates: Partial<CustomerProfile>) => void;
   refreshProfile: () => Promise<void>;
@@ -95,6 +100,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshProfile();
   }, [refreshProfile]);
 
+  const setProvisionalUser = useCallback((profile: CustomerProfile) => {
+    // Only fill the gap when we have no MOE session yet — never clobber a
+    // real backend-backed profile with Clerk-only data.
+    setUser((prev) => {
+      if (prev && !prev.isClerkUser) return prev;
+      return { ...profile, isClerkUser: true };
+    });
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await authService.login({ email, password });
     clearArtisanStash();
@@ -151,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         loginWithTokens,
+        setProvisionalUser,
         logout,
         updateUser,
         refreshProfile,

@@ -20,6 +20,8 @@ import MobileMenu from "./MobileMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClerk, useUser } from "@clerk/react";
+import { isClerkEnabled } from "@/lib/clerk";
 
 const supportLinks = [
   { name: "Help Center", path: "/marketplace/support/help" },
@@ -39,16 +41,132 @@ const IconTooltip = ({ label, children }: { label: string; children: React.React
   </Tooltip>
 );
 
-const MarketplaceNavbar = () => {
+const SignInLink = () => (
+  <Link to="/auth" className="hidden sm:block">
+    <Button variant="outline" size="sm" className="gap-2" aria-label="Sign in to your account">
+      <User className="h-4 w-4" aria-hidden="true" />
+      <span className="hidden lg:inline">Sign In</span>
+    </Button>
+  </Link>
+);
+
+/** Avatar/menu shared by MOE-only and Clerk-aware auth slots. */
+const UserAvatarMenu = ({
+  name,
+  email,
+  avatarUrl,
+  isArtisan,
+  onLogout,
+}: {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+  isArtisan: boolean;
+  onLogout: () => void;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
+        <Avatar className="h-8 w-8">
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+            {name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+          </AvatarFallback>
+        </Avatar>
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-56 bg-card">
+      <div className="px-3 py-2">
+        <p className="font-medium text-sm">{name}</p>
+        <p className="text-xs text-muted-foreground">{email}</p>
+      </div>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild>
+        <Link to="/marketplace/settings" className="cursor-pointer gap-2">
+          <User className="h-4 w-4" /> My Profile
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link to="/marketplace/orders" className="cursor-pointer gap-2">
+          <Package className="h-4 w-4" /> My Orders
+        </Link>
+      </DropdownMenuItem>
+      {isArtisan && (
+        <DropdownMenuItem asChild>
+          <Link to="/artisan/dashboard" className="cursor-pointer gap-2">
+            <Store className="h-4 w-4" /> Artisan Dashboard
+          </Link>
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+        onClick={onLogout}
+      >
+        <LogOut className="h-4 w-4" /> Sign Out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
+/**
+ * When Clerk is enabled, treat either a MOE session or an active Clerk session
+ * as signed-in. Mounted only under <ClerkProvider>.
+ */
+const ClerkAwareAuthSlot = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, isArtisan, logout } = useAuth();
+  const { isSignedIn, user: clerkUser } = useUser();
+  const { signOut } = useClerk();
+
+  const showSignedIn = isAuthenticated || Boolean(isSignedIn);
+  if (!showSignedIn) return <SignInLink />;
+
+  const name = user?.name || clerkUser?.fullName || clerkUser?.firstName || "User";
+  const email = user?.email || clerkUser?.primaryEmailAddress?.emailAddress || "";
+  const avatarUrl = user?.avatarUrl || clerkUser?.imageUrl || undefined;
+
+  return (
+    <UserAvatarMenu
+      name={name}
+      email={email}
+      avatarUrl={avatarUrl}
+      isArtisan={isArtisan}
+      onLogout={() => {
+        void (async () => {
+          try { await signOut(); } catch { /* non-fatal */ }
+          logout();
+          navigate("/");
+        })();
+      }}
+    />
+  );
+};
+
+/** Legacy path — AuthContext only (no Clerk hooks). */
+const MoeAuthSlot = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isArtisan, logout } = useAuth();
+  if (!isAuthenticated || !user) return <SignInLink />;
+  return (
+    <UserAvatarMenu
+      name={user.name}
+      email={user.email}
+      avatarUrl={user.avatarUrl}
+      isArtisan={isArtisan}
+      onLogout={() => { logout(); navigate("/"); }}
+    />
+  );
+};
+
+const MarketplaceNavbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { getItemCount } = useCart();
   const { getItemCount: getWishlistCount } = useWishlist();
-  const { user, isAuthenticated, isArtisan, logout } = useAuth();
-  
+
   // Hover delay timer for mega menu stability
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,52 +196,7 @@ const MarketplaceNavbar = () => {
     }, 200); // 200ms delay before closing
   }, []);
 
-  // MOE profile menu, driven by AuthContext (backend session).
-  const userMenu = isAuthenticated ? (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
-          <Avatar className="h-8 w-8">
-            {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-              {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 bg-card">
-        <div className="px-3 py-2">
-          <p className="font-medium text-sm">{user?.name}</p>
-          <p className="text-xs text-muted-foreground">{user?.email}</p>
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/marketplace/settings" className="cursor-pointer gap-2">
-            <User className="h-4 w-4" /> My Profile
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/marketplace/orders" className="cursor-pointer gap-2">
-            <Package className="h-4 w-4" /> My Orders
-          </Link>
-        </DropdownMenuItem>
-        {isArtisan && (
-          <DropdownMenuItem asChild>
-            <Link to="/artisan/dashboard" className="cursor-pointer gap-2">
-              <Store className="h-4 w-4" /> Artisan Dashboard
-            </Link>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onClick={() => { logout(); navigate("/"); }}
-        >
-          <LogOut className="h-4 w-4" /> Sign Out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  ) : null;
+  const userMenu = isClerkEnabled ? <ClerkAwareAuthSlot /> : <MoeAuthSlot />;
 
   return (
     <>
