@@ -374,7 +374,7 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
                   </Button>
-                  {!isClerkEnabled && (
+                  {!isClerkEnabled && role === "customer" && (
                     <>
                       <div className="relative my-2">
                         <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
