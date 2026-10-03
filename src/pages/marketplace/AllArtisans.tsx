@@ -9,6 +9,7 @@ import { providersService } from "@/lib/apiServices";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/contexts/CategoriesContext";
 import type { Provider } from "@/data/mockData";
+import FilterDrawer, { applyArtisanFilters, DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
 
 const AllArtisans = () => {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ const AllArtisans = () => {
   const [displayProviders, setDisplayProviders] = useState<Provider[]>([]);
   const [title, setTitle] = useState("All Artisans");
   const [description, setDescription] = useState("Discover talented artisans from across Africa");
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_ARTISAN_FILTERS);
+  const visibleProviders = applyArtisanFilters(displayProviders, filters);
+  
   
   const featured = searchParams.get("featured");
   const category = searchParams.get("category");
@@ -76,16 +80,19 @@ const AllArtisans = () => {
         </button>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
-          <p className="text-muted-foreground">{description}</p>
-          <p className="text-sm text-muted-foreground mt-2">{displayProviders.length} artisans found</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
+            <p className="text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground mt-2">{visibleProviders.length} artisans found</p>
+          </div>
+          <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
         </div>
 
         {/* Providers Grid */}
-        {displayProviders.length > 0 ? (
+        {visibleProviders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {displayProviders.map((provider) => (
+            {visibleProviders.map((provider) => (
               <ProviderCard key={provider.id} provider={provider} />
             ))}
           </div>
