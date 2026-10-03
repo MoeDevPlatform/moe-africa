@@ -90,8 +90,8 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           </Badge>
         )}
         {provider.verified && (
-          <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground gap-1">
-            <CheckCircle className="h-3 w-3" />
+          <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground gap-1 whitespace-nowrap shrink-0">
+            <CheckCircle className="h-3 w-3 shrink-0" />
             Verified
           </Badge>
         )}
@@ -133,7 +133,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           )}
           <div className="flex items-center gap-1">
             <MapPin className="h-4 w-4" />
-            <span>{provider.city}, {provider.state}</span>
+            <span>{[provider.city, provider.state].filter(Boolean).join(", ")}</span>
           </div>
         </div>
 

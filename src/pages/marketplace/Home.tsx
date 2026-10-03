@@ -396,7 +396,7 @@ const MarketplaceHome = () => {
                   aria-label={`Browse ${category.name} category`}
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
-                  <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1">{category.name}</p>
+                  <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1 break-words leading-tight">{category.name}</p>
                   {category.count > 0 && (
                     <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
                       {category.count}{" "}
