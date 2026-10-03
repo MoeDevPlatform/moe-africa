@@ -253,11 +253,11 @@ const ProviderDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              <Tabs defaultValue="about" className="w-full">
+              <Tabs defaultValue="products" className="w-full">
                 <TabsList className="w-full justify-start">
-                  <TabsTrigger value="about">About</TabsTrigger>
                   <TabsTrigger value="products">Products</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                  <TabsTrigger value="about">About</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="about" className="mt-6">
