@@ -621,14 +621,15 @@ Google button on the Sign Up tab passes the currently selected role and
 categories through Clerk's OAuth flow:
 
 ```tsx
-// src/components/auth/ClerkGoogleButton.tsx (@clerk/react v6 signal API)
-signUp.sso({
+// src/components/auth/ClerkGoogleButton.tsx — classic client API + absolute URLs
+clerk.client.signUp.authenticateWithRedirect({
   strategy: "oauth_google",
-  redirectCallbackUrl: "/sso-callback",   // <AuthenticateWithRedirectCallback />
-  redirectUrl: "/marketplace",
+  redirectUrl: `${origin}/sso-callback`,          // <AuthenticateWithRedirectCallback />
+  redirectUrlComplete: `${origin}/marketplace`,
   unsafeMetadata: { role, serviceCategories },
 });
 // role: "customer" | "artisan"; serviceCategories: string[] (names, artisan only)
+// Absolute URLs required — relative paths can land on Clerk Account Portal (*.accounts.dev).
 ```
 
 Clerk copies this onto `user.unsafeMetadata` once the sign-up completes. On

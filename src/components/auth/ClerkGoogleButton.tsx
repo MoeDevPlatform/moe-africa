@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { useSignIn, useSignUp } from "@clerk/react";
+import { useClerk } from "@clerk/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-
-const SSO_CALLBACK_URL = "/sso-callback";
-const AFTER_AUTH_URL = "/marketplace";
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -25,33 +22,40 @@ interface ClerkGoogleButtonProps {
 }
 
 /**
- * "Continue with Google" via Clerk's OAuth redirect flow. Clerk bounces to
- * /sso-callback (redirectCallbackUrl) and then to /marketplace (redirectUrl),
- * where ClerkSessionBridge swaps the Clerk session for MOE tokens.
+ * "Continue with Google" via Clerk's direct OAuth redirect
+ * (`client.signIn/signUp.authenticateWithRedirect`). Absolute callback URLs keep
+ * the return path on MOE (`/sso-callback` → `/marketplace`) instead of Clerk's
+ * Account Portal (*.accounts.dev).
  *
- * Uses the @clerk/react v6 signal hooks — `signIn.sso()` / `signUp.sso()` are
- * the v6 equivalents of the older `authenticateWithRedirect()`.
  * Must render inside <ClerkProvider> — gate on `isClerkEnabled` at the call site.
  */
 const ClerkGoogleButton = ({ mode, unsafeMetadata, disabled, hint }: ClerkGoogleButtonProps) => {
-  const { signIn } = useSignIn();
-  const { signUp } = useSignUp();
+  const clerk = useClerk();
   const [redirecting, setRedirecting] = useState(false);
 
   const handleGoogle = async () => {
+    if (!clerk.loaded || !clerk.client) return;
     setRedirecting(true);
     try {
+      // Absolute URLs are required — relative paths can resolve against Clerk's
+      // hosted Account Portal (*.accounts.dev) instead of this origin.
+      const redirectUrl = `${window.location.origin}/sso-callback`;
+      const redirectUrlComplete = `${window.location.origin}/marketplace`;
       const params = {
         strategy: "oauth_google" as const,
-        redirectCallbackUrl: SSO_CALLBACK_URL,
-        redirectUrl: AFTER_AUTH_URL,
+        redirectUrl,
+        redirectUrlComplete,
       };
-      const { error } =
-        mode === "signIn"
-          ? await signIn.sso(params)
-          : await signUp.sso({ ...params, unsafeMetadata });
-      if (error) throw error;
-      // On success Clerk navigates away; nothing more to do here.
+
+      if (mode === "signIn") {
+        await clerk.client.signIn.authenticateWithRedirect(params);
+      } else {
+        await clerk.client.signUp.authenticateWithRedirect({
+          ...params,
+          unsafeMetadata,
+        });
+      }
+      // On success Clerk navigates away to Google; nothing more to do here.
     } catch (err) {
       setRedirecting(false);
       const message =
@@ -68,7 +72,7 @@ const ClerkGoogleButton = ({ mode, unsafeMetadata, disabled, hint }: ClerkGoogle
         variant="outline"
         className="w-full gap-2 border-primary text-primary hover:bg-primary/5 hover:text-primary"
         onClick={handleGoogle}
-        disabled={disabled || redirecting}
+        disabled={disabled || redirecting || !clerk.loaded}
       >
         <GoogleIcon />
         {redirecting ? "Redirecting to Google..." : "Continue with Google"}
