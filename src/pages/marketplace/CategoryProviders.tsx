@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
-import ProviderCard from "@/components/marketplace/ProviderCard";
+import ArtisanResults from "@/components/marketplace/ArtisanResults";
+import { useArtisanSearch } from "@/hooks/useArtisanSearch";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shirt, Footprints, Gem, Sofa, Palette, Package, Sparkles, Briefcase, Home } from "lucide-react";
@@ -10,15 +11,16 @@ import { getProvidersByCategory as mockGetProvidersByCategory } from "@/data/moc
 import { providersService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
 import { toCategoryLabel, toCategoryValue } from "@/lib/categories";
-import FilterDrawer, { applyArtisanFilters, DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
+import FilterDrawer, { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
 
 const CategoryProviders = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_ARTISAN_FILTERS);
-  const visible = applyArtisanFilters(providers, filters);
   const categorySlug = toCategoryValue(category || "");
+  const search = useArtisanSearch({ category: categorySlug }, filters);
+  const isFiltered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS);
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -73,7 +75,7 @@ const CategoryProviders = () => {
             <div>
               <h1 className="text-4xl font-display font-bold">{categoryName}</h1>
               <p className="text-muted-foreground mt-1">
-                {visible.length} {visible.length === 1 ? "artisan" : "artisans"} available
+                {search.loading ? "Searching…" : `${search.total} ${search.total === 1 ? "artisan" : "artisans"} available`}
               </p>
             </div>
           </div>
@@ -93,25 +95,12 @@ const CategoryProviders = () => {
               Browse Other Categories
             </Button>
           </div>
-        ) : visible.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">No artisans match these filters.</p>
-            <Button variant="outline" onClick={() => setFilters(DEFAULT_ARTISAN_FILTERS)}>Clear filters</Button>
-          </div>
         ) : (
           <>
-            {/* Featured Artisans in this category */}
-            <FeaturedArtisans 
-              providers={visible} 
-              title={`Featured ${categoryName} Artisans`} 
-            />
-
-            {/* All Providers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {visible.filter(p => !p.featured).map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
-              ))}
-            </div>
+            {!isFiltered && !search.loading && (
+              <FeaturedArtisans providers={search.results.filter((p) => p.featured)} title={`Featured ${categoryName} Artisans`} />
+            )}
+            <ArtisanResults {...search} filtered={isFiltered} onClear={() => setFilters(DEFAULT_ARTISAN_FILTERS)} />
           </>
         )}
       </main>
