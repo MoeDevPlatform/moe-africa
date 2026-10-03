@@ -749,6 +749,28 @@ export const providersService = {
     }
   },
 
+  /**
+   * Strict search used by filtered artisan listings: walks every server page
+   * (server applies category/featured/country/state) and THROWS on failure so
+   * callers can show an error instead of silently swapping in mock data.
+   */
+  searchAll: async (filters: Record<string, unknown>): Promise<Provider[]> => {
+    const out: Provider[] = [];
+    let page = 1;
+    for (;;) {
+      const res = await apiGet<{ data: Record<string, any>[]; pagination?: Pagination }>(
+        "/service-providers/public-info",
+        { ...filters, page, pageSize: 100 },
+      );
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      out.push(...rows.map(normalizeProvider));
+      const totalPages = res?.pagination?.totalPages ?? 1;
+      if (page >= totalPages || rows.length === 0) break;
+      page += 1;
+    }
+    return out;
+  },
+
   getById: async (id: number): Promise<Provider | undefined> => {
     try {
       const raw = await apiGet<Record<string, any>>(`/service-providers/${id}/public-info`);

@@ -149,14 +149,19 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
     setLocalFilters({ ...localFilters, styleTags: newStyles });
   };
 
+  const effectiveMax = artisansOnly ? DEFAULT_ARTISAN_FILTERS.priceRange[1] : priceMax;
+  const priceInvalid =
+    localFilters.priceRange[1] < effectiveMax && Number(localFilters.priceRange[0]) > Number(localFilters.priceRange[1]);
+
   const handleApply = () => {
+    if (priceInvalid) return;
     onFiltersChange(localFilters);
     setOpen(false);
   };
 
   const handleClear = () => {
     const clearedFilters: FilterState = {
-      priceRange: [0, priceMax],
+      priceRange: [0, artisansOnly ? DEFAULT_ARTISAN_FILTERS.priceRange[1] : priceMax],
       materials: [],
       styleTags: [],
       deliveryEstimate: null,
@@ -170,7 +175,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
   };
 
   const activeFilterCount = 
-    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < priceMax ? 1 : 0) +
+    (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < effectiveMax ? 1 : 0) +
     localFilters.materials.length +
     localFilters.styleTags.length +
     (localFilters.deliveryEstimate ? 1 : 0) +
@@ -182,7 +187,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
   const selectedCountry = countries.find((c) => c.name === localFilters.country);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) setLocalFilters(filters); setOpen(o); }}>
       <SheetTrigger asChild>
         {children || (
           <Button variant="outline" className="gap-2">
@@ -280,15 +285,19 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
                   aria-label="Maximum price"
                   placeholder="Max"
                   className="pl-7"
-                  value={localFilters.priceRange[1] < priceMax ? localFilters.priceRange[1] : ""}
+                  value={localFilters.priceRange[1] < effectiveMax ? localFilters.priceRange[1] : ""}
                   onChange={(e) => {
-                    const v = e.target.value === "" ? priceMax : Math.max(0, Number(e.target.value) || 0);
+                    const v = e.target.value === "" ? effectiveMax : Math.max(0, Number(e.target.value) || 0);
                     setLocalFilters({ ...localFilters, priceRange: [localFilters.priceRange[0], v] });
                   }}
                 />
               </div>
             </div>
           </div>
+
+          {priceInvalid && (
+            <p className="-mt-4 text-sm text-destructive" role="alert">Min price can't be higher than max price.</p>
+          )}
 
           {/* Rating */}
           <div>
@@ -390,10 +399,10 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           </>}
 
           <div className="flex gap-2 border-t pt-4">
-            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+            <Button variant="outline" onClick={() => { setLocalFilters(filters); setOpen(false); }} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleApply} className="flex-1">
+            <Button onClick={handleApply} disabled={priceInvalid} className="flex-1">
               Apply Filters
             </Button>
           </div>
