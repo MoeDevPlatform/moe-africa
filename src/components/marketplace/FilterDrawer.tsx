@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -210,7 +209,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           </SheetTitle>
         </SheetHeader>
         
-        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+        <div className="overflow-y-auto py-4 pb-6 space-y-6">
           {/* Location */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Location</Label>
@@ -243,8 +242,51 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
                   </SelectContent>
                 </Select>
               ) : (
-                <Input disabled placeholder="Select a country first" aria-label="State or city" />
+                <Select disabled>
+                  <SelectTrigger aria-label="Filter by state">
+                    <SelectValue placeholder="Select a country first" />
+                  </SelectTrigger>
+                </Select>
               )}
+            </div>
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <Label className="text-sm font-semibold mb-3 block">Price Range</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  aria-label="Minimum price"
+                  placeholder="Min"
+                  className="pl-7"
+                  value={localFilters.priceRange[0] > 0 ? localFilters.priceRange[0] : ""}
+                  onChange={(e) => {
+                    const v = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value) || 0);
+                    setLocalFilters({ ...localFilters, priceRange: [v, localFilters.priceRange[1]] });
+                  }}
+                />
+              </div>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  aria-label="Maximum price"
+                  placeholder="Max"
+                  className="pl-7"
+                  value={localFilters.priceRange[1] < priceMax ? localFilters.priceRange[1] : ""}
+                  onChange={(e) => {
+                    const v = e.target.value === "" ? priceMax : Math.max(0, Number(e.target.value) || 0);
+                    setLocalFilters({ ...localFilters, priceRange: [localFilters.priceRange[0], v] });
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -252,50 +294,40 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
           <div>
             <Label className="text-sm font-semibold mb-3 block">Artisan Rating</Label>
             <div className="flex flex-wrap gap-2">
-              {[null, 3, 4].map((r) => (
-                <Badge
-                  key={String(r)}
-                  variant={(localFilters.minRating ?? null) === r ? "default" : "outline"}
-                  className="cursor-pointer"
-                  role="radio"
-                  aria-checked={(localFilters.minRating ?? null) === r}
-                  onClick={() => setLocalFilters({ ...localFilters, minRating: r })}
-                >
-                  {r ? `${r}★ & above` : "Any"}
-                </Badge>
-              ))}
+              {[null, 3, 4].map((r) => {
+                const selected = (localFilters.minRating ?? null) === r;
+                return (
+                  <Badge
+                    key={String(r)}
+                    variant={selected ? "default" : "outline"}
+                    className={
+                      selected
+                        ? "cursor-pointer px-3 py-1"
+                        : "cursor-pointer px-3 py-1 border border-border bg-transparent text-foreground"
+                    }
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setLocalFilters({ ...localFilters, minRating: r })}
+                  >
+                    {r ? `${r}★ & above` : "Any"}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
 
           {/* Availability */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <Label htmlFor="available-only" className="text-sm font-semibold">Only artisans with products</Label>
             <Switch
               id="available-only"
+              className="shrink-0"
               checked={!!localFilters.availableOnly}
               onCheckedChange={(v) => setLocalFilters({ ...localFilters, availableOnly: v })}
             />
           </div>
 
           {!artisansOnly && <>
-          {/* Price Range */}
-          <div>
-            <Label className="text-sm font-semibold mb-3 block">Price Range</Label>
-            <div className="space-y-3 px-1">
-              <Slider
-                value={localFilters.priceRange}
-                onValueChange={(value) => setLocalFilters({ ...localFilters, priceRange: value as [number, number] })}
-                max={priceMax}
-                step={5000}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>₦{localFilters.priceRange[0].toLocaleString()}</span>
-                <span>₦{localFilters.priceRange[1].toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
           {/* Materials */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Materials</Label>
