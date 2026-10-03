@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ZoomIn, ZoomOut, RotateCw, X, Maximize2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { ImageThumbnail } from "@/components/ui/image-thumbnail";
 import useEmblaCarousel from "embla-carousel-react";
 
 interface ProductImageGalleryProps {
@@ -153,22 +153,19 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
       {/* Thumbnail Strip */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {images.map((image, index) => (
-          <button
+          <ImageThumbnail
             key={index}
             onClick={() => scrollTo(index)}
-            className={cn(
-              "flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted transition-all",
-              selectedIndex === index 
-                ? "ring-2 ring-primary ring-offset-2" 
-                : "opacity-60 hover:opacity-100"
-            )}
+            selected={selectedIndex === index}
+            aria-label={`View ${productName} image ${index + 1}`}
+            className="w-20 h-20 rounded-lg"
           >
             <img loading="lazy" decoding="async" 
               src={image} 
               alt={`${productName} thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
             />
-          </button>
+          </ImageThumbnail>
         ))}
       </div>
 
@@ -265,22 +262,19 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
           {/* Thumbnail Strip */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 backdrop-blur-sm rounded-full px-4 py-2">
             {images.map((image, index) => (
-              <button
+              <ImageThumbnail
                 key={index}
                 onClick={() => setSelectedIndex(index)}
-                className={cn(
-                  "w-12 h-12 rounded-md overflow-hidden transition-all",
-                  selectedIndex === index 
-                    ? "ring-2 ring-primary" 
-                    : "opacity-50 hover:opacity-100"
-                )}
+                selected={selectedIndex === index}
+                aria-label={`View ${productName} image ${index + 1} fullscreen`}
+                className="w-12 h-12 rounded-md"
               >
                 <img loading="lazy" decoding="async" 
                   src={image} 
                   alt={`Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
-              </button>
+              </ImageThumbnail>
             ))}
           </div>
         </DialogContent>
