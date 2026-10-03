@@ -4,7 +4,6 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ZoomIn, ZoomOut, RotateCw, X, Maximize2, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { ImageThumbnail } from "@/components/ui/image-thumbnail";
 import useEmblaCarousel from "embla-carousel-react";
 
