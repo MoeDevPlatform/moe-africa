@@ -58,7 +58,7 @@ const FeaturedArtisans = ({ providers, title = "Featured Artisans" }: FeaturedAr
                         <CheckCircle className="h-5 w-5 text-primary fill-primary/20" />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{provider.city}, {provider.state}</p>
+                    <p className="text-sm text-muted-foreground">{[provider.city, provider.state].filter(Boolean).join(", ")}</p>
                   </div>
                   {provider.reviewCount && provider.reviewCount > 0 ? (
                     <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
