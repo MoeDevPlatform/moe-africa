@@ -3,8 +3,10 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, MoreVertical, Tag, Loader2 } from "lucide-react";
-import { CATEGORY_ICON_MAP, getCategoryIcon, type CategoryDef } from "@/lib/categories";
+import { Plus, Search, MoreVertical, Tag, Loader2, Trash2 } from "lucide-react";
+import { getCategoryIcon, type CategoryDef } from "@/lib/categories";
+import IconPicker from "@/components/admin/IconPicker";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { productsService, categoriesService, AdminCategory } from "@/lib/apiServices";
 import { useToast } from "@/hooks/use-toast";
@@ -66,7 +68,9 @@ const Categories = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [formLabel, setFormLabel] = useState("");
-  const [formIconKey, setFormIconKey] = useState("Package");
+  const [formIconKey, setFormIconKey] = useState("Tag");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [formOrder, setFormOrder] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -142,7 +146,7 @@ const Categories = () => {
   const openAdd = () => {
     setEditing(null);
     setFormLabel("");
-    setFormIconKey("Package");
+    setFormIconKey("Tag");
     setFormOrder("");
     setDialogOpen(true);
   };
@@ -150,7 +154,8 @@ const Categories = () => {
   const openEdit = (row: Row) => {
     setEditing(row);
     setFormLabel(row.label);
-    setFormIconKey("Package");
+    const serverIcon = serverCats.find((s) => s.slug === row.slug)?.icon;
+    setFormIconKey(serverIcon ?? "Tag");
     setFormOrder("");
     setDialogOpen(true);
   };
@@ -202,15 +207,39 @@ const Categories = () => {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    const ids = rows
+      .filter((r) => selectedIds.has(r.id) && r.backendId)
+      .map((r) => r.backendId as string);
+    if (!ids.length) {
+      toast({ title: "Nothing to delete", variant: "destructive" });
+      return;
+    }
+    setDeleting(true);
+    try {
+      await categoriesService.bulkRemove(ids);
+      toast({ title: `Deleted ${ids.length} categories` });
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      await loadServerCats();
+      await refetchCategories();
+    } catch (e) {
+      toast({
+        title: "Could not delete",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
       if (!pendingDelete.backendId) {
-        throw new Error("This category cannot be deleted because artisans or products are currently assigned to it.");
-      }
-      if ((pendingDelete.products ?? 0) > 0) {
-        throw new Error("This category cannot be deleted because artisans or products are currently assigned to it.");
+        throw new Error("Save this category to the server before deleting.");
       }
       await categoriesService.remove(pendingDelete.backendId);
       toast({ title: "Category deleted" });
@@ -251,6 +280,24 @@ const Categories = () => {
           </Button>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete selected
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -275,6 +322,19 @@ const Categories = () => {
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
+                  <Checkbox
+                    className="mt-2 mr-2"
+                    checked={selectedIds.has(category.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.add(category.id);
+                        else next.delete(category.id);
+                        return next;
+                      });
+                    }}
+                    aria-label={`Select ${category.label}`}
+                  />
                   <div className="flex items-center gap-4 flex-1">
                     <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${color} text-3xl transition-transform duration-300 group-hover:scale-110`}>
                       <Icon className="h-7 w-7 text-foreground" />
@@ -304,7 +364,6 @@ const Categories = () => {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
-                        disabled={category.isSeed && !category.backendId}
                         onClick={() => setPendingDelete(category)}
                       >
                         Delete
@@ -346,21 +405,7 @@ const Categories = () => {
                 Slug preview: <code>{previewSlug}</code>
               </p>
             )}
-            <div className="space-y-2">
-              <Label>Icon Key</Label>
-              <Select value={formIconKey} onValueChange={setFormIconKey}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(CATEGORY_ICON_MAP).map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {key}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <IconPicker value={formIconKey} onChange={setFormIconKey} />
             <div className="space-y-2">
               <Label htmlFor="cat-order">Display Order (optional)</Label>
               <Input
@@ -390,16 +435,38 @@ const Categories = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete category?</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDelete?.isSeed
-                ? "This is a built-in category and cannot be deleted."
-                : `"${pendingDelete?.label}" will be removed from the marketplace. This cannot be undone.`}
+              Delete &quot;{pendingDelete?.label}&quot;? Products in this category will have their category set to None.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              disabled={deleting || (pendingDelete?.isSeed ?? false)}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.size} categories?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete {selectedIds.size} categories? Products in these categories will have their category set to None.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

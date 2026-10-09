@@ -111,6 +111,10 @@ export const authService = {
   ) => apiPatch<CustomerProfile>("/auth/profile", data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiPatch<{ message?: string }>("/auth/change-password", data),
+  forgotPassword: (data: { email: string }) =>
+    apiPost<{ message?: string }>("/auth/forgot-password", data),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    apiPost<{ message?: string }>("/auth/reset-password", data),
   uploadAvatar: async (file: File) => {
     validateUploadFile(file);
     const formData = new FormData();
@@ -645,7 +649,9 @@ export const productsService = {
 
 export interface ProviderFilters {
   category?: string;
+  country?: string;
   state?: string;
+  city?: string;
   styleTags?: string;
   featured?: boolean;
   minRating?: number;
@@ -975,8 +981,15 @@ export interface ShippingAddress {
   postalCode?: string;
 }
 
+export interface OrderStatusHistoryEntry {
+  status: string;
+  note?: string | null;
+  createdAt: string;
+}
+
 export interface Order {
   id: string;
+  orderNumber?: string;
   customerId: number;
   productId: number;
   productName: string;
@@ -1001,6 +1014,8 @@ export interface Order {
     | "pay_on_delivery";
   paymentReference?: string;
   paymentStatus: "unpaid" | "paid" | "refunded";
+  estimatedDelivery?: string;
+  statusHistory?: OrderStatusHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -1058,10 +1073,28 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     paymentMethod: (r.paymentMethod as Order["paymentMethod"]) ?? "bank_transfer",
     paymentReference: r.paymentReference as string | undefined,
     paymentStatus: (r.paymentStatus as Order["paymentStatus"]) ?? "unpaid",
+    orderNumber: (r.orderNumber as string) ?? undefined,
+    estimatedDelivery: (r.estimatedDelivery as string) ?? undefined,
+    statusHistory: Array.isArray(r.statusHistory)
+      ? (r.statusHistory as OrderStatusHistoryEntry[])
+      : Array.isArray(r.history)
+        ? (r.history as OrderStatusHistoryEntry[])
+        : undefined,
     createdAt: (r.createdAt as string) ?? new Date().toISOString(),
     updatedAt: (r.updatedAt as string) ?? new Date().toISOString(),
   };
 }
+
+export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending: ["in_progress", "awaiting_payment", "cancelled"],
+  awaiting_payment: ["in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+export const isActiveOrderStatus = (status: string) =>
+  !["completed", "cancelled"].includes(status);
 
 export const ordersService = {
   list: async (params?: {
@@ -1095,6 +1128,24 @@ export const ordersService = {
     },
   ) => {
     return apiPatch<Order>(`/orders/${id}`, data);
+  },
+  getTracking: async (id: string) => {
+    try {
+      return await apiGet<{
+        status: string;
+        estimatedDelivery?: string;
+        history: OrderStatusHistoryEntry[];
+      }>(`/orders/${id}/tracking`);
+    } catch {
+      const order = await ordersService.getById(id);
+      return {
+        status: order.status,
+        estimatedDelivery: order.estimatedDelivery,
+        history: order.statusHistory ?? [
+          { status: order.status, createdAt: order.updatedAt ?? order.createdAt },
+        ],
+      };
+    }
   },
 };
 
@@ -1228,6 +1279,8 @@ export interface AdminConversation extends Conversation {
   customerName: string;
   artisanName: string;
   status: string;
+  source?: "conversation" | "contact_us";
+  contactEmail?: string;
 }
 
 export const messagingService = {
@@ -1401,6 +1454,22 @@ export interface SupportTicket {
 }
 
 export const supportService = {
+  submitContact: async (data: {
+    contactName: string;
+    contactEmail: string;
+    contactMessage: string;
+  }) => {
+    try {
+      return await apiPost<SupportTicket>("/support/contact", data);
+    } catch {
+      return apiPost<SupportTicket>("/support/tickets", {
+        type: "contact",
+        subject: `Contact from ${data.contactName}`,
+        description: data.contactMessage,
+        email: data.contactEmail,
+      });
+    }
+  },
   create: (data: Omit<SupportTicket, "id" | "status" | "createdAt">) =>
     apiPost<SupportTicket>("/support/tickets", data),
   list: () => apiGet<PaginatedResponse<SupportTicket>>("/support/tickets"),
@@ -1762,11 +1831,98 @@ export const categoriesService = {
         return;
       } catch {
         const cats = readLocalCats();
-        const target = cats.find((c) => c.id === id);
-        if (target?.isSeed) throw new Error("Seed categories cannot be deleted");
         writeLocalCats(cats.filter((c) => c.id !== id));
       }
     }
+  },
+  bulkRemove: async (ids: string[]): Promise<void> => {
+    if (!ids.length) return;
+    try {
+      await apiPost<void>("/admin/categories/bulk-delete", { ids });
+      return;
+    } catch {
+      await Promise.all(ids.map((id) => categoriesService.remove(id)));
+    }
+  },
+};
+
+// ─── Verification documents ───────────────────────────────
+
+export type VerificationDocumentType = "cac" | "id" | "address_proof" | "other";
+export type VerificationDocumentStatus = "pending" | "approved" | "rejected";
+
+export interface VerificationDocument {
+  id: number;
+  type: VerificationDocumentType;
+  status: VerificationDocumentStatus;
+  fileUrl?: string;
+  adminNotes?: string | null;
+  uploadedAt: string;
+}
+
+function mapVerificationDoc(raw: Record<string, unknown>): VerificationDocument {
+  const rawStatus = String(raw.status ?? "pending");
+  const status = (
+    rawStatus === "accepted" ? "approved" : rawStatus
+  ) as VerificationDocumentStatus;
+  const type = String(raw.fileType ?? raw.type ?? "other") as VerificationDocumentType;
+  return {
+    id: Number(raw.id),
+    type,
+    status,
+    fileUrl: typeof raw.fileUrl === "string" ? raw.fileUrl : undefined,
+    adminNotes:
+      typeof raw.adminNotes === "string"
+        ? raw.adminNotes
+        : typeof raw.notes === "string"
+          ? raw.notes
+          : null,
+    uploadedAt:
+      typeof raw.uploadedAt === "string"
+        ? raw.uploadedAt
+        : typeof raw.createdAt === "string"
+          ? raw.createdAt
+          : new Date().toISOString(),
+  };
+}
+
+export const verificationService = {
+  listMine: async (): Promise<VerificationDocument[]> => {
+    try {
+      const res = await apiGet<
+        VerificationDocument[] | { data: Record<string, unknown>[] } | Record<string, unknown>[]
+      >("/artisans/verification/documents");
+      const rows = Array.isArray(res)
+        ? res
+        : Array.isArray((res as { data?: unknown }).data)
+          ? ((res as { data: Record<string, unknown>[] }).data)
+          : [];
+      return rows.map((r) => mapVerificationDoc(r as Record<string, unknown>));
+    } catch {
+      return [];
+    }
+  },
+  upload: async (type: VerificationDocumentType, file: File): Promise<VerificationDocument> => {
+    validateUploadFile(file);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("fileType", type);
+    formData.append("type", type);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/artisans/verification/documents`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Upload failed", res.status);
+    }
+    const json = await res.json();
+    return mapVerificationDoc(json as Record<string, unknown>);
   },
 };
 
@@ -1939,6 +2095,17 @@ export const adminService = {
       params as Record<string, unknown>,
     ),
   getArtisan: (id: number) => apiGet<AdminArtisanDetail>(`/admin/artisans/${id}`),
+  createArtisan: (body: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    businessName: string;
+    serviceCategories: string[];
+    country: string;
+    state: string;
+    city: string;
+  }) => apiPost<AdminArtisanRow>("/admin/artisans", body),
   setArtisanStatus: (id: number, status: ApprovalStatus, reason?: string) =>
     apiPatch<{ id: number; status: ApprovalStatus; rejectionReason: string | null; brandName: string; email: string }>(
       `/admin/artisans/${id}/status`,
@@ -1968,6 +2135,8 @@ export const adminService = {
       params as Record<string, unknown>,
     ),
   getProduct: (id: number) => apiGet<Record<string, any>>(`/admin/products/${id}`),
+  createProduct: (body: Record<string, unknown>) =>
+    apiPost<AdminProductRow>("/admin/products", body),
   setProductStatus: (id: number, status: ProductStatus, reason?: string) =>
     apiPatch<{ id: number; status: ProductStatus; rejectionReason: string | null; name: string }>(
       `/admin/products/${id}/status`,
@@ -2052,6 +2221,82 @@ export const adminService = {
     apiGet<ArtisanScoreRow>(`/admin/artisans/${id}/score`),
 
   eventsSummary: () => apiGet<AdminEventsSummary>("/admin/events/summary"),
+
+  listContactMessages: async (): Promise<SupportTicket[]> => {
+    const mapContactRow = (row: Record<string, unknown>): SupportTicket => {
+      const id = Number(row.contactMessageId ?? row.id ?? 0);
+      return {
+        id,
+        type: "contact",
+        orderId: undefined,
+        subject: typeof row.subject === "string" ? row.subject : "",
+        description:
+          typeof row.message === "string"
+            ? row.message
+            : typeof row.description === "string"
+              ? row.description
+              : "",
+        email:
+          typeof row.senderEmail === "string"
+            ? row.senderEmail
+            : typeof row.email === "string"
+              ? row.email
+              : "",
+        status: row.isRead ? "in_review" : "open",
+        createdAt:
+          typeof row.createdAt === "string"
+            ? row.createdAt
+            : new Date().toISOString(),
+      };
+    };
+
+    try {
+      // Preferred: GET /admin/messages (merged inbox; filter contact_us)
+      const res = await apiGet<{
+        data?: Array<Record<string, unknown>>;
+      }>("/admin/messages", { pageSize: 100 });
+      const rows = (res.data ?? []).filter(
+        (r) => r.source === "contact_us" || r.kind === "contact_us",
+      );
+      if (rows.length > 0) return rows.map(mapContactRow);
+    } catch {
+      /* fall through */
+    }
+
+    try {
+      const res = await apiGet<PaginatedResponse<SupportTicket> | SupportTicket[]>(
+        "/admin/support/tickets",
+        { type: "contact" },
+      );
+      if (Array.isArray(res)) return res;
+      return res.data ?? [];
+    } catch {
+      return [];
+    }
+  },
+
+  listArtisanVerificationDocuments: async (artisanUserId: number) => {
+    const res = await apiGet<
+      VerificationDocument[] | { data: Record<string, unknown>[] }
+    >(`/admin/artisans/${artisanUserId}/documents`);
+    const rows = Array.isArray(res) ? res : (res.data ?? []);
+    return rows.map((r) => mapVerificationDoc(r as Record<string, unknown>));
+  },
+
+  reviewVerificationDocument: async (
+    artisanUserId: number,
+    docId: number,
+    body: { status: "approved" | "rejected"; adminNotes?: string },
+  ) => {
+    const res = await apiPatch<Record<string, unknown>>(
+      `/admin/artisans/${artisanUserId}/documents/${docId}`,
+      {
+        status: body.status,
+        notes: body.adminNotes,
+      },
+    );
+    return mapVerificationDoc(res);
+  },
 };
 
 export interface CuratedSectionPublic {

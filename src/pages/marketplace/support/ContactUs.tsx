@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, Mail, Phone, MapPin, Send, MessageSquare, Clock } from "lucide-react";
+import { ChevronLeft, Mail, Phone, MapPin, Send, MessageSquare, Clock, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
+import { supportService } from "@/lib/apiServices";
 
 const contactMethods = [
   {
@@ -34,20 +34,36 @@ const contactMethods = [
 
 const ContactUs = () => {
   const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
+    contactName: "",
+    contactEmail: "",
+    contactMessage: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Message Sent!",
-      description: "We'll get back to you within 24 hours.",
-    });
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    setSubmitting(true);
+    try {
+      await supportService.submitContact({
+        contactName: formData.contactName.trim(),
+        contactEmail: formData.contactEmail.trim(),
+        contactMessage: formData.contactMessage.trim(),
+      });
+      toast({
+        title: "Message Sent!",
+        description: "We'll get back to you within 24 hours.",
+      });
+      setFormData({ contactName: "", contactEmail: "", contactMessage: "" });
+    } catch (err: unknown) {
+      toast({
+        title: "Could not send message",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -55,7 +71,6 @@ const ContactUs = () => {
       <MarketplaceNavbar />
       
       <main className="container mx-auto px-4 py-8 md:py-12">
-        {/* Back Link */}
         <Link 
           to="/marketplace/support/help"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
@@ -64,16 +79,14 @@ const ContactUs = () => {
           Back to Help Center
         </Link>
 
-        {/* Header */}
         <div className="mb-10">
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">Contact Us</h1>
           <p className="text-muted-foreground max-w-2xl">
-            We're here to help. Reach out to us through any of the channels below.
+            We&apos;re here to help. Reach out to us through any of the channels below.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Contact Methods */}
           <div className="lg:col-span-1 space-y-4">
             {contactMethods.map((method) => {
               const Icon = method.icon;
@@ -95,7 +108,6 @@ const ContactUs = () => {
               );
             })}
 
-            {/* Office Info */}
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
@@ -133,7 +145,6 @@ const ContactUs = () => {
             </Card>
           </div>
 
-          {/* Contact Form */}
           <div className="lg:col-span-2">
             <Card>
               <CardContent className="p-6">
@@ -141,60 +152,53 @@ const ContactUs = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Your Name</Label>
+                      <Label htmlFor="contact-name">Your Name</Label>
                       <Input 
-                        id="name" 
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        id="contact-name"
+                        name="contactName"
+                        data-contact-name=""
+                        value={formData.contactName}
+                        onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="contact-email">Email Address</Label>
                       <Input 
-                        id="email" 
+                        id="contact-email"
+                        name="contactEmail"
                         type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        value={formData.contactEmail}
+                        onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
                         required
                       />
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="subject">Subject</Label>
-                    <Select 
-                      value={formData.subject}
-                      onValueChange={(value) => setFormData({ ...formData, subject: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a topic" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="order">Order Issue</SelectItem>
-                        <SelectItem value="payment">Payment Question</SelectItem>
-                        <SelectItem value="refund">Refund Request</SelectItem>
-                        <SelectItem value="artisan">Artisan Inquiry</SelectItem>
-                        <SelectItem value="feedback">Feedback</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="message">Message</Label>
+                    <Label htmlFor="contact-message">Message</Label>
                     <Textarea 
-                      id="message" 
+                      id="contact-message"
+                      name="contactMessage"
                       rows={5}
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      value={formData.contactMessage}
+                      onChange={(e) => setFormData({ ...formData, contactMessage: e.target.value })}
                       placeholder="Describe your issue or question in detail..."
                       required
                     />
                   </div>
 
-                  <Button type="submit" className="w-full md:w-auto">
-                    <Send className="h-4 w-4 mr-2" />
+                  <Button
+                    type="submit"
+                    className="w-full md:w-auto"
+                    data-testid="contact-submit"
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
                     Send Message
                   </Button>
                 </form>

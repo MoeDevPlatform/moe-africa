@@ -352,7 +352,7 @@ const MarketplaceHome = () => {
   }, [filteredProviders, artisanSort, hydratedRatings]);
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-gradient-subtle overflow-x-hidden">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">

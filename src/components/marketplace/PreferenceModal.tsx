@@ -79,7 +79,7 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[min(90vh,900px)] min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-display">
             {step === 1 && "What are you here for?"}

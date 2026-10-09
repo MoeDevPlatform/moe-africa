@@ -103,11 +103,11 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
         <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scrollbar-hide md:grid md:grid-cols-2 md:overflow-visible md:snap-none md:pb-0">
         {items.map((provider) => (
           <Card
             key={provider.id}
-            className="overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer hover:shadow-lg transition-shadow"
+            className="overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer hover:shadow-lg transition-shadow min-w-[85%] sm:min-w-[70%] snap-start shrink-0 md:min-w-0 md:shrink"
             onClick={() => navigate(`/marketplace/provider/${provider.id}`)}
           >
             <div className="relative">

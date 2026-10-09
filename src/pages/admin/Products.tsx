@@ -8,7 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Check, X, Loader2, Eye, FileText, Trash2 } from "lucide-react";
+import { Search, Check, X, Loader2, Eye, FileText, Trash2, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { useCategories } from "@/contexts/CategoriesContext";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import type { AdminArtisanRow } from "@/lib/apiServices";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +89,63 @@ const Products = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [removeRow, setRemoveRow] = useState<AdminProductRow | null>(null);
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [artisanOptions, setArtisanOptions] = useState<AdminArtisanRow[]>([]);
+  useCategories();
+  const [productForm, setProductForm] = useState({
+    name: "",
+    description: "",
+    category: "",
+    priceMin: "",
+    priceMax: "",
+    estimatedDelivery: "",
+    artisanId: "",
+  });
+
+  useEffect(() => {
+    if (!addOpen) return;
+    adminService
+      .listArtisans({ pageSize: 100, status: "approved" })
+      .then((res) => setArtisanOptions(res.data ?? []))
+      .catch(() => setArtisanOptions([]));
+  }, [addOpen]);
+
+  const handleAddProduct = async () => {
+    if (!productForm.name.trim() || !productForm.artisanId || !productForm.estimatedDelivery.trim()) {
+      toast.error("Name, artisan, and estimated delivery are required");
+      return;
+    }
+    setAdding(true);
+    try {
+      await adminService.createProduct({
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
+        category: productForm.category,
+        priceMin: Number(productForm.priceMin) || 0,
+        priceMax: productForm.priceMax ? Number(productForm.priceMax) : undefined,
+        estimatedDelivery: productForm.estimatedDelivery.trim(),
+        artisanId: Number(productForm.artisanId),
+        providerId: Number(productForm.artisanId),
+      });
+      toast.success(<span data-testid="success-toast">Product created</span>);
+      setAddOpen(false);
+      setProductForm({
+        name: "",
+        description: "",
+        category: "",
+        priceMin: "",
+        priceMax: "",
+        estimatedDelivery: "",
+        artisanId: "",
+      });
+      load(pagination.page, statusFilter);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to create product");
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const load = (page = 1, status: ProductStatus | "all" = statusFilter) => {
     setIsLoading(true);
@@ -223,12 +284,18 @@ const Products = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Products</h1>
-          <p className="mt-1 text-muted-foreground">
-            Approve, reject, draft, or permanently delete products — including in bulk
-          </p>
-          <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/products</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Products</h1>
+            <p className="mt-1 text-muted-foreground">
+              Approve, reject, draft, or permanently delete products — including in bulk
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/products</p>
+          </div>
+          <Button data-testid="add-product-btn" onClick={() => setAddOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -604,6 +671,101 @@ const Products = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add product</DialogTitle>
+            <DialogDescription>POST /admin/products for an artisan.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Artisan</Label>
+              <Select
+                value={productForm.artisanId}
+                onValueChange={(v) => setProductForm({ ...productForm, artisanId: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select artisan" /></SelectTrigger>
+                <SelectContent>
+                  {artisanOptions.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.brandName ?? a.businessName ?? a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-name">Product name</Label>
+              <Input
+                id="prod-name"
+                name="name"
+                value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-desc">Description</Label>
+              <Textarea
+                id="prod-desc"
+                value={productForm.description}
+                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select
+                value={productForm.category}
+                onValueChange={(v) => setProductForm({ ...productForm, category: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Min price (₦)</Label>
+                <Input
+                  type="number"
+                  value={productForm.priceMin}
+                  onChange={(e) => setProductForm({ ...productForm, priceMin: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Max price (₦)</Label>
+                <Input
+                  type="number"
+                  value={productForm.priceMax}
+                  onChange={(e) => setProductForm({ ...productForm, priceMax: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-eta">Estimated delivery</Label>
+              <Input
+                id="prod-eta"
+                name="estimatedDelivery"
+                placeholder="e.g. 7 days"
+                value={productForm.estimatedDelivery}
+                onChange={(e) => setProductForm({ ...productForm, estimatedDelivery: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddProduct} disabled={adding}>
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

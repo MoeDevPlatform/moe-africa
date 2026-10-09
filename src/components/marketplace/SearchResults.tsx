@@ -20,6 +20,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { apiGet } from "@/lib/moeApi";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { trackBehaviour } from "@/lib/trackBehaviour";
@@ -104,6 +105,24 @@ function mapProvider(p: any): ProviderResult {
   };
 }
 
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const trimmed = query.trim();
+  if (!trimmed) return <>{text}</>;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = trimmed.toLowerCase();
+  const idx = lowerText.indexOf(lowerQuery);
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-primary/20 text-foreground rounded-sm px-0.5">
+        {text.slice(idx, idx + trimmed.length)}
+      </mark>
+      {text.slice(idx + trimmed.length)}
+    </>
+  );
+}
+
 function mapProduct(p: any): ProductResult {
   const min =
     typeof p.priceRange?.min === "number"
@@ -147,7 +166,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -229,6 +248,11 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
           c.description.toLowerCase().includes(query)
       )
     : [];
+  const isDebouncing =
+    searchQuery.trim().toLowerCase() !== debouncedQuery.trim().toLowerCase() &&
+    searchQuery.trim().length > 0;
+  const isSearching = isLoading || isDebouncing;
+
   const hasResults =
     filteredCategories.length > 0 ||
     providers.length > 0 ||
@@ -259,6 +283,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
             <Input
               ref={inputRef}
               type="search"
+              data-testid="search-input"
               placeholder="Search for artisans, products, or services..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -282,7 +307,10 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
         </div>
 
         {/* Results */}
-        <div className="space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto">
+        <div
+          className="space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto"
+          data-testid="search-results"
+        >
           {!debouncedQuery ? (
             <Card className="p-12 text-center">
               <Search className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
@@ -290,6 +318,17 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
               <p className="text-sm text-muted-foreground/70 mt-2">
                 Search for artisans, products, categories, or styles
               </p>
+            </Card>
+          ) : isSearching ? (
+            <Card className="p-12 text-center">
+              <Loader2 className="h-10 w-10 mx-auto mb-3 text-primary animate-spin" aria-hidden="true" />
+              <p className="text-muted-foreground">Searching…</p>
+            </Card>
+          ) : apiError ? (
+            <Card className="p-12 text-center">
+              <Package className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+              <h3 className="font-display font-semibold text-lg mb-2">Search unavailable</h3>
+              <p className="text-muted-foreground">{apiError}</p>
             </Card>
           ) : !hasResults ? (
             <Card className="p-12 text-center">
@@ -419,7 +458,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-sm mb-1 truncate">
-                              {product.name}
+                              <HighlightMatch text={product.name} query={debouncedQuery} />
                             </h4>
                             <p className="text-xs text-muted-foreground mb-2">
                               {product.provider}

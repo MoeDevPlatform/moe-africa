@@ -33,9 +33,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   adminMessagingService,
+  adminService,
   type AdminConversation,
   type Message,
+  type SupportTicket,
 } from "@/lib/apiServices";
+
+type InboxRow = AdminConversation & { ticketId?: number };
+
+const ticketToRow = (t: SupportTicket): InboxRow => ({
+  id: -t.id,
+  ticketId: t.id,
+  customerId: t.customerId ?? 0,
+  providerId: 0,
+  providerName: "MoE Support",
+  customerName: t.email.split("@")[0] || "Contact",
+  artisanName: "Contact Us",
+  lastMessage: t.description,
+  lastMessageTime: t.createdAt,
+  lastMessageAt: t.createdAt,
+  status: t.status,
+  unreadCount: t.status === "open" ? 1 : 0,
+  artisanId: 0,
+  source: "contact_us",
+  contactEmail: t.email,
+});
 
 const STATUS_LABELS: Record<string, string> = {
   unread: "Unread",
@@ -47,7 +69,7 @@ const STATUS_LABELS: Record<string, string> = {
 const AdminMessages = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams();
-  const [conversations, setConversations] = useState<AdminConversation[]>([]);
+  const [conversations, setConversations] = useState<InboxRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [thread, setThread] = useState<{
     conversation: AdminConversation;
@@ -60,9 +82,23 @@ const AdminMessages = () => {
 
   const loadList = () => {
     setIsLoading(true);
-    adminMessagingService
-      .listConversations({ pageSize: 50 })
-      .then((res) => setConversations(res.data ?? []))
+    Promise.all([
+      adminMessagingService.listConversations({ pageSize: 50 }),
+      adminService.listContactMessages(),
+    ])
+      .then(([convRes, tickets]) => {
+        const convRows: InboxRow[] = (convRes.data ?? []).map((c) => ({
+          ...c,
+          source: c.source ?? "conversation",
+        }));
+        const contactRows = tickets.map(ticketToRow);
+        const merged = [...contactRows, ...convRows].sort((a, b) => {
+          const ta = new Date(a.lastMessageAt ?? a.lastMessageTime).getTime();
+          const tb = new Date(b.lastMessageAt ?? b.lastMessageTime).getTime();
+          return tb - ta;
+        });
+        setConversations(merged);
+      })
       .catch((e: Error) => toast.error(e.message || "Failed to load conversations"))
       .finally(() => setIsLoading(false));
   };
@@ -76,11 +112,32 @@ const AdminMessages = () => {
       setThread(null);
       return;
     }
+    const numericId = Number(conversationId);
+    if (numericId < 0) {
+      const row = conversations.find((c) => c.id === numericId);
+      if (row) {
+        setThread({
+          conversation: row,
+          messages: [
+            {
+              id: row.ticketId ?? 0,
+              conversationId: row.id,
+              senderId: 0,
+              senderType: "customer",
+              senderRole: "customer",
+              content: row.lastMessage,
+              sentAt: row.lastMessageAt ?? row.lastMessageTime,
+            },
+          ],
+        });
+      }
+      return;
+    }
     adminMessagingService
-      .getConversation(Number(conversationId))
+      .getConversation(numericId)
       .then(setThread)
       .catch((e: Error) => toast.error(e.message || "Failed to load thread"));
-  }, [conversationId]);
+  }, [conversationId, conversations]);
 
   const handleSendReply = async () => {
     if (!conversationId || !reply.trim()) return;
@@ -148,8 +205,13 @@ const AdminMessages = () => {
                   {thread.conversation.customerName}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Re: {thread.conversation.artisanName ?? thread.conversation.providerName}
+                  {thread.conversation.source === "contact_us"
+                    ? "Contact Us submission"
+                    : `Re: ${thread.conversation.artisanName ?? thread.conversation.providerName}`}
                 </p>
+                {thread.conversation.contactEmail && (
+                  <p className="text-xs text-muted-foreground">{thread.conversation.contactEmail}</p>
+                )}
               </div>
 
               {thread.conversation.artisanNote && (
@@ -184,36 +246,38 @@ const AdminMessages = () => {
                 ))}
               </Card>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Reply as MoE Support</label>
-                <Textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Type your reply to the customer..."
-                  rows={4}
-                />
-                <div className="flex flex-wrap gap-3 items-center">
-                  <Button onClick={handleSendReply} disabled={sending || !reply.trim()}>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Reply
-                  </Button>
-                  <Select
-                    value={thread.conversation.status ?? "unread"}
-                    onValueChange={handleStatusChange}
-                  >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(STATUS_LABELS).map(([v, label]) => (
-                        <SelectItem key={v} value={v}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {thread.conversation.source !== "contact_us" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Reply as MoE Support</label>
+                  <Textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Type your reply to the customer..."
+                    rows={4}
+                  />
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <Button onClick={handleSendReply} disabled={sending || !reply.trim()}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Reply
+                    </Button>
+                    <Select
+                      value={thread.conversation.status ?? "unread"}
+                      onValueChange={handleStatusChange}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_LABELS).map(([v, label]) => (
+                          <SelectItem key={v} value={v}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           ) : (
             <Skeleton className="h-64 w-full" />
@@ -251,9 +315,15 @@ const AdminMessages = () => {
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold">{c.customerName}</h3>
-                      <Badge variant="outline" className="text-xs">
-                        Re: {c.artisanName ?? c.providerName}
-                      </Badge>
+                      {c.source === "contact_us" ? (
+                        <Badge variant="secondary" className="text-xs">
+                          Contact Us
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          Re: {c.artisanName ?? c.providerName}
+                        </Badge>
+                      )}
                       {c.unreadCount > 0 && <Badge>New</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground truncate mt-1">

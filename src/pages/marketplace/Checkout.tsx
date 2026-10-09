@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const checkoutSchema = z.object({
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 const Checkout = () => {
+  const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedCards, setSavedCards] = useState<PaymentMethodApi[]>([]);
@@ -96,14 +98,44 @@ const Checkout = () => {
   const deliveryFee = 2500;
   const total = subtotal + deliveryFee;
 
-  const onSubmit = async (_values: CheckoutFormValues) => {
+  const onSubmit = async (values: CheckoutFormValues) => {
     if (cartItems.length === 0) {
       toast({ title: "Your cart is empty", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
     try {
-      toast({ title: "Order placed", description: "We'll be in touch shortly." });
+      const paymentMap = {
+        card: "paystack" as const,
+        bank: "bank_transfer" as const,
+        delivery: "pay_on_delivery" as const,
+      };
+      const order = await ordersService.create({
+        items: cartItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          finalPrice: item.finalPrice,
+        })),
+        shippingAddress: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone: values.phone,
+          addressLine1: values.address,
+          city: values.city,
+          state: values.state,
+          country: values.country,
+        },
+        paymentMethod: paymentMap[paymentMethod as keyof typeof paymentMap] ?? "pay_on_delivery",
+        currency: "NGN",
+      });
+      clearCart();
+      navigate(`/marketplace/order-confirmation/${order.id}`);
+    } catch (err: unknown) {
+      toast({
+        title: "Checkout failed",
+        description: err instanceof Error ? err.message : "Could not place order.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

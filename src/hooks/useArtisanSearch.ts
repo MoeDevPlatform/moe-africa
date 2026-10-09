@@ -46,8 +46,16 @@ export function useArtisanSearch(base: { category?: string | null; featured?: bo
   const [page, setPage] = useState(1);
   const reqId = useRef(0);
 
-  const key = JSON.stringify([base.category ?? null, !!base.featured, filters.country, filters.state,
-    filters.priceRange, filters.minRating, filters.availableOnly]);
+  const key = JSON.stringify([
+    base.category ?? null,
+    !!base.featured,
+    filters.country,
+    filters.state,
+    filters.city,
+    filters.priceRange,
+    filters.minRating,
+    filters.availableOnly,
+  ]);
 
   useEffect(() => {
     const id = ++reqId.current;
@@ -61,6 +69,7 @@ export function useArtisanSearch(base: { category?: string | null; featured?: bo
       if (base.featured) q.featured = true;
       if (filters.country) q.country = filters.country;
       if (filters.state) q.state = filters.state;
+      if (filters.city) q.city = filters.city;
       let list = await providersService.searchAll(q);
 
       if (filters.availableOnly) list = list.filter((p) => Number((p as Provider & { productCount?: number }).productCount ?? 0) > 0);

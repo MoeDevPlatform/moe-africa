@@ -32,6 +32,7 @@ import ProviderDetail from "./pages/marketplace/ProviderDetail";
 import ProductDetail from "./pages/marketplace/ProductDetail";
 import Cart from "./pages/marketplace/Cart";
 import Checkout from "./pages/marketplace/Checkout";
+import OrderConfirmation from "./pages/marketplace/OrderConfirmation";
 import Messages from "./pages/marketplace/Messages";
 import MessageThread from "./pages/marketplace/MessageThread";
 import Wishlist from "./pages/marketplace/Wishlist";
@@ -41,6 +42,7 @@ import CustomerOrders from "./pages/marketplace/Orders";
 import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/auth/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 import SSOCallback from "./pages/auth/SSOCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
@@ -97,6 +99,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/sso-callback" element={<SSOCallback />} />
                   
@@ -120,6 +123,7 @@ const App = () => (
                   <Route path="/marketplace/product/:id" element={<ProductDetail />} />
                   <Route path="/marketplace/cart" element={<Cart />} />
                   <Route path="/marketplace/checkout" element={<Checkout />} />
+                  <Route path="/marketplace/order-confirmation/:orderId" element={<OrderConfirmation />} />
                   <Route path="/marketplace/messages" element={<Messages />} />
                   <Route path="/marketplace/messages/:conversationId" element={<MessageThread />} />
                   <Route path="/marketplace/wishlist" element={<Wishlist />} />

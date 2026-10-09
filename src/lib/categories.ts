@@ -9,6 +9,7 @@ import {
   Package,
   type LucideIcon,
 } from "lucide-react";
+import { resolveLucideIcon } from "@/lib/lucideIcons";
 
 /** Canonical category shape from GET /categories */
 export interface CategoryDef {
@@ -95,7 +96,7 @@ export const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
 };
 
 export const getCategoryIcon = (iconKey?: string | null): LucideIcon =>
-  (iconKey && CATEGORY_ICON_MAP[iconKey]) || Package;
+  (iconKey && CATEGORY_ICON_MAP[iconKey]) || resolveLucideIcon(iconKey);
 
 /** Default mega-menu type suggestions keyed by slug (optional fallback). */
 export const DEFAULT_CATEGORY_TYPES: Record<string, string[]> = {

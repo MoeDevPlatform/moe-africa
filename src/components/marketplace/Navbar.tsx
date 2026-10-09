@@ -253,6 +253,7 @@ const MarketplaceNavbar = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
+                data-testid="search-input"
                 placeholder="Search for artisans, products, or services..."
                 className="pl-10 w-full"
                 value={searchQuery}
@@ -356,6 +357,7 @@ const MarketplaceNavbar = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
+              data-testid="search-input"
               placeholder="Search..."
               className="pl-10 w-full"
               value={searchQuery}

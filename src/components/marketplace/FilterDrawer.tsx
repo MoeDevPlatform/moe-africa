@@ -18,6 +18,7 @@ export interface FilterState {
   deliveryEstimate: string | null;
   country?: string | null;
   state?: string | null;
+  city?: string | null;
   minRating?: number | null;
   availableOnly?: boolean;
 }
@@ -53,6 +54,7 @@ export const DEFAULT_ARTISAN_FILTERS: FilterState = {
   deliveryEstimate: null,
   country: null,
   state: null,
+  city: null,
   minRating: null,
   availableOnly: false,
 };
@@ -167,6 +169,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
       deliveryEstimate: null,
       country: null,
       state: null,
+      city: null,
       minRating: null,
       availableOnly: false,
     };
@@ -181,6 +184,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
     (localFilters.deliveryEstimate ? 1 : 0) +
     (localFilters.country ? 1 : 0) +
     (localFilters.state ? 1 : 0) +
+    (localFilters.city ? 1 : 0) +
     (localFilters.minRating ? 1 : 0) +
     (localFilters.availableOnly ? 1 : 0);
 
@@ -190,7 +194,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
     <Sheet open={open} onOpenChange={(o) => { if (!o) setLocalFilters(filters); setOpen(o); }}>
       <SheetTrigger asChild>
         {children || (
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" data-testid="filter-btn">
             <SlidersHorizontal className="h-4 w-4" />
             Filters
             {activeFilterCount > 0 && (
@@ -222,10 +226,17 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
               <Select
                 value={localFilters.country ?? "any"}
                 onValueChange={(v) =>
-                  setLocalFilters({ ...localFilters, country: v === "any" ? null : v, state: null })
+                  setLocalFilters({
+                    ...localFilters,
+                    country: v === "any" ? null : v,
+                    state: null,
+                    city: null,
+                  })
                 }
               >
-                <SelectTrigger aria-label="Filter by country"><SelectValue placeholder="Any country" /></SelectTrigger>
+                <SelectTrigger aria-label="Filter by country" data-testid="country-select">
+                  <SelectValue placeholder="Any country" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any country</SelectItem>
                   {countries.map((c) => (
@@ -253,6 +264,17 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
                   </SelectTrigger>
                 </Select>
               )}
+              <Input
+                placeholder="City (optional)"
+                value={localFilters.city ?? ""}
+                onChange={(e) =>
+                  setLocalFilters({
+                    ...localFilters,
+                    city: e.target.value.trim() || null,
+                  })
+                }
+                aria-label="Filter by city"
+              />
             </div>
           </div>
 
@@ -402,7 +424,12 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             <Button variant="outline" onClick={() => { setLocalFilters(filters); setOpen(false); }} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleApply} disabled={priceInvalid} className="flex-1">
+            <Button
+              onClick={handleApply}
+              disabled={priceInvalid}
+              className="flex-1"
+              data-testid="apply-filters"
+            >
               Apply Filters
             </Button>
           </div>

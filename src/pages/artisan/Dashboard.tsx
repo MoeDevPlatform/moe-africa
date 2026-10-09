@@ -16,11 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
-  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare,
+  Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
 import CustomerInquiries from "@/components/artisan/CustomerInquiries";
+import VerificationSection from "@/components/artisan/VerificationSection";
+import ArtisanOrdersPanel from "@/components/artisan/ArtisanOrdersPanel";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -481,6 +483,12 @@ const ArtisanDashboard = () => {
             <TabsTrigger value="inquiries" className="flex items-center gap-2 flex-1">
               <MessageSquare className="h-4 w-4" /> Customer Inquiries
             </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2 flex-1">
+              <ClipboardList className="h-4 w-4" /> Orders
+            </TabsTrigger>
+            <TabsTrigger value="verification" className="flex items-center gap-2 flex-1">
+              <CheckCircle className="h-4 w-4" /> Verification
+            </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-2 flex-1">
               <Store className="h-4 w-4" /> Business Profile
             </TabsTrigger>
@@ -586,6 +594,24 @@ const ArtisanDashboard = () => {
                 <CustomerInquiries />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="orders">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-primary" /> Orders
+                </CardTitle>
+                <CardDescription>Update order status and view fulfillment history.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ArtisanOrdersPanel />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="verification">
+            <VerificationSection />
           </TabsContent>
 
           {/* Business Profile Tab */}

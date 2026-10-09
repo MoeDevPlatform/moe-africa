@@ -40,6 +40,17 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 // Backend (local filesystem storage) caps uploads at 2MB.
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_IMAGES = 5;
+const MIN_PRICE = 100;
+const MAX_PRICE = 10_000_000;
+
+type ProductFieldErrors = {
+  name?: string;
+  description?: string;
+  category?: string;
+  priceMin?: string;
+  priceMax?: string;
+  estimatedDelivery?: string;
+};
 
 interface UploadedImage {
   url: string;
@@ -65,7 +76,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
   });
   const [tagInput, setTagInput] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [validationError, setValidationError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ProductFieldErrors>({});
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -117,7 +128,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setImages([]);
     }
     setSubmitError("");
-    setValidationError("");
+    setFieldErrors({});
     setImageError("");
   }, [open, editProduct]);
 
@@ -185,35 +196,52 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     });
   };
 
-  const validate = (): string => {
-    if (!form.name.trim()) return "Product name is required.";
-    if (!form.description.trim()) return "Description is required.";
-    if (!form.category) return "Please select a category.";
-    if (form.priceMin === "" || Number.isNaN(Number(form.priceMin)) || Number(form.priceMin) < 0) {
-      return "Minimum price is required and must be 0 or greater.";
+  const collectFieldErrors = (): ProductFieldErrors => {
+    const errors: ProductFieldErrors = {};
+    if (!form.name.trim()) errors.name = "Product name is required.";
+    if (!form.description.trim()) errors.description = "Description is required.";
+    if (!form.category) errors.category = "Please select a category.";
+
+    const min = Number(form.priceMin);
+    const max = Number(form.priceMax);
+    if (form.priceMin === "" || Number.isNaN(min)) {
+      errors.priceMin = "Minimum price is required.";
+    } else if (min < MIN_PRICE) {
+      errors.priceMin = `Minimum price must be at least ₦${MIN_PRICE.toLocaleString()}.`;
     }
-    if (form.priceMax === "" || Number.isNaN(Number(form.priceMax)) || Number(form.priceMax) < 0) {
-      return "Maximum price is required and must be 0 or greater.";
+    if (form.priceMax === "" || Number.isNaN(max)) {
+      errors.priceMax = "Maximum price is required.";
+    } else if (max > MAX_PRICE) {
+      errors.priceMax = `Maximum price must be at most ₦${MAX_PRICE.toLocaleString()}.`;
     }
-    if (Number(form.priceMax) < Number(form.priceMin)) {
-      return "Maximum price must be greater than or equal to minimum price.";
+    if (
+      !errors.priceMin &&
+      !errors.priceMax &&
+      !Number.isNaN(min) &&
+      !Number.isNaN(max) &&
+      max < min
+    ) {
+      errors.priceMax = "Maximum price must be greater than or equal to minimum price.";
     }
-    if (form.estimatedDelivery && form.estimatedDelivery.length > 50) {
-      return "Estimated delivery must be 50 characters or fewer.";
+
+    if (!form.estimatedDelivery.trim()) {
+      errors.estimatedDelivery = "Estimated delivery is required";
+    } else if (form.estimatedDelivery.length > 50) {
+      errors.estimatedDelivery = "Estimated delivery must be 50 characters or fewer.";
     }
-    return "";
+    return errors;
   };
 
-  const isValid = !validate();
+  const isValid = Object.keys(collectFieldErrors()).length === 0;
 
   const handleSubmit = async () => {
     setSubmitError("");
-    const v = validate();
-    if (v) {
-      setValidationError(v);
+    const errors = collectFieldErrors();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
-    setValidationError("");
+    setFieldErrors({});
     setIsSubmitting(true);
 
     try {
@@ -225,7 +253,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         priceMin: Number(form.priceMin),
         priceMax: Number(form.priceMax),
         materials: form.materials.trim() || undefined,
-        estimatedDelivery: form.estimatedDelivery.trim() || undefined,
+        estimatedDelivery: form.estimatedDelivery.trim(),
         tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
         ...(form.stockCount.trim() !== ""
           ? { stockCount: Number(form.stockCount) }
@@ -284,7 +312,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               placeholder="e.g. Custom Ankara Jacket"
               value={form.name}
               onChange={(e) => updateForm("name", e.target.value)}
+              aria-invalid={!!fieldErrors.name}
             />
+            {fieldErrors.name && (
+              <p className="text-xs text-destructive">{fieldErrors.name}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -295,7 +327,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               rows={4}
               value={form.description}
               onChange={(e) => updateForm("description", e.target.value)}
+              aria-invalid={!!fieldErrors.description}
             />
+            {fieldErrors.description && (
+              <p className="text-xs text-destructive">{fieldErrors.description}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -321,6 +357,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                 )}
               </SelectContent>
             </Select>
+            {fieldErrors.category && (
+              <p className="text-xs text-destructive">{fieldErrors.category}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -333,7 +372,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                 placeholder="e.g. 20000"
                 value={form.priceMin}
                 onChange={(e) => updateForm("priceMin", e.target.value)}
+                aria-invalid={!!fieldErrors.priceMin}
               />
+              {fieldErrors.priceMin && (
+                <p className="text-xs text-destructive">{fieldErrors.priceMin}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="priceMax">Max Price (₦) *</Label>
@@ -344,7 +387,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                 placeholder="e.g. 30000"
                 value={form.priceMax}
                 onChange={(e) => updateForm("priceMax", e.target.value)}
+                aria-invalid={!!fieldErrors.priceMax}
               />
+              {fieldErrors.priceMax && (
+                <p className="text-xs text-destructive">{fieldErrors.priceMax}</p>
+              )}
             </div>
           </div>
 
@@ -370,7 +417,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               className="mb-4"
             />
 
-            <Label htmlFor="delivery">Estimated Delivery (days)</Label>
+            <Label htmlFor="delivery">Estimated Delivery *</Label>
             <Input
               id="delivery"
               type="text"
@@ -378,10 +425,15 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               maxLength={50}
               value={form.estimatedDelivery}
               onChange={(e) => updateForm("estimatedDelivery", e.target.value)}
+              aria-invalid={!!fieldErrors.estimatedDelivery}
             />
-            <p className="text-xs text-muted-foreground">
-              Free text — describe in your own words. Max 50 characters.
-            </p>
+            {fieldErrors.estimatedDelivery ? (
+              <p className="text-xs text-destructive">{fieldErrors.estimatedDelivery}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Free text — describe in your own words. Max 50 characters.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -487,13 +539,6 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             )}
           </div>
         </div>
-
-        {validationError && (
-          <div className="flex items-center gap-2 text-sm text-destructive px-1">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {validationError}
-          </div>
-        )}
 
         {submitError && (
           <div className="flex items-center gap-2 text-sm text-destructive px-1">

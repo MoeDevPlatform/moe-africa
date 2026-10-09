@@ -726,3 +726,73 @@ redirect URLs (dev instances don't).
    `POST /auth/clerk-verify` returns 401 (not 404) for a bogus token.
 3. Confirm browser network tab shows a successful `clerk-verify` after
    `/sso-callback` (CORS allowlist must include the Vercel origin).
+
+---
+
+## Comprehensive Feature & Fix Sprint — Backend Contracts
+
+Status legend: 🔴 REQUIRED · 🟡 IN PROGRESS · 🟢 DONE (verify on deploy)
+
+### Auth
+
+- 🔴 `POST /auth/forgot-password` `{ email }` → always `200 { message: "Reset link sent if account exists" }`. JWT reset token 15m; email link to `https://moe-africa-mvp.vercel.app/auth/reset-password?token=…`
+- 🔴 `GET /auth/reset-password?token=` — validate token
+- 🔴 `POST /auth/reset-password` `{ token, newPassword }` — update password
+- 🔴 Throttle login/register: 5/min; forgot-password: 3/5min; `429` with `"Too many attempts. Please try again in X minutes."`
+- 🔴 Register conflict (409): message suitable for client to show `"Email or Password already in use"`
+
+### Search & location
+
+- 🔴 `GET /search?q=&type=` — OR across product (name, description, tags, keywords.term, category, materials, styleTags) and artisan (businessName, brandName, description, serviceCategories, keywords.term, location fields). Lowercase normalise. Order by relevance (exact name → keyword → description).
+- 🔴 Auto-index keywords from name/description on product/artisan save
+- 🔴 `GET /artisans` (or service-providers): `country`, `state`, `city` case-insensitive filters alongside existing filters
+
+### Contact / admin messages
+
+- 🔴 Persist Contact Us to DB (`ContactMessage` or support ticket with `source: "contact_us"`)
+- 🔴 `GET /admin/messages` includes `source=contact_us` entries
+
+### Admin create
+
+- 🔴 `POST /admin/artisans` — user + artisan profile, role artisan, status pending; welcome email with credentials
+- 🔴 `POST /admin/products` — assign `artisanId`, default status `approved`
+
+### Products validation
+
+- 🔴 `estimatedDelivery` required (`@IsNotEmpty` `@IsString`) on create
+- 🔴 `priceMin` `@Min(100)`; `priceMax` `@Max(10000000)`; max ≥ min
+
+### Artisan status notifications
+
+- 🔴 On admin status change: in-app `Notification` type `account_status` + email (approved / rejected / pending copy)
+
+### Categories
+
+- 🔴 Allow delete of seed/built-in categories
+- 🔴 `DELETE /admin/categories` body `{ ids: string[] }` bulk; null out product categories (or clear 409 with counts)
+- 🟢 `Category.icon` field exists; ensure create/update DTOs accept `icon` (default `"Tag"`)
+
+### Verification documents
+
+- 🔴 Model `ArtisanVerificationDocument`
+- 🔴 `POST /artisans/verification/documents` (multipart)
+- 🔴 `GET /admin/artisans/:id/documents`
+- 🔴 `PATCH /admin/artisans/:id/documents/:docId` `{ status, notes? }`
+
+### Orders
+
+- 🔴 Status lifecycle: `pending → confirmed → in_progress → ready → shipped → delivered` (+ `cancelled` pre-ship)
+- 🔴 `PATCH /orders/:id/status` + `OrderStatusHistory`
+- 🔴 `GET /orders/:id/tracking`
+- 🔴 `GET /orders/:id` includes productName, provider/artisan name, estimatedDelivery
+- 🔴 Customer notifications on each status change
+
+### Admin artisan detail
+
+- 🔴 Include reviews (customer first/last name, rating, comment, date) on `GET /admin/artisans/:id`
+
+### Sanitization
+
+- 🔴 Global trim pipe; strip HTML on free-text; `@IsEmail` / phone regex where collected
+
+See also root `security-audit.md`.

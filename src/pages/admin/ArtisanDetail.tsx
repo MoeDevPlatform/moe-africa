@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,13 @@ import {
 import { toast } from "sonner";
 import {
   adminService,
+  artisanReviewsService,
   type AdminArtisanDetail,
   type ApprovalStatus,
+  type VerificationDocument,
+  type ArtisanReviewApi,
 } from "@/lib/apiServices";
+import { Star } from "lucide-react";
 
 const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="grid grid-cols-3 gap-4 py-2 border-b border-border/60 last:border-0">
@@ -49,6 +53,14 @@ const ArtisanDetailPage = () => {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [documents, setDocuments] = useState<VerificationDocument[]>([]);
+  const [reviews, setReviews] = useState<ArtisanReviewApi[]>([]);
+  const [docNotes, setDocNotes] = useState<Record<number, string>>({});
+
+  const avgReview = useMemo(() => {
+    if (!reviews.length) return null;
+    return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+  }, [reviews]);
 
   const load = () => {
     if (!id) return;
@@ -67,6 +79,36 @@ const ArtisanDetailPage = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!detail?.user.id) return;
+    adminService
+      .listArtisanVerificationDocuments(detail.user.id)
+      .then(setDocuments)
+      .catch(() => setDocuments([]));
+    artisanReviewsService
+      .list(detail.user.id)
+      .then((res) => {
+        const rows = Array.isArray(res) ? res : res?.data ?? [];
+        setReviews(rows);
+      })
+      .catch(() => setReviews([]));
+  }, [detail?.user.id]);
+
+  const reviewDocument = async (docId: number, status: "approved" | "rejected") => {
+    if (!detail) return;
+    try {
+      await adminService.reviewVerificationDocument(detail.user.id, docId, {
+        status,
+        adminNotes: docNotes[docId]?.trim() || undefined,
+      });
+      toast.success(`Document ${status}`);
+      const next = await adminService.listArtisanVerificationDocuments(detail.user.id);
+      setDocuments(next);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Review failed");
+    }
+  };
 
   const handleAction = async () => {
     if (!detail || !action) return;
@@ -213,6 +255,79 @@ const ArtisanDetailPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader><CardTitle>Verification documents</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {documents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+                ) : (
+                  documents.map((doc) => (
+                    <div key={doc.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium capitalize">{doc.type.replace(/_/g, " ")}</p>
+                        <Badge variant="outline" className="capitalize">{doc.status}</Badge>
+                      </div>
+                      {doc.fileUrl && (
+                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
+                          View file
+                        </a>
+                      )}
+                      <Textarea
+                        placeholder="Admin notes (optional)"
+                        value={docNotes[doc.id] ?? doc.adminNotes ?? ""}
+                        onChange={(e) => setDocNotes((p) => ({ ...p, [doc.id]: e.target.value }))}
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => reviewDocument(doc.id, "approved")}>
+                          Accept
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => reviewDocument(doc.id, "rejected")}>
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Reviews
+                  {avgReview != null && (
+                    <span className="text-base font-normal flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-accent text-accent" />
+                      {avgReview.toFixed(1)} ({reviews.length})
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                ) : (
+                  reviews.map((r) => (
+                    <div key={r.id} className="border-b pb-3 last:border-0">
+                      <div className="flex items-center gap-1 text-sm">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${i < r.rating ? "fill-accent text-accent" : "text-muted"}`}
+                          />
+                        ))}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {r.comment && <p className="text-sm mt-1">{r.comment}</p>}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
           </>
         ) : null}
       </div>

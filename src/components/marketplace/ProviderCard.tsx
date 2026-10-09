@@ -131,9 +131,13 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           ) : (
             <span className="text-muted-foreground italic">No Reviews Yet</span>
           )}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" data-testid="artisan-location">
             <MapPin className="h-4 w-4" />
-            <span>{[provider.city, provider.state].filter(Boolean).join(", ")}</span>
+            <span>
+              {[provider.city, provider.state, (provider as Provider & { country?: string }).country]
+                .filter(Boolean)
+                .join(", ")}
+            </span>
           </div>
         </div>
 

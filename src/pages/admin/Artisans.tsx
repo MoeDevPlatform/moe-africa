@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Check, X, Loader2, Eye, Trash2 } from "lucide-react";
+import { Search, Check, X, Loader2, Eye, Trash2, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { countries, getStatesByCountry } from "@/data/countryStateData";
+import { metaService, type ServiceCategoryOption } from "@/lib/apiServices";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +82,73 @@ const Artisans = () => {
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategoryOption[]>([]);
+  const [createForm, setCreateForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    businessName: "",
+    serviceCategories: [] as string[],
+    country: "",
+    state: "",
+    city: "",
+  });
+
+  useEffect(() => {
+    metaService.getServiceCategories().then(setServiceCategories).catch(() => setServiceCategories([]));
+  }, []);
+
+  const createStates = createForm.country ? getStatesByCountry(createForm.country) : [];
+
+  const handleCreateArtisan = async () => {
+    if (
+      !createForm.firstName.trim() ||
+      !createForm.lastName.trim() ||
+      !createForm.email.trim() ||
+      !createForm.password.trim() ||
+      !createForm.businessName.trim()
+    ) {
+      toast.error("Fill in all required fields");
+      return;
+    }
+    setCreating(true);
+    try {
+      await adminService.createArtisan({
+        firstName: createForm.firstName.trim(),
+        lastName: createForm.lastName.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        businessName: createForm.businessName.trim(),
+        serviceCategories: createForm.serviceCategories,
+        country: createForm.country,
+        state: createForm.state,
+        city: createForm.city.trim(),
+      });
+      toast.success(
+        <span data-testid="success-toast">Artisan created successfully</span>,
+      );
+      setCreateOpen(false);
+      setCreateForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        businessName: "",
+        serviceCategories: [],
+        country: "",
+        state: "",
+        city: "",
+      });
+      load(pagination.page, statusFilter);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to create artisan");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const load = (page = 1, status: ApprovalStatus | "all" = statusFilter) => {
     setIsLoading(true);
@@ -223,12 +293,18 @@ const Artisans = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Artisans</h1>
-          <p className="mt-1 text-muted-foreground">
-            Review, approve, reject, or permanently delete artisan accounts
-          </p>
-          <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/artisans</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Artisans</h1>
+            <p className="mt-1 text-muted-foreground">
+              Review, approve, reject, or permanently delete artisan accounts
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/artisans</p>
+          </div>
+          <Button data-testid="add-artisan-btn" onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Artisan
+          </Button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -530,6 +606,142 @@ const Artisans = () => {
               }
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add artisan</DialogTitle>
+            <DialogDescription>Create a new artisan account (POST /admin/artisans).</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First name</Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  value={createForm.firstName}
+                  onChange={(e) => setCreateForm({ ...createForm, firstName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  value={createForm.lastName}
+                  onChange={(e) => setCreateForm({ ...createForm, lastName: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business name</Label>
+              <Input
+                id="businessName"
+                name="businessName"
+                value={createForm.businessName}
+                onChange={(e) => setCreateForm({ ...createForm, businessName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Service categories</Label>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                {serviceCategories.map((cat) => {
+                  const checked = createForm.serviceCategories.includes(cat.name);
+                  return (
+                    <label key={cat.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            serviceCategories: v
+                              ? [...prev.serviceCategories, cat.name]
+                              : prev.serviceCategories.filter((c) => c !== cat.name),
+                          }));
+                        }}
+                      />
+                      {cat.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select
+                value={createForm.country}
+                onValueChange={(v) => setCreateForm({ ...createForm, country: v, state: "" })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                <SelectContent>
+                  {countries.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Select
+                  value={createForm.state}
+                  onValueChange={(v) => setCreateForm({ ...createForm, state: v })}
+                  disabled={!createForm.country}
+                >
+                  <SelectTrigger><SelectValue placeholder="State" /></SelectTrigger>
+                  <SelectContent>
+                    {createStates.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={createForm.city}
+                  onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button
+              data-testid="create-artisan-submit"
+              onClick={handleCreateArtisan}
+              disabled={creating}
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create artisan"}
             </Button>
           </DialogFooter>
         </DialogContent>

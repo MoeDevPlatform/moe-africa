@@ -20,6 +20,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 import { Check, X as XIcon } from "lucide-react";
 import { AlreadySignedInRedirect } from "@/components/auth/AlreadySignedInRedirect";
+import {
+  resolveSignupErrorMessage,
+  rateLimitMessage,
+} from "@/lib/authErrors";
+import { useAuthRateLimitCooldown } from "@/hooks/useAuthRateLimitCooldown";
 
 const passwordSchema = z
   .string()
@@ -50,12 +55,19 @@ const Auth = () => {
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const { login, register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const signInRateLimit = useAuthRateLimitCooldown();
+  const signUpRateLimit = useAuthRateLimitCooldown();
+  const forgotRateLimit = useAuthRateLimitCooldown();
 
   // Sign in state
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   // Sign up state
   const [firstName, setFirstName] = useState("");
@@ -87,17 +99,46 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError("");
     setIsLoading(true);
     try {
       await login(signInEmail, signInPassword, rememberMe);
       toast.success("Welcome back!");
       navigate("/marketplace");
-    } catch (err: any) {
-      const e = err as MoeApiError;
-      toast.error(e?.message || "Invalid email or password");
+    } catch (err: unknown) {
+      if (signInRateLimit.applyRateLimit(err)) {
+        const msg = rateLimitMessage(err);
+        setAuthError(msg);
+        toast.error(msg);
+      } else {
+        const e = err as MoeApiError;
+        const msg = e?.message || "Invalid email or password";
+        setAuthError(msg);
+        toast.error(msg);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    setIsLoading(true);
+    try {
+      await authService.forgotPassword({ email: resetEmail.trim() });
+    } catch (err: unknown) {
+      if (forgotRateLimit.applyRateLimit(err)) {
+        const msg = rateLimitMessage(err);
+        setAuthError(msg);
+        toast.error(msg);
+        return;
+      }
+      // Do not reveal whether the email exists.
+    } finally {
+      setIsLoading(false);
+    }
+    setResetSuccess(true);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -119,6 +160,7 @@ const Auth = () => {
       toast.error("Select at least one service category");
       return;
     }
+    setAuthError("");
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
@@ -131,8 +173,16 @@ const Auth = () => {
       );
       toast.success("Account created successfully!");
       navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
-    } catch (err: any) {
-      toast.error(err?.message || "Registration failed");
+    } catch (err: unknown) {
+      if (signUpRateLimit.applyRateLimit(err)) {
+        const msg = rateLimitMessage(err);
+        setAuthError(msg);
+        toast.error(msg);
+      } else {
+        const msg = resolveSignupErrorMessage(err);
+        setAuthError(msg);
+        toast.error(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -153,83 +203,176 @@ const Auth = () => {
           </CardHeader>
 
           <CardContent>
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs
+              defaultValue={defaultTab}
+              className="w-full"
+              onValueChange={() => setAuthError("")}
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
-                {/* Google via Clerk OAuth redirect; the legacy backend OAuth button below is used when Clerk is off. */}
-                {isClerkEnabled && <ClerkGoogleButton mode="signIn" disabled={isLoading} />}
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="your.email@example.com"
-                      value={signInEmail}
-                      onChange={(e) => setSignInEmail(e.target.value)}
-                      required
-                    />
+                {resetSuccess ? (
+                  <div className="space-y-4 text-center py-2">
+                    <p
+                      className="text-sm text-muted-foreground"
+                      data-testid="reset-success"
+                    >
+                      If an account exists for that email, a reset link has been sent.
+                    </p>
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                      onClick={() => {
+                        setResetSuccess(false);
+                        setShowForgotPassword(false);
+                        setResetEmail("");
+                        setAuthError("");
+                      }}
+                    >
+                      Back to Sign In
+                    </button>
                   </div>
-                  <div>
-                    <Label htmlFor="signin-password">Password</Label>
-                    <div className="relative">
+                ) : showForgotPassword ? (
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <Label htmlFor="reset-email">Email</Label>
                       <Input
-                        id="signin-password"
-                        type={showSignInPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={signInPassword}
-                        onChange={(e) => setSignInPassword(e.target.value)}
+                        id="reset-email"
+                        name="resetEmail"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
                         required
-                        className="pr-10"
                       />
+                    </div>
+                    {authError && (
+                      <p className="text-sm text-destructive" data-testid="auth-error" role="alert">
+                        {authError}
+                      </p>
+                    )}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      data-testid="send-reset-btn"
+                      disabled={isLoading || forgotRateLimit.isCoolingDown}
+                    >
+                      {isLoading
+                        ? "Sending..."
+                        : forgotRateLimit.isCoolingDown
+                          ? forgotRateLimit.cooldownLabel
+                          : "Send Reset Link"}
+                    </Button>
+                    <div className="text-center">
                       <button
                         type="button"
-                        aria-label={showSignInPassword ? "Hide password" : "Show password"}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowSignInPassword((v) => !v)}
+                        className="text-sm text-primary hover:underline"
+                        onClick={() => {
+                          setShowForgotPassword(false);
+                          setAuthError("");
+                        }}
                       >
-                        {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        Back to Sign In
                       </button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="remember-me"
-                      checked={rememberMe}
-                      onCheckedChange={(v) => setRememberMe(v === true)}
-                    />
-                    <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">Remember me</Label>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                  {!isClerkEnabled && (
-                    <>
-                      <div className="relative my-2">
-                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                        <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                  </form>
+                ) : (
+                  <>
+                    {/* Google via Clerk OAuth redirect; the legacy backend OAuth button below is used when Clerk is off. */}
+                    {isClerkEnabled && <ClerkGoogleButton mode="signIn" disabled={isLoading} />}
+                    <form onSubmit={handleSignIn} className="space-y-4">
+                      <div>
+                        <Label htmlFor="signin-email">Email</Label>
+                        <Input
+                          id="signin-email"
+                          type="email"
+                          placeholder="your.email@example.com"
+                          value={signInEmail}
+                          onChange={(e) => setSignInEmail(e.target.value)}
+                          required
+                        />
                       </div>
+                      <div>
+                        <Label htmlFor="signin-password">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="signin-password"
+                            type={showSignInPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={signInPassword}
+                            onChange={(e) => setSignInPassword(e.target.value)}
+                            required
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowSignInPassword((v) => !v)}
+                          >
+                            {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="remember-me"
+                          checked={rememberMe}
+                          onCheckedChange={(v) => setRememberMe(v === true)}
+                        />
+                        <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">Remember me</Label>
+                      </div>
+                      {authError && (
+                        <p className="text-sm text-destructive" data-testid="auth-error" role="alert">
+                          {authError}
+                        </p>
+                      )}
                       <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={handleGoogle}
-                        disabled={isLoading}
+                        type="submit"
+                        className="w-full"
+                        disabled={isLoading || signInRateLimit.isCoolingDown}
                       >
-                        <Mail className="h-4 w-4" /> Continue with Google
+                        {isLoading
+                          ? "Signing in..."
+                          : signInRateLimit.isCoolingDown
+                            ? signInRateLimit.cooldownLabel
+                            : "Sign In"}
                       </Button>
-                    </>
-                  )}
-                  <div className="text-center">
-                    <a href="#" className="text-sm text-primary hover:underline">
-                      Forgot password?
-                    </a>
-                  </div>
-                </form>
+                      {!isClerkEnabled && (
+                        <>
+                          <div className="relative my-2">
+                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full gap-2"
+                            onClick={handleGoogle}
+                            disabled={isLoading}
+                          >
+                            <Mail className="h-4 w-4" /> Continue with Google
+                          </Button>
+                        </>
+                      )}
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          className="text-sm text-primary hover:underline"
+                          onClick={() => {
+                            setShowForgotPassword(true);
+                            setAuthError("");
+                          }}
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="signup">
@@ -437,8 +580,22 @@ const Auth = () => {
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
+                  {authError && (
+                    <p className="text-sm text-destructive" data-testid="auth-error" role="alert">
+                      {authError}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    data-testid="signup-btn"
+                    disabled={isLoading || signUpRateLimit.isCoolingDown}
+                  >
+                    {isLoading
+                      ? "Creating account..."
+                      : signUpRateLimit.isCoolingDown
+                        ? signUpRateLimit.cooldownLabel
+                        : `Create ${role === "artisan" ? "Artisan" : ""} Account`}
                   </Button>
                   {!isClerkEnabled && role === "customer" && (
                     <>
