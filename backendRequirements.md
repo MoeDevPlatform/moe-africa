@@ -514,6 +514,38 @@ without a code change, and the "Add Category" button on
 `/admin/categories` either no-ops or only persists changes in the current
 browser via `localStorage`.
 
+## 12a. Admin artisan hard-delete (DELETE /admin/artisans/:id)
+
+Admins need to permanently remove an artisan — not just reject them.
+`DELETE /admin/artisans/:id` is **not yet deployed** on the live API
+(currently returns `Cannot DELETE /admin/artisans/:id`). Until it ships,
+the frontend falls back to `DELETE /admin/users/:id` for the same id used
+by artisan status routes.
+
+`DELETE /admin/artisans/:id`
+
+- Auth: admin only.
+- Optional query: `?reason=<string>` — audit log only.
+- Behaviour:
+  1. Soft-delete or hard-delete the artisan profile so it disappears from
+     public providers, admin artisan lists, recommendations, and scores.
+  2. Cascade or soft-delete the artisan's products (same visibility rules
+     as product hard-delete), or leave products orphaned only if order
+     history requires denormalised snapshots.
+  3. Prefer also deactivating / deleting the linked user account when the
+     role is artisan-only.
+- Response: `204` on success. `404` if missing. `403` for non-admin.
+
+### Frontend behaviour
+
+- "Delete" on `/admin/artisans` (row + bulk) and `/admin/artisans/:id`.
+- Calls `adminService.removeArtisan(id)` which tries artisan DELETE first,
+  then falls back to user DELETE.
+
+**User-facing consequence if not built:** Delete may remove the user login
+via fallback but leave an orphaned artisan profile visible until this route
+exists.
+
 ## 12. Admin product hard-delete (DELETE /admin/products/:id)
 
 Admins need to permanently remove a product from the system — not just

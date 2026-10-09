@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   adminService,
@@ -38,6 +48,7 @@ const ArtisanDetailPage = () => {
   const [action, setAction] = useState<ApprovalStatus | null>(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -74,6 +85,26 @@ const ArtisanDetailPage = () => {
       toast.error(e?.message || "Status update failed");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!detail) return;
+    setSubmitting(true);
+    try {
+      await adminService.removeArtisan(
+        detail.user.id,
+        reason.trim() || undefined,
+      );
+      toast.success(
+        `"${detail.artisanProfile.brandName}" deleted permanently`,
+      );
+      navigate("/admin/artisans");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete artisan");
+    } finally {
+      setSubmitting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -129,6 +160,13 @@ const ArtisanDetailPage = () => {
                     <X className="h-4 w-4" /> Reject
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  onClick={() => setConfirmDelete(true)}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </Button>
               </div>
             </div>
 
@@ -207,6 +245,47 @@ const ArtisanDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={confirmDelete}
+        onOpenChange={(o) => {
+          if (!o) {
+            setConfirmDelete(false);
+            setReason("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete "{detail?.artisanProfile.brandName}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the artisan account from the admin portal and
+              marketplace. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Optional reason (audit)"
+            className="mt-2"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Check, X, Loader2, Eye, FileText, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -58,6 +59,10 @@ const statusVariant = (s: ProductStatus) =>
     ? "outline"
     : "secondary";
 
+type BulkStatusAction = { kind: "status"; next: ProductStatus };
+type BulkDeleteAction = { kind: "delete" };
+type BulkAction = BulkStatusAction | BulkDeleteAction;
+
 const Products = () => {
   const [params, setParams] = useSearchParams();
   const initialStatus = (params.get("status") as ProductStatus | null) ?? "all";
@@ -72,13 +77,14 @@ const Products = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "all">(initialStatus);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [actionRow, setActionRow] = useState<
     { row: AdminProductRow; next: ProductStatus } | null
   >(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [removeRow, setRemoveRow] = useState<AdminProductRow | null>(null);
-  const [isRemoving, setIsRemoving] = useState(false);
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
 
   const load = (page = 1, status: ProductStatus | "all" = statusFilter) => {
     setIsLoading(true);
@@ -93,6 +99,7 @@ const Products = () => {
         setPagination(
           res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 },
         );
+        setSelected(new Set());
       })
       .catch((e: any) => toast.error(e?.message || "Failed to load products"))
       .finally(() => setIsLoading(false));
@@ -106,12 +113,40 @@ const Products = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const filtered = rows.filter((r) =>
-    !search
-      ? true
-      : r.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.artisan?.toLowerCase().includes(search.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      rows.filter((r) =>
+        !search
+          ? true
+          : r.name.toLowerCase().includes(search.toLowerCase()) ||
+            r.artisan?.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [rows, search],
   );
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const selectedCount = selected.size;
+
+  const toggleOne = (id: number, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleAllFiltered = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const r of filtered) {
+        if (checked) next.add(r.id);
+        else next.delete(r.id);
+      }
+      return next;
+    });
+  };
 
   const handleAction = async () => {
     if (!actionRow) return;
@@ -135,17 +170,54 @@ const Products = () => {
 
   const handleRemove = async () => {
     if (!removeRow) return;
-    setIsRemoving(true);
+    setIsSubmitting(true);
     try {
-      await adminService.removeProduct(removeRow.id);
+      await adminService.removeProduct(removeRow.id, reason.trim() || undefined);
       toast.success(`"${removeRow.name}" removed from the marketplace`);
       setRemoveRow(null);
+      setReason("");
       load(pagination.page, statusFilter);
     } catch (e: any) {
       toast.error(e?.message || "Failed to remove product");
     } finally {
-      setIsRemoving(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleBulk = async () => {
+    if (!bulkAction || selectedCount === 0) return;
+    setIsSubmitting(true);
+    const ids = [...selected];
+    let ok = 0;
+    let fail = 0;
+    const note = reason.trim() || undefined;
+
+    for (const id of ids) {
+      try {
+        if (bulkAction.kind === "delete") {
+          await adminService.removeProduct(id, note);
+        } else {
+          await adminService.setProductStatus(id, bulkAction.next, note);
+        }
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+
+    if (ok) {
+      toast.success(
+        bulkAction.kind === "delete"
+          ? `Deleted ${ok} product${ok === 1 ? "" : "s"}`
+          : `Marked ${ok} product${ok === 1 ? "" : "s"} as ${bulkAction.next}`,
+      );
+    }
+    if (fail) toast.error(`${fail} product${fail === 1 ? "" : "s"} failed`);
+
+    setBulkAction(null);
+    setReason("");
+    setIsSubmitting(false);
+    load(pagination.page, statusFilter);
   };
 
   return (
@@ -153,7 +225,9 @@ const Products = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Products</h1>
-          <p className="mt-1 text-muted-foreground">Approve, reject, or move products to draft</p>
+          <p className="mt-1 text-muted-foreground">
+            Approve, reject, draft, or permanently delete products — including in bulk
+          </p>
           <p className="text-xs text-muted-foreground/60 mt-1 font-mono">GET /admin/products</p>
         </div>
 
@@ -184,6 +258,49 @@ const Products = () => {
           </Select>
         </div>
 
+        {selectedCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-3">
+            <span className="text-sm font-medium mr-2">
+              {selectedCount} selected
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => setBulkAction({ kind: "status", next: "approved" })}
+            >
+              <Check className="h-4 w-4" /> Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 text-destructive"
+              onClick={() => setBulkAction({ kind: "status", next: "rejected" })}
+            >
+              <X className="h-4 w-4" /> Reject
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => setBulkAction({ kind: "status", next: "draft" })}
+            >
+              <FileText className="h-4 w-4" /> Draft
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 text-destructive"
+              onClick={() => setBulkAction({ kind: "delete" })}
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              Clear
+            </Button>
+          </div>
+        )}
+
         <Card className="border-border bg-card overflow-hidden">
           {isLoading ? (
             <div className="space-y-3 p-4">
@@ -195,6 +312,13 @@ const Products = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={(v) => toggleAllFiltered(v === true)}
+                      aria-label="Select all on this page"
+                    />
+                  </TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Price</TableHead>
@@ -206,13 +330,20 @@ const Products = () => {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                       No products match these filters.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((row) => (
-                    <TableRow key={row.id}>
+                    <TableRow key={row.id} data-state={selected.has(row.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selected.has(row.id)}
+                          onCheckedChange={(v) => toggleOne(row.id, v === true)}
+                          aria-label={`Select ${row.name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{row.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{row.category}</Badge>
@@ -270,9 +401,9 @@ const Products = () => {
                             variant="ghost"
                             className="gap-1 text-destructive hover:text-destructive"
                             onClick={() => setRemoveRow(row)}
-                            aria-label={`Remove ${row.name}`}
+                            aria-label={`Delete ${row.name}`}
                           >
-                            <Trash2 className="h-4 w-4" /> Remove
+                            <Trash2 className="h-4 w-4" /> Delete
                           </Button>
                         </div>
                       </TableCell>
@@ -368,23 +499,107 @@ const Products = () => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!removeRow} onOpenChange={(o) => { if (!o) setRemoveRow(null); }}>
+      <Dialog
+        open={!!bulkAction}
+        onOpenChange={(o) => {
+          if (!o) {
+            setBulkAction(null);
+            setReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {bulkAction?.kind === "delete"
+                ? `Delete ${selectedCount} product${selectedCount === 1 ? "" : "s"}`
+                : bulkAction?.kind === "status"
+                ? `${
+                    bulkAction.next === "approved"
+                      ? "Approve"
+                      : bulkAction.next === "rejected"
+                      ? "Reject"
+                      : "Draft"
+                  } ${selectedCount} product${selectedCount === 1 ? "" : "s"}`
+                : "Bulk action"}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkAction?.kind === "delete"
+                ? "This permanently removes the selected products from the marketplace, storefronts, search, and wishlists. This cannot be undone."
+                : bulkAction?.kind === "status" && bulkAction.next === "approved"
+                ? "Selected products will become visible to customers."
+                : bulkAction?.kind === "status" && bulkAction.next === "rejected"
+                ? "Provide a shared reason applied to every selected product."
+                : "Selected products will be hidden from the public catalog."}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={
+              bulkAction?.kind === "status" && bulkAction.next === "rejected"
+                ? "Reason for rejection (required)"
+                : "Optional note"
+            }
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkAction(null)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={bulkAction?.kind === "delete" ? "destructive" : "default"}
+              onClick={handleBulk}
+              disabled={
+                isSubmitting ||
+                (bulkAction?.kind === "status" &&
+                  bulkAction.next === "rejected" &&
+                  !reason.trim())
+              }
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!removeRow}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRemoveRow(null);
+            setReason("");
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove "{removeRow?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete "{removeRow?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently deletes the product from the marketplace, the artisan's storefront,
               search, wishlists, and all other surfaces. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Optional reason (audit)"
+            className="mt-2"
+          />
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleRemove(); }}
-              disabled={isRemoving}
+              onClick={(e) => {
+                e.preventDefault();
+                handleRemove();
+              }}
+              disabled={isSubmitting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove permanently"}
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

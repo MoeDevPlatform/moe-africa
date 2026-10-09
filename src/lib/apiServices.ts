@@ -1945,6 +1945,23 @@ export const adminService = {
       reason ? { status, reason } : { status },
     ),
 
+  /**
+   * Permanently remove an artisan. Prefers DELETE /admin/artisans/:id.
+   * Falls back to DELETE /admin/users/:id when the artisan delete route is not
+   * yet deployed (live API currently 404s artisan DELETE).
+   */
+  removeArtisan: async (id: number, reason?: string) => {
+    const qs = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+    try {
+      return await apiDelete<void>(`/admin/artisans/${id}${qs}`);
+    } catch (err) {
+      if (err instanceof MoeApiError && (err.status === 404 || err.status === 405)) {
+        return apiDelete<{ success: boolean }>(`/admin/users/${id}`);
+      }
+      throw err;
+    }
+  },
+
   listProducts: (params?: { page?: number; pageSize?: number; status?: ProductStatus }) =>
     apiGet<PaginatedResponse<AdminProductRow>>(
       "/admin/products",
