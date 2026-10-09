@@ -517,34 +517,28 @@ browser via `localStorage`.
 ## 12a. Admin artisan hard-delete (DELETE /admin/artisans/:id)
 
 Admins need to permanently remove an artisan — not just reject them.
-`DELETE /admin/artisans/:id` is **not yet deployed** on the live API
-(currently returns `Cannot DELETE /admin/artisans/:id`). Until it ships,
-the frontend falls back to `DELETE /admin/users/:id` for the same id used
-by artisan status routes.
 
-`DELETE /admin/artisans/:id`
+`DELETE /admin/artisans/:id` — **implemented in moe-backend**
 
 - Auth: admin only.
-- Optional query: `?reason=<string>` — audit log only.
+- Optional query: `?reason=<string>` — stored on `AdminAuditLog`.
 - Behaviour:
-  1. Soft-delete or hard-delete the artisan profile so it disappears from
-     public providers, admin artisan lists, recommendations, and scores.
-  2. Cascade or soft-delete the artisan's products (same visibility rules
-     as product hard-delete), or leave products orphaned only if order
-     history requires denormalised snapshots.
-  3. Prefer also deactivating / deleting the linked user account when the
-     role is artisan-only.
-- Response: `204` on success. `404` if missing. `403` for non-admin.
+  1. Soft-delete all active products (`deletedAt`) belonging to the artisan
+     and purge wishlist/review rows + in-memory carts.
+  2. Mark `ArtisanProfile.status = 'deleted'` (hidden from admin list /
+     public providers; `GET /admin/artisans/:id` returns 404).
+  3. Suspend the linked user (`User.status = 'suspended'`) so login fails.
+  4. Does **not** hard-delete the User row (would cascade-delete products
+     and break order snapshots).
+- Response: `204` on success. `404` if missing/already deleted. `400` if
+  targeting an admin account or self.
 
 ### Frontend behaviour
 
 - "Delete" on `/admin/artisans` (row + bulk) and `/admin/artisans/:id`.
-- Calls `adminService.removeArtisan(id)` which tries artisan DELETE first,
-  then falls back to user DELETE.
-
-**User-facing consequence if not built:** Delete may remove the user login
-via fallback but leave an orphaned artisan profile visible until this route
-exists.
+- Calls `adminService.removeArtisan(id)` → `DELETE /admin/artisans/:id`
+  (falls back to `DELETE /admin/users/:id` only if artisan route 404s on
+  older deployments).
 
 ## 12. Admin product hard-delete (DELETE /admin/products/:id)
 
