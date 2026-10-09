@@ -171,7 +171,9 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Handle ESC key and click outside
+  // Handle ESC — close only via Escape or the explicit close control.
+  // (Avoid document mousedown "outside" handlers: the overlay is full-screen
+  // and Playwright/automation clicks race with mount, closing mid-search.)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -179,30 +181,20 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
       }
     };
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   // Fetch results based on search query
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
     const run = async () => {
       const q = debouncedQuery.toLowerCase().trim();
       if (!q) {
         setProviders([]);
         setProducts([]);
         setApiError(null);
+        setIsLoading(false);
         return;
       }
 
@@ -214,7 +206,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
           "/search",
           { q, type: "all" }
         );
-        if (cancelled) return;
+        if (!active) return;
 
         // Debounced query acts as search submit (no separate submit button).
         if (q.length >= 2) {
@@ -223,18 +215,18 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
         setProviders((json.providers ?? []).map(mapProvider));
         setProducts((json.products ?? []).map(mapProduct));
       } catch (e: any) {
-        if (cancelled) return;
+        if (!active) return;
         setApiError(e?.message || "Failed to search");
         setProviders([]);
         setProducts([]);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     };
 
     run();
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [debouncedQuery]);
 

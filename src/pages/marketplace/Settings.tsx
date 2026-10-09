@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -740,12 +740,27 @@ const PaymentTermsSection = () => {
 };
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
+const SETTINGS_TABS = [
+  "account",
+  "security",
+  "notifications",
+  "preferences",
+  "addresses",
+  "payment",
+] as const;
+
 const Settings = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, updateUser, refreshProfile } = useAuth();
   const { preferences, hasPreferences, clearPreferences } = usePreferences();
   const [preferenceModalOpen, setPreferenceModalOpen] = useState(false);
+
+  const sectionParam = searchParams.get("section") ?? "account";
+  const activeTab = (SETTINGS_TABS as readonly string[]).includes(sectionParam)
+    ? sectionParam
+    : "account";
 
   // Account form state seeded from auth user
   const [accountForm, setAccountForm] = useState({
@@ -1016,7 +1031,15 @@ const Settings = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="account" className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("section", value);
+            setSearchParams(next, { replace: true });
+          }}
+          className="w-full"
+        >
           <TabsList className="w-full flex flex-wrap h-auto gap-1 mb-6 bg-muted/50 p-1 rounded-lg">
             <TabsTrigger value="account" className="flex items-center gap-2 flex-1 min-w-[120px]">
               <User className="h-4 w-4" /><span className="hidden sm:inline">Account</span>

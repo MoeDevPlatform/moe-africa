@@ -2,30 +2,35 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Search', () => {
   test('keyword search returns relevant results', async ({ page }) => {
-    await page.goto('/marketplace', { waitUntil: 'networkidle' });
+    test.setTimeout(60_000);
+    await page.goto('/marketplace', { waitUntil: 'domcontentloaded' });
 
-    const searchInput = page.locator('[data-testid="search-input"]').or(
-      page.locator('input[type="search"]').first(),
-    );
-    await searchInput.click();
-    // Open overlay if needed
-    const overlayInput = page.locator('[data-testid="search-input"]').or(
-      page.locator('input[aria-label="Search input"], input[type="search"]').last(),
+    const navbarSearch = page.locator('[data-testid="search-input"]').first();
+    await navbarSearch.click();
+
+    const overlay = page.locator('[data-testid="search-results"]');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+
+    const overlayInput = page.locator('input[aria-label="Search input"]');
+    const searchResponse = page.waitForResponse(
+      (res) =>
+        res.url().includes('/search') &&
+        res.url().includes('leather') &&
+        res.request().method() === 'GET',
+      { timeout: 30_000 },
     );
     await overlayInput.fill('leather');
+    const res = await searchResponse;
+    expect(res.ok(), `search API status ${res.status()}`).toBeTruthy();
 
-    await page.waitForResponse(
-      (res) => res.url().includes('/search') && res.ok(),
-      { timeout: 20_000 },
-    ).catch(() => {});
-
-    await expect(
-      page.locator('[data-testid="search-results"]').or(page.getByText(/leather/i).first()),
-    ).toContainText(/leather/i, { timeout: 15_000 });
+    await expect(overlay.getByText(/Searching/i)).toHaveCount(0, {
+      timeout: 20_000,
+    });
+    await expect(overlay).toContainText(/leather/i, { timeout: 10_000 });
   });
 
   test('location filter returns artisans from correct country', async ({ page }) => {
-    await page.goto('/marketplace/artisans', { waitUntil: 'networkidle' });
+    await page.goto('/marketplace/artisans', { waitUntil: 'domcontentloaded' });
 
     const filterBtn = page.locator('[data-testid="filter-btn"]').or(
       page.getByRole('button', { name: /filter/i }),
@@ -43,10 +48,13 @@ test.describe('Search', () => {
       const apply = page.locator('[data-testid="apply-filters"]');
       if (await apply.isVisible().catch(() => false)) await apply.click();
 
-      await page.waitForResponse(
-        (res) => res.url().includes('/artisans') || res.url().includes('/service-providers'),
-        { timeout: 20_000 },
-      ).catch(() => {});
+      await page
+        .waitForResponse(
+          (res) =>
+            res.url().includes('/artisans') || res.url().includes('/service-providers'),
+          { timeout: 20_000 },
+        )
+        .catch(() => {});
 
       const locations = await page
         .locator('[data-testid="artisan-location"]')

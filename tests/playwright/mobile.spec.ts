@@ -4,26 +4,40 @@ test.describe('Mobile scroll', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('preference page scrolls on mobile', async ({ page }) => {
-    // Preferences may live on marketplace home (modal) or a dedicated route
-    await page.goto('/marketplace', { waitUntil: 'networkidle' });
+    // Preferences live under Settings (not /marketplace/preferences)
+    await page.goto('/marketplace/settings?section=preferences', {
+      waitUntil: 'networkidle',
+    });
 
-    const prefsLink = page.locator('a[href*="preferences"]').or(
-      page.getByRole('button', { name: /preferences|customise|personalize/i }),
-    );
-    if (await prefsLink.first().isVisible().catch(() => false)) {
-      await prefsLink.first().click();
-    } else {
-      await page.goto('/marketplace/preferences', { waitUntil: 'networkidle' }).catch(() => {});
+    // Ensure preferences tab content is active (URL param or tab click)
+    const prefsTab = page.getByRole('tab', { name: /preferences/i });
+    if (await prefsTab.isVisible().catch(() => false)) {
+      await prefsTab.click();
     }
 
-    const scrollHeight = await page.evaluate(
-      () => document.documentElement.scrollHeight,
-    );
-    expect(scrollHeight).toBeGreaterThan(844);
+    await expect(
+      page.getByText(/personalization|preferences|haven't set/i).first(),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const metrics = await page.evaluate(() => {
+      const el = document.documentElement;
+      return {
+        scrollHeight: Math.max(
+          document.body.scrollHeight,
+          el.scrollHeight,
+        ),
+        clientHeight: el.clientHeight,
+      };
+    });
+
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
   });
 
   test('marketplace home does not clip vertical content', async ({ page }) => {
-    await page.goto('/marketplace', { waitUntil: 'networkidle' });
+    await page.goto('/marketplace', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('text=/Browse by Category|Featured|marketplace/i', {
+      timeout: 20_000,
+    }).catch(() => {});
     const overflow = await page.evaluate(() => {
       const body = document.body;
       const html = document.documentElement;
