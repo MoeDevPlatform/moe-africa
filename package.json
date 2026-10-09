@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:seed": "playwright test tests/seed-artisans-products.spec.ts --project=chromium",
+    "test:seed:report": "playwright show-report"
   },
   "dependencies": {
     "@clerk/react": "^6.17.5",
