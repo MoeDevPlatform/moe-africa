@@ -1,12 +1,13 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
+import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
 import FilterDrawer, { FilterState, providerMatchesLocation } from "@/components/marketplace/FilterDrawer";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +47,9 @@ const getCreatedAtMs = (p: ProviderWithMeta): number => {
 const MarketplaceHome = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { categories: dynamicCategories } = useCategories();
+  const { preferences, hasPreferences } = usePreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
   const [artisanSort, setArtisanSort] = useState("featured");
@@ -62,7 +65,19 @@ const MarketplaceHome = () => {
     minRating: null,
     availableOnly: false,
   });
-  const { preferences, hasPreferences } = usePreferences();
+
+  // Apply ?categories= from onboarding (or preferredCategories when no params).
+  useEffect(() => {
+    const fromQuery = searchParams.get("categories");
+    if (fromQuery) {
+      const first = fromQuery.split(",").map((s) => s.trim()).filter(Boolean)[0];
+      if (first) setSelectedCategory(first);
+      return;
+    }
+    if (!searchParams.toString() && preferences.categories[0]) {
+      setSelectedCategory(preferences.categories[0]);
+    }
+  }, [searchParams, preferences.categories]);
 
   // API-driven data — empty until loaded
   const [allProviders, setAllProviders] = useState<Provider[]>([]);
@@ -356,13 +371,14 @@ const MarketplaceHome = () => {
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">
-        {/* Preference Banner — visible when the user has saved preferences. */}
-        {hasPreferences && (
+        {/* Preference Banner — only when filters match something (never zero-result prompt). */}
+        {hasPreferences &&
+          (preferenceProducts.length > 0 || preferenceProviders.length > 0) && (
           <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border bg-primary/5 px-4 py-3 text-sm">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
               <span className="text-foreground">
-                Showing {preferenceProducts.length} product{preferenceProducts.length === 1 ? "" : "s"} and {preferenceProviders.length} artisan{preferenceProviders.length === 1 ? "" : "s"} matched to your preferences
+                Showing picks matched to your preferences
                 {preferences.categories.length ? ` (${preferences.categories.join(", ")})` : ""}.
               </span>
             </div>
@@ -458,6 +474,8 @@ const MarketplaceHome = () => {
 
         {/* Featured Products */}
         <FeaturedProducts />
+
+        <RecentlyViewed />
 
         {/* Picked for you — only when preferences are set. */}
         {hasPreferences && (preferenceProviders.length > 0 || preferenceProducts.length > 0) && (

@@ -63,7 +63,11 @@ const ArtisanScores = () => {
               Internal composite ranking (admin only)
             </p>
           </div>
-          <Button onClick={recalculate} disabled={recalculating}>
+          <Button
+            data-testid="recalculate-btn"
+            onClick={recalculate}
+            disabled={recalculating}
+          >
             {recalculating ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
@@ -81,7 +85,7 @@ const ArtisanScores = () => {
             {loading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <Table>
+              <Table data-testid="scores-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Artisan</TableHead>

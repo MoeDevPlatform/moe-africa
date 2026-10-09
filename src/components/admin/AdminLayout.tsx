@@ -14,6 +14,7 @@ import {
   MessageSquare,
   LayoutList,
   Gauge,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
     { name: "Customer Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMessages },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
     { name: "Settings", href: "/admin/settings", icon: SettingsIcon },
   ];
 

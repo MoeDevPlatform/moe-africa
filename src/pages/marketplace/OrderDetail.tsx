@@ -24,9 +24,20 @@ import {
 import {
   isActiveOrderStatus,
   ordersService,
+  disputesService,
   type Order,
   type OrderStatusHistoryEntry,
 } from "@/lib/apiServices";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 const STEPS = [
   { id: "pending", title: "Order received", icon: Package },
@@ -46,6 +57,11 @@ const OrderDetail = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [history, setHistory] = useState<OrderStatusHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDispute, setShowDispute] = useState(false);
+  const [issueType, setIssueType] = useState("Item not received");
+  const [disputeDesc, setDisputeDesc] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
 
   const load = async () => {
     if (!orderId) return;
@@ -201,6 +217,83 @@ const OrderDetail = () => {
             ))}
           </CollapsibleContent>
         </Collapsible>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Need help with this order?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {disputeSubmitted ? (
+              <p className="text-sm text-muted-foreground">
+                Your report has been submitted. Our team will review it within 2 business days.
+              </p>
+            ) : !showDispute ? (
+              <Button variant="outline" onClick={() => setShowDispute(true)}>
+                Report a Problem
+              </Button>
+            ) : (
+              <form
+                className="space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (disputeDesc.trim().length < 20) {
+                    toast.error("Please describe the issue (at least 20 characters)");
+                    return;
+                  }
+                  setSubmittingDispute(true);
+                  try {
+                    await disputesService.create({
+                      orderId: Number(order.id),
+                      issueType,
+                      description: disputeDesc.trim(),
+                    });
+                    setDisputeSubmitted(true);
+                    toast.success("Report submitted");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "Failed to submit report");
+                  } finally {
+                    setSubmittingDispute(false);
+                  }
+                }}
+              >
+                <div className="space-y-2">
+                  <Label>Issue type</Label>
+                  <Select value={issueType} onValueChange={setIssueType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Item not received">Item not received</SelectItem>
+                      <SelectItem value="Item not as described">Item not as described</SelectItem>
+                      <SelectItem value="Wrong item">Wrong item</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dispute-desc">Description</Label>
+                  <Textarea
+                    id="dispute-desc"
+                    value={disputeDesc}
+                    onChange={(e) => setDisputeDesc(e.target.value)}
+                    minLength={20}
+                    required
+                    rows={4}
+                    placeholder="Tell us what went wrong (min 20 characters)"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={submittingDispute}>
+                    {submittingDispute ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit"}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setShowDispute(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
       </main>
 
       <Footer />

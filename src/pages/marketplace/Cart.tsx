@@ -100,9 +100,11 @@ const Cart = () => {
                               <span className="text-muted-foreground">Body Type:</span> <strong>{item.selectedBodyType}</strong>
                             </p>
                           )}
-                          {Object.keys(item.selectedVariants).length > 0 && (
+                          {Object.keys(item.selectedVariations || item.selectedVariants || {}).length > 0 && (
                             <p className="text-sm text-muted-foreground">
-                              {Object.values(item.selectedVariants).join(", ")}
+                              {Object.entries(item.selectedVariations || item.selectedVariants || {})
+                                .map(([k, v]) => `${k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}: ${v}`)
+                                .join(" · ")}
                             </p>
                           )}
                           {Object.keys(item.measurements).length > 0 && (

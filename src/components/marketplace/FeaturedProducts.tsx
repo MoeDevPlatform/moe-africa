@@ -175,9 +175,23 @@ const FeaturedProducts = () => {
       }
     };
 
+    const loadSeasonal = async () => {
+      try {
+        const matched = await sectionsService.seasonalMatched();
+        if ((matched.keywords ?? []).length > 0 && (matched.items ?? []).length > 0) {
+          return (matched.items ?? [])
+            .map((item) => mapSectionItem(item))
+            .filter((p): p is FeaturedProduct => Boolean(p));
+        }
+      } catch {
+        /* fall through to curated section */
+      }
+      return loadSection("seasonal_picks");
+    };
+
     Promise.all([
       loadSection("featured_picks"),
-      loadSection("seasonal_picks"),
+      loadSeasonal(),
       loadSection("featured_styles"),
       productsService.list().then((res) => res.data).catch(() => [] as Product[]),
     ]).then(([featured, seasonal, styles, allProducts]) => {

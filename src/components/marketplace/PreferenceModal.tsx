@@ -69,7 +69,14 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
     });
     
     onOpenChange(false);
-    if (!editMode) navigate("/marketplace");
+    if (!editMode) {
+      const cats = selectedCategories.join(",");
+      navigate(
+        cats
+          ? `/marketplace?categories=${encodeURIComponent(cats)}`
+          : "/marketplace",
+      );
+    }
   };
 
   const handleSkip = () => {
@@ -185,7 +192,11 @@ const PreferenceModal = ({ open, onOpenChange, editMode = false }: PreferenceMod
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSave} className="bg-primary">
+              <Button
+                data-testid="confirm-preferences"
+                onClick={handleSave}
+                className="bg-primary"
+              >
                 Save Preferences
               </Button>
             )}

@@ -53,12 +53,30 @@ const SectionDetail = () => {
     if (query.trim().length < 2) return;
     setSearching(true);
     try {
+      const q = query.trim().toLowerCase();
       const res = await searchService.search(
         query.trim(),
         itemType === "artisan" ? "providers" : "products",
       );
       if (itemType === "artisan") {
-        const providers = res.providers ?? [];
+        let providers = res.providers ?? [];
+        // Fallback: admin artisan list when /search returns nothing for short/admin names
+        if (providers.length === 0) {
+          try {
+            const adminList = await adminService.listArtisans({ pageSize: 100 });
+            providers = (adminList.data ?? [])
+              .filter((a) => {
+                const blob = `${a.brandName || ""} ${a.businessName || ""} ${a.name || ""} ${a.email || ""}`.toLowerCase();
+                return blob.includes(q);
+              })
+              .map((a) => ({
+                id: a.id,
+                brandName: a.brandName || a.businessName || a.name || `Artisan #${a.id}`,
+              })) as typeof providers;
+          } catch {
+            /* ignore */
+          }
+        }
         let scoreMap = new Map<number, number>();
         try {
           const scores = await adminService.listArtisanScores({ pageSize: 100 });
@@ -76,8 +94,19 @@ const SectionDetail = () => {
           })),
         );
       } else {
+        let products = res.products ?? [];
+        if (products.length === 0) {
+          try {
+            const adminProducts = await adminService.listProducts({ pageSize: 100 });
+            products = (adminProducts.data ?? [])
+              .filter((p) => (p.name || "").toLowerCase().includes(q))
+              .map((p) => ({ id: p.id, name: p.name })) as typeof products;
+          } catch {
+            /* ignore */
+          }
+        }
         setResults(
-          (res.products ?? []).map((p) => ({
+          products.map((p) => ({
             id: p.id,
             label: p.name || `Product #${p.id}`,
           })),
@@ -210,8 +239,9 @@ const SectionDetail = () => {
                     No curated items yet. Search below to add products or artisans.
                   </p>
                 ) : (
-                  items.map((item, index) => (
-                    <div
+                  <ul data-testid="curated-items" className="space-y-2">
+                  {items.map((item, index) => (
+                    <li
                       key={item.id}
                       draggable
                       onDragStart={() => setDragIndex(index)}
@@ -241,8 +271,9 @@ const SectionDetail = () => {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </div>
-                  ))
+                    </li>
+                  ))}
+                  </ul>
                 )}
               </CardContent>
             </Card>
@@ -256,6 +287,7 @@ const SectionDetail = () => {
               <CardContent className="space-y-3">
                 <div className="flex gap-2">
                   <Input
+                    data-testid={itemType === "artisan" ? "artisan-search" : "product-search"}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={`Search ${itemType}s…`}
@@ -266,7 +298,11 @@ const SectionDetail = () => {
                       }
                     }}
                   />
-                  <Button onClick={runSearch} disabled={searching}>
+                  <Button
+                    data-testid="search-btn"
+                    onClick={runSearch}
+                    disabled={searching}
+                  >
                     {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
                   </Button>
                 </div>
@@ -274,6 +310,7 @@ const SectionDetail = () => {
                   {results.map((r) => (
                     <div
                       key={r.id}
+                      data-testid="search-result"
                       className="flex items-center justify-between rounded-md border p-3"
                     >
                       <div>
@@ -284,7 +321,11 @@ const SectionDetail = () => {
                           </p>
                         )}
                       </div>
-                      <Button size="sm" onClick={() => addItem(r.id)}>
+                      <Button
+                        size="sm"
+                        data-testid="add-to-section"
+                        onClick={() => addItem(r.id)}
+                      >
                         Add
                       </Button>
                     </div>

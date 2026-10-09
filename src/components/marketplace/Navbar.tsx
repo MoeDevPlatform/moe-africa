@@ -17,6 +17,7 @@ import SearchResults from "./SearchResults";
 import NotificationCenter from "./NotificationCenter";
 import MegaMenu from "./MegaMenu";
 import MobileMenu from "./MobileMenu";
+import CartAbandonmentBanner from "./CartAbandonmentBanner";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -212,6 +213,7 @@ const MarketplaceNavbar = () => {
       )}
       
       <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)} />
+      <CartAbandonmentBanner />
       
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container mx-auto px-4">
@@ -338,11 +340,16 @@ const MarketplaceNavbar = () => {
               <Link to="/marketplace/cart">
                 <Button variant="ghost" size="icon" className="relative" aria-label={`Shopping cart${getItemCount() > 0 ? `, ${getItemCount()} items` : ''}`}>
                   <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-                  {getItemCount() > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold" aria-hidden="true">
-                      {getItemCount()}
-                    </span>
-                  )}
+                  <span
+                    data-testid="cart-count"
+                    className={
+                      getItemCount() > 0
+                        ? "absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold"
+                        : "sr-only"
+                    }
+                  >
+                    {getItemCount()}
+                  </span>
                 </Button>
               </Link>
             </IconTooltip>

@@ -1,17 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
-import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
-import CanvasCustomizationModal from "@/components/marketplace/CanvasCustomizationModal";
-import DynamicCustomizationModal from "@/components/marketplace/DynamicCustomizationModal";
 import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import ProductReviews from "@/components/marketplace/ProductReviews";
 import MessagingModal from "@/components/marketplace/MessagingModal";
-import ProviderCard from "@/components/marketplace/ProviderCard";
 import ProductCard from "@/components/marketplace/ProductCard";
+import ProductVariationSelector, {
+  type VariationSelection,
+} from "@/components/marketplace/ProductVariationSelector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,17 +21,16 @@ import {
   Heart,
   CheckCircle,
   ArrowLeft,
-  Sliders,
   MessageCircle,
   MapPin,
+  Shield,
+  ShoppingCart,
 } from "lucide-react";
-import {
-  getProductById as mockGetProductById,
-  getProviderById as mockGetProviderById,
-} from "@/data/mockData";
+import { getProviderById as mockGetProviderById } from "@/data/mockData";
 import { productsService, providersService, productReviewsService } from "@/lib/apiServices";
 import type { Product, Provider } from "@/data/mockData";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
@@ -50,12 +48,22 @@ import { trackBehaviour } from "@/lib/trackBehaviour";
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
   const [rushOrderCost, setRushOrderCost] = useState(0);
+  const [variations, setVariations] = useState<VariationSelection>({});
+  const [variationsReady, setVariationsReady] = useState(false);
   const { addItem, removeItem, isInWishlist } = useWishlist();
+  const { addItem: addToCart } = useCart();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const onVariationChange = useCallback(
+    (selection: VariationSelection, allRequiredSelected: boolean) => {
+      setVariations(selection);
+      setVariationsReady(allRequiredSelected);
+    },
+    [],
+  );
 
   // Scroll to top when product changes
   useEffect(() => {
@@ -193,15 +201,43 @@ const ProductDetail = () => {
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
+  const handleAddToCart = () => {
+    if (!product || !provider || !variationsReady) return;
+    const base = (product.priceRange?.min ?? 0) + rushOrderCost;
+    addToCart({
+      id: `${product.id}-${Date.now()}`,
+      productId: product.id,
+      productName: product.name,
+      providerId: product.providerId,
+      providerName: provider.brandName,
+      basePrice: base,
+      finalPrice: base,
+      category: (product.category as "tailoring" | "shoemaking" | "canvas") || "tailoring",
+      selectedSize: variations.size,
+      selectedVariants: variations,
+      measurements: {},
+      notes: "",
+      quantity: 1,
+      imageUrl: product.images?.[0],
+      customisation: variations,
+    });
+    toast({
+      title: "Added to cart",
+      description: `${product.name} is ready for checkout.`,
+    });
+  };
+
   const ActionButtons = (
     <>
       <Button
         size="lg"
         className="w-full bg-primary hover:bg-primary-dark"
-        onClick={() => setShowCustomizationForm(true)}
+        data-testid="add-to-cart-btn"
+        disabled={!variationsReady}
+        onClick={handleAddToCart}
       >
-        <Sliders className="h-4 w-4 mr-2" />
-        Customise &amp; Order
+        <ShoppingCart className="h-4 w-4 mr-2" />
+        {variationsReady ? "Add to Cart" : "Select options to add to cart"}
       </Button>
       <Button
         size="lg"
@@ -351,13 +387,26 @@ const ProductDetail = () => {
             </div>
 
             {/* 6. Delivery */}
-            <div className="flex items-center gap-2 text-sm">
+            <div
+              className="flex items-center gap-2 text-sm"
+              data-testid="delivery-timeline"
+            >
               <Clock className="h-4 w-4 text-primary flex-shrink-0" aria-hidden="true" />
               <span className="text-muted-foreground">
-                Est. delivery:{" "}
-                <span className="text-foreground font-medium">
-                  {deliveryDisplay ?? "Contact artisan for delivery time"}
-                </span>
+                {deliveryDisplay ? (
+                  <>
+                    Estimated delivery:{" "}
+                    <span className="text-foreground font-medium">
+                      {deliveryDisplay}
+                    </span>{" "}
+                    by{" "}
+                    <span className="text-foreground font-medium">
+                      {provider.brandName}
+                    </span>
+                  </>
+                ) : (
+                  <>Delivery time: Contact artisan for details</>
+                )}
               </span>
             </div>
 
@@ -367,6 +416,12 @@ const ProductDetail = () => {
                 {product.description}
               </p>
             )}
+
+            {/* Inline variations */}
+            <ProductVariationSelector
+              category={product.category}
+              onSelectionChange={onVariationChange}
+            />
 
             {/* 8. Tags */}
             {product.tags.length > 0 && (
@@ -394,6 +449,16 @@ const ProductDetail = () => {
               basePrice={product.priceRange.min}
               onRushOrderChange={handleRushOrderChange}
             />
+
+            {/* Buyer protection */}
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground flex gap-2">
+              <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+              <p>
+                <span className="font-medium text-foreground">Buyer Protection</span> — Your
+                payment is secure. If your order doesn&apos;t arrive or isn&apos;t as
+                described, we&apos;ll help you get a refund.
+              </p>
+            </div>
 
             {/* 10. Action buttons (desktop only — mobile uses sticky bar below) */}
             <div className="hidden lg:flex flex-col gap-2">{ActionButtons}</div>
@@ -494,44 +559,7 @@ const ProductDetail = () => {
 
       <MarketplaceFooter />
 
-      {product.category === "canvas" ? (
-        <CanvasCustomizationModal
-          open={showCustomizationForm}
-          onOpenChange={setShowCustomizationForm}
-          providerId={provider.id}
-          productId={product.id}
-          productName={product.name}
-          providerName={provider.brandName}
-          basePrice={product.priceRange.min + rushOrderCost}
-          estimatedDeliveryDays={product.estimatedDeliveryDays}
-          productImage={product.images?.[0]}
-        />
-      ) : product.category === "tailoring" || product.category === "shoemaking" ? (
-        <CustomizationFormModal
-          open={showCustomizationForm}
-          onOpenChange={setShowCustomizationForm}
-          providerId={provider.id}
-          productId={product.id}
-          productName={product.name}
-          providerName={provider.brandName}
-          basePrice={product.priceRange.min + rushOrderCost}
-          estimatedDeliveryDays={product.estimatedDeliveryDays}
-          category={product.category}
-          productImage={product.images?.[0]}
-        />
-      ) : (
-        <DynamicCustomizationModal
-          open={showCustomizationForm}
-          onOpenChange={setShowCustomizationForm}
-          providerId={provider.id}
-          productId={product.id}
-          productName={product.name}
-          providerName={provider.brandName}
-          basePrice={product.priceRange.min + rushOrderCost}
-          category={product.category}
-          productImage={product.images?.[0]}
-        />
-      )}
+      {/* Customisation modals kept in codebase but no longer opened from PDP */}
 
       <MessagingModal
         open={showMessaging}

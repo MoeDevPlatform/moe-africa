@@ -370,6 +370,11 @@ const Checkout = () => {
                   <span className="text-primary">₦{total.toLocaleString()}</span>
                 </div>
 
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1.5">
+                  <p>🔒 Secure Checkout — Your payment details are encrypted.</p>
+                  <p>📦 Order Protection — Covered if something goes wrong.</p>
+                </div>
+
                 <Button
                   type="submit"
                   disabled={isSubmitting || cartItems.length === 0}

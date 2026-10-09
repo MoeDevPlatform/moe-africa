@@ -37,7 +37,7 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
   if (products.length < 2) return null;
 
   return (
-    <section className="mb-8 md:mb-12">
+    <section className="mb-8 md:mb-12" data-testid="recently-viewed-section">
       <div className="flex items-center gap-2 mb-4 md:mb-6">
         <History className="h-5 w-5 md:h-6 md:w-6 text-primary" />
         <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">

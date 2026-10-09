@@ -2323,6 +2323,35 @@ export const eventsService = {
   }) => apiPost<void>("/events", body),
 };
 
+export interface Dispute {
+  id: string;
+  orderId: number;
+  customerId: number;
+  issueType: string;
+  description: string;
+  evidenceUrls: string[];
+  status: string;
+  resolution?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const disputesService = {
+  create: (body: {
+    orderId: number;
+    issueType: string;
+    description: string;
+    evidenceUrls?: string[];
+  }) => apiPost<Dispute>("/disputes", body),
+};
+
+export const adminDisputesService = {
+  list: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    apiGet<{ data: Dispute[]; total?: number }>("/admin/disputes", params as Record<string, unknown>),
+  update: (id: string, body: { status?: string; resolution?: string }) =>
+    apiPatch<Dispute>(`/admin/disputes/${id}`, body),
+};
+
 export interface AdminSectionItem {
   id: string;
   itemType: string;

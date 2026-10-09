@@ -97,7 +97,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
   }
 
   return (
-    <section className="mb-12 md:mb-16">
+    <section className="mb-12 md:mb-16" data-testid="featured-artisans-section">
       <div className="flex items-center gap-2 mb-6">
         <Award className="h-5 w-5 md:h-6 md:w-6 text-accent" />
         <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>

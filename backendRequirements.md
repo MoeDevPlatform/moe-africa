@@ -796,3 +796,35 @@ Status legend: 🔴 REQUIRED · 🟡 IN PROGRESS · 🟢 DONE (verify on deploy)
 - 🔴 Global trim pipe; strip HTML on free-text; `@IsEmail` / phone regex where collected
 
 See also root `security-audit.md`.
+
+---
+
+## Intelligence, Engagement & Commerce Sprint — Backend Contracts
+
+### Scoring & curation (existing — verify)
+
+- 🟢 `GET /admin/artisans/scores?page&pageSize` — paginated items with artisan name, compositeScore, orderCompletionRate, reviewQualityScore, activityScore, avgResponseTimeHrs, lastCalculatedAt. NaN-safe pagination. Scores never on public DTOs.
+- 🟢 `POST /admin/artisans/scores/recalculate`
+- 🟢 Composite: `0.35*completion + 0.30*review + 0.20*activity + 0.15*(100/(avgHrs+1))` (neutral 50 when no response data)
+- 🟢 `GET /sections/:sectionKey` with algorithmic fill when &lt; 4 curated items
+- 🟢 `GET /sections/seasonal_picks/matched` — curated + keyword OR match
+- 🟢 Admin section CRUD / reorder / seasonal keywords
+
+### Preferences
+
+- 🟢 `GET|PATCH|DELETE /customers/me/preferences`
+- 🟢 `POST /customers/me/preferences` — alias of PATCH (FE uses POST)
+
+### Behaviour / demand
+
+- 🟢 `POST /events` — optional auth, 5‑min dedupe per session+entity
+- 🟢 `GET /products/:id` includes `viewsToday`, `viewsThisWeek`, `isHighDemand`, `stockCount`
+
+### Disputes (new)
+
+- 🔴 Prisma `Dispute` + migration `20261009223000_disputes`
+- 🔴 `POST /disputes` `{ orderId, issueType, description (≥20 chars), evidenceUrls? }` — customer auth; order must belong to caller
+- 🔴 `GET /admin/disputes` — admin list (order + customer info)
+- 🔴 `PATCH /admin/disputes/:id` `{ status?, resolution? }` — `open | under_review | resolved | closed`
+
+Apply migration on deploy: `npx prisma migrate deploy`

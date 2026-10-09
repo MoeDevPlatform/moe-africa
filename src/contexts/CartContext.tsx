@@ -23,6 +23,8 @@ export interface CartItem {
   imageUrl?: string;
   /** Dynamic schema-driven customisation payload keyed by field.key. */
   customisation?: Record<string, string | string[]>;
+  /** Inline PDP variation selection (alias of selectedVariants / customisation). */
+  selectedVariations?: Record<string, string>;
 }
 
 interface CartContextType {
@@ -131,20 +133,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated]);
 
   const addItem = useCallback((item: CartItem) => {
+    const normalized: CartItem = {
+      ...item,
+      selectedVariants: item.selectedVariations || item.selectedVariants || {},
+      selectedVariations: item.selectedVariations || item.selectedVariants || {},
+    };
     let added = false;
     setItems((prev) => {
       // Prevent duplicate entries for the same product.
-      if (prev.some((i) => i.productId === item.productId)) {
+      if (prev.some((i) => i.productId === normalized.productId)) {
         return prev;
       }
       added = true;
-      return [...prev, item];
+      return [...prev, normalized];
     });
     if (added) {
-      syncAdd(item);
+      try {
+        if (!localStorage.getItem("moe_cart_started")) {
+          localStorage.setItem("moe_cart_started", String(Date.now()));
+        }
+      } catch {
+        /* ignore */
+      }
+      syncAdd(normalized);
       trackBehaviour("add_to_cart", {
         entityType: "product",
-        entityId: item.productId,
+        entityId: normalized.productId,
       });
     } else {
       sonnerToast.info("This item is already in your cart");
@@ -163,6 +177,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = useCallback(() => {
     setItems([]);
+    try {
+      localStorage.removeItem("moe_cart_started");
+    } catch {
+      /* ignore */
+    }
     if (isAuthenticated) cartService.clear().catch(() => {});
   }, [isAuthenticated]);
 
