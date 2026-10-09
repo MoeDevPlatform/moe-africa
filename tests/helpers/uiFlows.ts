@@ -28,12 +28,27 @@ export async function signUpArtisanViaUi(
   await page.locator('label[for="role-artisan"]').click();
   await expect(page.locator('#role-artisan')).toBeChecked();
 
-  // Wait for service category chips, pick the artisan's primary category
-  const primary = artisan.serviceCategories[0];
-  await expect(page.getByText(primary, { exact: true }).first()).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByText(primary, { exact: true }).first().click();
+  // Wait for service category chips from live /meta/service-categories.
+  // Production currently omits some product categories (e.g. Paintings and Canvas),
+  // so fall back to the first visible chip if the preferred label is missing.
+  const preferred = [...artisan.serviceCategories, 'Arts & Crafts', 'Tailoring'];
+  await expect(
+    page.getByText(/Tailoring|Arts & Crafts|Shoemaking/i).first(),
+  ).toBeVisible({ timeout: 30_000 });
+  let picked = false;
+  for (const label of preferred) {
+    const chip = page.getByText(label, { exact: true }).first();
+    if (await chip.isVisible().catch(() => false)) {
+      await chip.click();
+      picked = true;
+      break;
+    }
+  }
+  if (!picked) {
+    throw new Error(
+      `No service category chip found for ${artisan.businessName} (tried: ${preferred.join(', ')})`,
+    );
+  }
 
   await page.locator('#firstname').fill(artisan.firstName);
   await page.locator('#lastname').fill(artisan.lastName);

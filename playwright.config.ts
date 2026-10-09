@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnvFile } from './tests/helpers/loadEnv';
+
+// Load local .env (ADMIN_EMAIL / ADMIN_PASSWORD) — never commit that file.
+loadEnvFile();
 
 /**
  * MOE Playwright — targets the live Vercel deployment by default.
@@ -13,7 +17,7 @@ import { defineConfig, devices } from '@playwright/test';
  *   MOE_SEED_FULL_UI=1     exercise profile + Add Product modals for artisan #1
  *   MOE_SEED_CLEANUP=1     delete seeded products after the run
  *   MOE_SEED_RUN_ID=...    override the unique run id (emails / name tags)
- *   MOE_FRONTEND_URL / MOE_API_BASE_URL / MOE_ADMIN_EMAIL / MOE_ADMIN_PASSWORD
+ *   ADMIN_EMAIL / ADMIN_PASSWORD (or MOE_ADMIN_*) from local .env — never hardcode
  */
 export default defineConfig({
   testDir: './tests',
@@ -26,9 +30,10 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   use: {
     baseURL: process.env.MOE_FRONTEND_URL || 'https://moe-africa-mvp.vercel.app',
-    trace: 'retain-on-failure',
+    // Off by default — full seed runs are long; enable locally with PWDEBUG / override if needed
+    trace: process.env.PW_TRACE === '1' ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.PW_VIDEO === '1' ? 'retain-on-failure' : 'off',
     ignoreHTTPSErrors: false,
   },
   projects: [

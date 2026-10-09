@@ -22,7 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local secrets — never commit (also run `git rm --cached .env` if it was tracked before)
 .env
+.env.local
+.env.*.local
 
 # Playwright
 /test-results/

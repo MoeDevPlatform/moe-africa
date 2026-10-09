@@ -15,16 +15,18 @@ import {
   createProduct,
   getMyProfile,
   listMyProducts,
-  loginAdmin,
-  approveArtisan,
-  approveProduct,
   listPublicProviders,
   listPublicProducts,
   deleteMyProduct,
   loginSeedArtisan,
   type SeedResult,
 } from './helpers/moeApi';
-import { FRONTEND_BASE, SEED_RUN_ID, SEED_TAG } from './helpers/env';
+import {
+  FRONTEND_BASE,
+  SEED_RUN_ID,
+  SEED_TAG,
+  requireAdminCredentials,
+} from './helpers/env';
 import {
   signUpArtisanViaUi,
   signInArtisanViaUi,
@@ -33,6 +35,12 @@ import {
   completeBusinessProfileViaUi,
   addProductViaUi,
 } from './helpers/uiFlows';
+import {
+  signInAdminViaUi,
+  approveSeedArtisansViaAdminUi,
+  approveSeedProductsViaAdminUi,
+  countSeedRowsInAdmin,
+} from './helpers/adminFlows';
 
 /**
  * Live Vercel seed / discovery load test
@@ -46,6 +54,8 @@ import {
  *       REST endpoints the dashboard uses (register already issued tokens).
  *       Set MOE_SEED_FULL_UI=1 to also exercise Add Product / profile modals
  *       for artisan #1 as an interface smoke check.
+ * Approval: live /admin portal UI only (no API status shortcuts, no DB bypass).
+ *           Credentials from local .env (ADMIN_EMAIL / ADMIN_PASSWORD).
  *
  * Safety:
  *  - Unique emails per run (SEED_RUN_ID) — never signs into / overwrites existing users
@@ -101,6 +111,7 @@ test.describe('Live Vercel seed — 20 artisans × 5 products', () => {
   }) => {
     for (const artisan of SEED_ARTISANS) {
       await test.step(`Artisan ${artisan.index}: ${artisan.businessName}`, async () => {
+        console.log(`→ Seeding artisan ${artisan.index}/20: ${artisan.businessName}`);
         // 1) Real sign-up through the deployed Auth UI (no auth bypass)
         await signUpArtisanViaUi(page, artisan);
         const uiToken = await readAccessTokenFromUi(page);
@@ -210,6 +221,9 @@ test.describe('Live Vercel seed — 20 artisans × 5 products', () => {
         expect(result.errors, result.errors.join('\n')).toEqual([]);
         expect(result.productIds.length).toBe(5);
         expect(result.artisanProfileId).toBeTruthy();
+        console.log(
+          `✓ Artisan ${artisan.index}/20 done — profile=${result.artisanProfileId} products=${result.productIds.length}`,
+        );
 
         await signOutViaUi(page);
       });
@@ -219,30 +233,56 @@ test.describe('Live Vercel seed — 20 artisans × 5 products', () => {
     expect(results.reduce((n, r) => n + r.productIds.length, 0)).toBe(100);
   });
 
-  test('admin-approve seeded artisans/products (supported admin API)', async ({
-    request,
-  }) => {
+  test('admin portal UI: approve seeded artisans + products', async ({ page }) => {
     test.skip(results.length === 0, 'No seed results');
-    const adminToken = await loginAdmin(request);
-    const errors: string[] = [];
+    test.setTimeout(60 * 60 * 1000);
+    requireAdminCredentials();
 
-    for (const r of results) {
-      if (r.artisanProfileId) {
-        try {
-          await approveArtisan(request, adminToken, r.artisanProfileId);
-        } catch (e) {
-          errors.push(`artisan ${r.businessName}: ${(e as Error).message}`);
-        }
-      }
-      for (const id of r.productIds) {
-        try {
-          await approveProduct(request, adminToken, id);
-        } catch (e) {
-          errors.push(`product #${id}: ${(e as Error).message}`);
-        }
-      }
-    }
-    expect(errors, errors.join('\n')).toEqual([]);
+    await signInAdminViaUi(page);
+
+    const artisansApproved = await approveSeedArtisansViaAdminUi(page, results.length);
+    expect(
+      artisansApproved,
+      `Expected to approve ${results.length} seed artisans via /admin/artisans; got ${artisansApproved}`,
+    ).toBe(results.length);
+
+    const productsExpected = results.reduce((n, r) => n + r.productIds.length, 0);
+    const productsApproved = await approveSeedProductsViaAdminUi(page, productsExpected);
+    expect(
+      productsApproved,
+      `Expected to approve ${productsExpected} seed products via /admin/products; got ${productsApproved}`,
+    ).toBe(productsExpected);
+
+    // Statuses persist in the admin portal after reload
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const approvedArtisans = await countSeedRowsInAdmin(page, 'artisans', 'Approved');
+    expect(
+      approvedArtisans,
+      `Expected ≥${results.length} approved seed artisans in admin after reload`,
+    ).toBeGreaterThanOrEqual(results.length);
+
+    const approvedProducts = await countSeedRowsInAdmin(page, 'products', 'Approved');
+    expect(
+      approvedProducts,
+      `Expected ≥${productsExpected} approved seed products in admin after reload`,
+    ).toBeGreaterThanOrEqual(productsExpected);
+
+    // No seed rows should remain pending for this run's tag
+    await page.goto(`${FRONTEND_BASE}/admin/artisans?status=pending`, {
+      waitUntil: 'domcontentloaded',
+    });
+    const pendingSeedArtisans = page.locator('table tbody tr').filter({
+      hasText: SEED_TAG,
+    });
+    await expect(pendingSeedArtisans).toHaveCount(0);
+
+    await page.goto(`${FRONTEND_BASE}/admin/products?status=pending`, {
+      waitUntil: 'domcontentloaded',
+    });
+    const pendingSeedProducts = page.locator('table tbody tr').filter({
+      hasText: SEED_TAG,
+    });
+    await expect(pendingSeedProducts).toHaveCount(0);
   });
 
   test('verify persistence on Vercel UI + public API (no duplicates / broken images)', async ({
@@ -304,7 +344,7 @@ test.describe('Live Vercel seed — 20 artisans × 5 products', () => {
     }
     expect(broken, broken.join('\n')).toEqual([]);
 
-    // Vercel UI smoke after reload
+    // Public marketplace — artisans & products visible after approval
     await page.goto(`${FRONTEND_BASE}/marketplace/artisans`, {
       waitUntil: 'networkidle',
       timeout: 60_000,
@@ -324,6 +364,42 @@ test.describe('Live Vercel seed — 20 artisans × 5 products', () => {
         timeout: 45_000,
       });
     }
+
+    // Discovery / recommendation / sort surfaces process approved seed records
+    await page.goto(`${FRONTEND_BASE}/marketplace`, {
+      waitUntil: 'networkidle',
+      timeout: 60_000,
+    });
+    await expect(
+      page.getByRole('heading', { name: /Recommended Artisans/i }).first(),
+    ).toBeVisible({ timeout: 30_000 });
+
+    const sortTrigger = page.getByLabel(/Sort artisans/i);
+    if (await sortTrigger.isVisible().catch(() => false)) {
+      await sortTrigger.click();
+      await page.getByRole('option', { name: /Recently Added/i }).click();
+      await page.waitForTimeout(1000);
+      // At least one tagged seed artisan should appear in the recommended carousel
+      await expect(page.getByText(SEED_TAG, { exact: false }).first()).toBeVisible({
+        timeout: 45_000,
+      });
+
+      await sortTrigger.click();
+      await page.getByRole('option', { name: /Highest Rated/i }).click();
+      await page.waitForTimeout(1000);
+      await expect(
+        page.getByRole('heading', { name: /Recommended Artisans/i }).first(),
+      ).toBeVisible();
+    }
+
+    // Product discovery sorts (newest) should include approved seed products
+    await page.goto(`${FRONTEND_BASE}/marketplace/products?sort=newest`, {
+      waitUntil: 'networkidle',
+      timeout: 60_000,
+    });
+    await expect(page.getByText(SEED_TAG, { exact: false }).first()).toBeVisible({
+      timeout: 45_000,
+    });
 
     // Sign-in again and confirm products still listed (persistence)
     await signInArtisanViaUi(page, results[0].artisanIndex);

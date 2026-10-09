@@ -526,7 +526,8 @@ export const SEED_ARTISANS: SeedArtisan[] = [
     lastName: 'Obi',
     businessName: 'Canvas & Co. Studio',
     description: 'Original canvas paintings and custom portraits from Lagos.',
-    serviceCategories: ['Paintings and Canvas'],
+    // Signup meta API has no Paintings chip yet — use Arts & Crafts for UI; products stay paintings_and_canvas
+    serviceCategories: ['Arts & Crafts'],
     category: 'paintings_and_canvas',
     country: 'Nigeria',
     state: 'Lagos',
@@ -549,7 +550,8 @@ export const SEED_ARTISANS: SeedArtisan[] = [
     lastName: 'Balogun',
     businessName: 'Balogun Print House',
     description: 'High-quality printed canvas and pop-art style photo transfers.',
-    serviceCategories: ['Paintings and Canvas'],
+    // Signup meta API has no Paintings chip yet — use Arts & Crafts for UI; products stay paintings_and_canvas
+    serviceCategories: ['Arts & Crafts'],
     category: 'paintings_and_canvas',
     country: 'Nigeria',
     state: 'Lagos',

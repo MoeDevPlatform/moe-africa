@@ -1,7 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
-import { API_BASE, ADMIN_EMAIL, ADMIN_PASSWORD } from './env';
+import {
+  API_BASE,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  requireAdminCredentials,
+} from './env';
 import {
   SEED_PASSWORD,
   imagePath,
@@ -85,11 +90,13 @@ export async function registerArtisan(
   return { token: body.token, refreshToken: body.refreshToken, user: body.user };
 }
 
+/** API admin login — prefer `signInAdminViaUi` for portal approval workflows. */
 export async function loginAdmin(request: APIRequestContext): Promise<string> {
+  requireAdminCredentials();
   const res = await request.post(`${API_BASE}/auth/login`, {
     data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
   });
-  const body = await assertOk(res, `Admin login (${ADMIN_EMAIL})`);
+  const body = await assertOk(res, 'Admin login');
   if (!body.token) throw new Error('Admin login returned no token');
   return body.token as string;
 }
@@ -256,24 +263,46 @@ export async function approveProduct(
   await assertOk(res, `Approve product ${productId}`);
 }
 
+/** Live API caps pageSize (~100). Walk pages until exhausted. */
+async function listAllPages(
+  request: APIRequestContext,
+  path: string,
+  label: string,
+  pageSize = 100,
+  maxPages = 20,
+): Promise<any[]> {
+  const all: any[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const sep = path.includes('?') ? '&' : '?';
+    const res = await request.get(
+      `${API_BASE}${path}${sep}page=${page}&pageSize=${pageSize}`,
+    );
+    const body = await assertOk(res, `${label} page ${page}`);
+    const chunk = Array.isArray(body?.data) ? body.data : [];
+    all.push(...chunk);
+    const totalPages = Number(body?.pagination?.totalPages) || 1;
+    if (chunk.length === 0 || page >= totalPages) break;
+  }
+  return all;
+}
+
 export async function listPublicProviders(
   request: APIRequestContext,
-  pageSize = 200,
+  pageSize = 100,
 ): Promise<any[]> {
-  const res = await request.get(
-    `${API_BASE}/service-providers/public-info?pageSize=${pageSize}`,
+  return listAllPages(
+    request,
+    '/service-providers/public-info',
+    'GET public providers',
+    pageSize,
   );
-  const body = await assertOk(res, 'GET public providers');
-  return Array.isArray(body?.data) ? body.data : [];
 }
 
 export async function listPublicProducts(
   request: APIRequestContext,
-  pageSize = 300,
+  pageSize = 100,
 ): Promise<any[]> {
-  const res = await request.get(`${API_BASE}/products?pageSize=${pageSize}`);
-  const body = await assertOk(res, 'GET public products');
-  return Array.isArray(body?.data) ? body.data : [];
+  return listAllPages(request, '/products', 'GET public products', pageSize);
 }
 
 /**
