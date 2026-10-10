@@ -7,7 +7,6 @@ import ProviderCard from "@/components/marketplace/ProviderCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
-import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
 import FilterDrawer, { FilterState, providerMatchesLocation } from "@/components/marketplace/FilterDrawer";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
@@ -472,10 +471,8 @@ const MarketplaceHome = () => {
         {/* Featured Artisans — curated via GET /sections/featured_artisans */}
         <FeaturedArtisans />
 
-        {/* Featured Products */}
+        {/* Featured Products (includes Recently Viewed below Seasonal Picks) */}
         <FeaturedProducts />
-
-        <RecentlyViewed />
 
         {/* Picked for you — only when preferences are set. */}
         {hasPreferences && (preferenceProviders.length > 0 || preferenceProducts.length > 0) && (

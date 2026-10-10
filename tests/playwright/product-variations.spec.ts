@@ -6,7 +6,8 @@ test.describe('Inline product variations', () => {
     await expect(page.locator('[data-testid="variation-selector"]')).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.locator('[data-testid="add-to-cart-btn"]')).toBeDisabled();
+    // Desktop + mobile sticky bars both render the CTA
+    await expect(page.locator('[data-testid="add-to-cart-btn"]').first()).toBeDisabled();
   });
 
   test('add to cart enables after all variations selected', async ({ page }) => {
@@ -14,17 +15,16 @@ test.describe('Inline product variations', () => {
     await expect(page.locator('[data-testid="variation-selector"]')).toBeVisible({
       timeout: 20_000,
     });
-    // Category-dependent chips — try common size/colour for leather/shoe products
     const size = page.locator('[data-testid^="size-chip-"]').first();
     const colour = page.locator('[data-testid^="colour-swatch-"]').first();
     const material = page.locator('[data-testid^="material-chip-"]').first();
     if (await size.isVisible().catch(() => false)) await size.click();
     if (await colour.isVisible().catch(() => false)) await colour.click();
     if (await material.isVisible().catch(() => false)) await material.click();
-    await expect(page.locator('[data-testid="add-to-cart-btn"]')).toBeEnabled({
-      timeout: 10_000,
-    });
-    await page.click('[data-testid="add-to-cart-btn"]');
+
+    const addBtn = page.locator('[data-testid="add-to-cart-btn"]').first();
+    await expect(addBtn).toBeEnabled({ timeout: 10_000 });
+    await addBtn.click();
     await expect(page.locator('[data-testid="cart-count"]')).toContainText(/[1-9]/, {
       timeout: 10_000,
     });

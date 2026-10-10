@@ -19,9 +19,11 @@ test.describe('Search & SEO', () => {
   });
 
   test('product detail page has correct meta title', async ({ page }) => {
-    await page.goto('/marketplace/product/1', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1500);
-    const title = await page.title();
-    expect(title).toContain('MOE Africa');
+    // Product id 1 is not seeded; use a known live product.
+    await page.goto('/marketplace/product/41', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20_000 });
+    await expect
+      .poll(async () => page.title(), { timeout: 15_000 })
+      .toMatch(/MOE Africa|leather shoes/i);
   });
 });

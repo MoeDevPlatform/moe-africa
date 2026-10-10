@@ -23,15 +23,25 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     const ids = getRecentlyViewedIds().filter((id) => id !== excludeProductId);
     if (ids.length < 2) {
       setProducts([]);
       return;
     }
-    productsService
-      .getByIds(ids)
-      .then((list) => setProducts(list.filter(Boolean)))
-      .catch(() => setProducts([]));
+    (async () => {
+      let list = await productsService.getByIds(ids).catch(() => [] as Product[]);
+      if (list.length < 2) {
+        const fetched = await Promise.all(
+          ids.map((id) => productsService.getById(id).catch(() => undefined)),
+        );
+        list = fetched.filter((p): p is Product => Boolean(p));
+      }
+      if (!cancelled) setProducts(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [excludeProductId]);
 
   if (products.length < 2) return null;

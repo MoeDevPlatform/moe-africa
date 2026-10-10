@@ -603,15 +603,21 @@ export const productsService = {
   getByIds: async (ids: number[]): Promise<Product[]> => {
     if (!ids.length) return [];
     try {
-      const raw = await apiGet<Record<string, any>[]>("/products/by-ids", {
+      const raw = await apiGet<
+        Record<string, any>[] | { data?: Record<string, any>[] }
+      >("/products/by-ids", {
         ids: ids.join(","),
       });
-      return Array.isArray(raw) ? raw.map(normalizeProduct) : [];
+      const rows = Array.isArray(raw) ? raw : (raw?.data ?? []);
+      if (rows.length > 0) return rows.map(normalizeProduct);
     } catch {
-      return ids
-        .map((id) => mockGetProductById(id))
-        .filter((p): p is Product => Boolean(p));
+      /* fall through to per-id fetch */
     }
+    // Prefer live detail fetches over mock fallbacks so recently-viewed works.
+    const fetched = await Promise.all(
+      ids.map((id) => productsService.getById(id).catch(() => undefined)),
+    );
+    return fetched.filter((p): p is Product => Boolean(p));
   },
 
   getByProvider: async (providerId: number): Promise<Product[]> => {
