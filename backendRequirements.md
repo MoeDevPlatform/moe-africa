@@ -866,11 +866,11 @@ model VariationOption {
 
 Endpoints:
 
-- 🔴 `GET /products/:id` — include `variationTypes[]` with options (`priceOverride`, `stockCount`, `isAvailable`, `colorHex`)
-- 🔴 Product create / update DTOs accept `variationTypes[]` (same shape as FE payload)
-- 🔴 `PATCH /artisans/products/:id/variations` — replace-strategy full `variationTypes` array (artisan auth)
-- 🔴 `PATCH /artisans/products/:id/variations/:typeId` — `{ isEnabled: boolean }`
-- 🔴 `PATCH /artisans/products/:id/variations/:typeId/options/:optionId` — `{ stockCount: number | null }`
+- 🟢 `GET /products/:id` — include `variationTypes[]` with options (`priceOverride`, `stockCount`, `isAvailable`, `colorHex`)
+- 🟢 Product create / update DTOs accept `variationTypes[]` (same shape as FE payload)
+- 🟢 `PATCH /artisans/products/:id/variations` — replace-strategy full `variationTypes` array (artisan auth)
+- 🟢 `PATCH /artisans/products/:id/variations/:typeId` — `{ isEnabled: boolean }`
+- 🟢 `PATCH /artisans/products/:id/variations/:typeId/options/:optionId` — `{ stockCount: number | null }`
 
 Sold-out rule: option unavailable when `isAvailable === false` OR (`stockCount !== null && stockCount === 0`). Keep option visible on FE.
 
@@ -906,11 +906,11 @@ model CustomOrder {
 
 Endpoints:
 
-- 🔴 `PATCH /admin/artisans/:id/custom-order-eligibility` `{ isEligible: boolean }` — admin guard; set approvedAt/By; notify artisan (in-app + email)
-- 🔴 `GET /artisans/:id` (public) — include `isCustomOrderEligible` only (never expose approvedBy)
-- 🔴 `POST /custom-orders` — customer auth; 403 if artisan not eligible
-- 🔴 `GET /artisans/me/custom-orders` + `PATCH /artisans/me/custom-orders/:id` `{ status, artisanResponse? }`
-- 🔴 `GET /admin/custom-orders` — admin list
+- 🟢 `PATCH /admin/artisans/:id/custom-order-eligibility` `{ isEligible: boolean }` — admin guard; set approvedAt/By; notify artisan (in-app + email)
+- 🟢 `GET /artisans/:id` (public) — include `isCustomOrderEligible` only (never expose approvedBy)
+- 🟢 `POST /custom-orders` — customer auth; 403 if artisan not eligible
+- 🟢 `GET /artisans/me/custom-orders` + `PATCH /artisans/me/custom-orders/:id` `{ status, artisanResponse? }`
+- 🟢 `GET /admin/custom-orders` — admin list
 
 Legacy: FE still soft-falls back to `POST /orders/custom-requests` and `customOrdersEnabled` when new fields/routes are missing.
 
