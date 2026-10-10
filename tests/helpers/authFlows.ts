@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect, test } from '@playwright/test';
 import {
   PLAYWRIGHT_ADMIN_EMAIL,
   PLAYWRIGHT_ADMIN_PASSWORD,
@@ -9,6 +9,53 @@ import {
   requireAdminCreds,
 } from './playwrightEnv';
 
+function extendTimeoutForRateLimitCooldown() {
+  // Default test timeout (30s) is shorter than the backend login cooldown (~60s).
+  try {
+    const info = test.info();
+    info.setTimeout(Math.max(info.timeout, 120_000) + 70_000);
+  } catch {
+    // Outside a test (e.g. global setup) — ignore.
+  }
+}
+
+async function signInViaAuthPage(
+  page: Page,
+  email: string,
+  password: string,
+): Promise<void> {
+  // Shared IP throttle with the rate-limit spec — retry after cooldown.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+    await page.locator('#signin-email').fill(email);
+    await page.locator('#signin-password').fill(password);
+
+    const loginResponse = page.waitForResponse(
+      (res) => res.url().includes('/auth/login') && res.request().method() === 'POST',
+      { timeout: 30_000 },
+    );
+    await page.getByRole('button', { name: /^sign in$/i }).click();
+    const res = await loginResponse;
+
+    if (res.status() === 429) {
+      extendTimeoutForRateLimitCooldown();
+      await page.waitForTimeout(65_000);
+      continue;
+    }
+
+    if (!res.ok()) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Login failed (${res.status()}): ${body.slice(0, 200)}`);
+    }
+
+    // Public auth always lands on /marketplace after success (role routing is later).
+    await page.waitForURL(/marketplace|artisan/, { timeout: 30_000 });
+    return;
+  }
+
+  throw new Error('Login failed: still rate-limited after retries');
+}
+
 /** Sign in via the public /auth page. */
 export async function customerLogin(page: Page): Promise<void> {
   const email = PLAYWRIGHT_CUSTOMER_EMAIL;
@@ -18,11 +65,7 @@ export async function customerLogin(page: Page): Promise<void> {
       'Set PLAYWRIGHT_CUSTOMER_EMAIL and PLAYWRIGHT_CUSTOMER_PASSWORD in .env',
     );
   }
-  await page.goto('/auth', { waitUntil: 'networkidle' });
-  await page.locator('#signin-email').fill(email);
-  await page.locator('#signin-password').fill(password);
-  await page.getByRole('button', { name: /^sign in$/i }).click();
-  await page.waitForURL(/marketplace|artisan/, { timeout: 30_000 });
+  await signInViaAuthPage(page, email, password);
 }
 
 export async function artisanLogin(page: Page): Promise<void> {
@@ -33,11 +76,7 @@ export async function artisanLogin(page: Page): Promise<void> {
       'Set PLAYWRIGHT_ARTISAN_EMAIL and PLAYWRIGHT_ARTISAN_PASSWORD in .env',
     );
   }
-  await page.goto('/auth', { waitUntil: 'networkidle' });
-  await page.locator('#signin-email').fill(email);
-  await page.locator('#signin-password').fill(password);
-  await page.getByRole('button', { name: /^sign in$/i }).click();
-  await page.waitForURL(/marketplace|artisan/, { timeout: 30_000 });
+  await signInViaAuthPage(page, email, password);
 }
 
 export async function adminLogin(page: Page): Promise<void> {
@@ -58,6 +97,7 @@ export async function adminLogin(page: Page): Promise<void> {
 
     if (res.status() === 429) {
       // Backend message: "try again in 1 minutes"
+      extendTimeoutForRateLimitCooldown();
       await page.waitForTimeout(65_000);
       continue;
     }

@@ -5,21 +5,24 @@ import { PLAYWRIGHT_ARTISAN_EMAIL } from '../helpers/playwrightEnv';
 test.describe('Artisan', () => {
   test('product creation requires estimated delivery', async ({ page }) => {
     test.skip(!PLAYWRIGHT_ARTISAN_EMAIL, 'PLAYWRIGHT_ARTISAN_EMAIL not set');
+    test.setTimeout(120_000);
     await artisanLogin(page);
-    await page.goto('/artisan/dashboard', { waitUntil: 'networkidle' });
+    await page.goto('/artisan/dashboard', { waitUntil: 'domcontentloaded' });
 
-    const addBtn = page.getByRole('button', { name: /add product/i }).first();
-    if (!(await addBtn.isVisible().catch(() => false))) {
-      test.skip(true, 'Add Product button not visible');
-      return;
-    }
+    const addBtn = page.locator('[data-testid="add-product-btn"]').first();
+    await expect(addBtn).toBeVisible({ timeout: 20_000 });
     await addBtn.click();
 
-    await page.fill('#name, [name="name"]', 'PW Test Product').catch(() => {});
-    await page.getByLabel(/product name/i).fill('PW Test Product').catch(() => {});
-    await page.getByLabel(/description/i).fill('A test product for playwright');
+    // Category unlocks the rest of the form (variations + delivery fields).
+    await page.getByText('Select a category', { exact: false }).first().click();
+    await page.getByRole('option', { name: /Tailoring/i }).click();
+
+    await page.locator('#product-name, #name').first().fill('PW Test Product');
+    await page.locator('#product-desc, #description').first().fill('A test product for playwright');
+    await page.locator('#priceMin').fill('10000');
+    await page.locator('#priceMax').fill('10000');
     // Leave estimated delivery empty — expect inline error on submit
-    await page.getByRole('button', { name: /save|add product|create/i }).click();
+    await page.locator('[data-testid="submit-product-btn"]').click();
     await expect(page.getByText(/Estimated delivery is required/i)).toBeVisible({
       timeout: 10_000,
     });
@@ -27,8 +30,9 @@ test.describe('Artisan', () => {
 
   test('notification center is present for artisan', async ({ page }) => {
     test.skip(!PLAYWRIGHT_ARTISAN_EMAIL, 'PLAYWRIGHT_ARTISAN_EMAIL not set');
+    test.setTimeout(120_000);
     await artisanLogin(page);
-    await page.goto('/artisan/dashboard', { waitUntil: 'networkidle' });
+    await page.goto('/artisan/dashboard', { waitUntil: 'domcontentloaded' });
     const bell = page.locator('[data-testid="notification-bell"]').or(
       page.getByRole('button', { name: /notification/i }),
     );

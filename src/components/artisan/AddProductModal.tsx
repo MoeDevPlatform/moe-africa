@@ -239,8 +239,6 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     return errors;
   };
 
-  const isValid = Object.keys(collectFieldErrors()).length === 0;
-
   const handleSubmit = async () => {
     setSubmitError("");
     const errors = collectFieldErrors();
@@ -586,7 +584,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!isValid || isSubmitting || isUploading}
+            // Keep clickable when invalid so field errors (e.g. estimated delivery)
+            // can surface; only block during in-flight work.
+            disabled={isSubmitting || isUploading}
             data-testid={isEdit ? "save-variations-btn" : "submit-product-btn"}
           >
             {isSubmitting ? (

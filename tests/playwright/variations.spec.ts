@@ -5,10 +5,10 @@ test.describe('Product variations', () => {
   test('price updates when variation with price override selected', async ({ page }) => {
     test.skip(!IDS.variationPriceProduct, 'Set PLAYWRIGHT_VARIATION_PRICE_PRODUCT_ID');
     await page.goto(`/marketplace/product/${IDS.variationPriceProduct}`);
-    const price = page.locator('[data-testid="product-price"]');
+    const price = page.locator('[data-testid="product-price"]').first();
     await expect(price).toBeVisible();
     const basePriceText = await price.textContent();
-    await page.click('[data-testid="variation-option-large"]');
+    await page.locator('[data-testid="variation-option-large"]').first().click();
     const updatedPriceText = await price.textContent();
     expect(updatedPriceText).not.toEqual(basePriceText);
   });
@@ -16,7 +16,7 @@ test.describe('Product variations', () => {
   test('product without variations has enabled add to cart', async ({ page }) => {
     test.skip(!IDS.noVariationProduct, 'Set PLAYWRIGHT_NO_VARIATION_PRODUCT_ID');
     await page.goto(`/marketplace/product/${IDS.noVariationProduct}`);
-    await expect(page.locator('[data-testid="add-to-cart-btn"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="add-to-cart-btn"]').first()).toBeEnabled();
     await expect(page.locator('[data-testid="variation-selector"]')).toHaveCount(0);
   });
 
@@ -25,7 +25,7 @@ test.describe('Product variations', () => {
     await page.goto(`/marketplace/product/${IDS.soldOutOptionProduct}`);
     const soldOutOption = page.locator('[data-testid="variation-option-sold-out"]').first();
     await expect(soldOutOption).toBeVisible();
-    await soldOutOption.click({ force: false }).catch(() => undefined);
+    await expect(soldOutOption).toBeDisabled();
     await expect(soldOutOption).not.toHaveClass(/selected/);
   });
 });
