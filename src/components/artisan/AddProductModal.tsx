@@ -14,6 +14,8 @@ import { artisanService } from "@/lib/apiServices";
 import { Product } from "@/data/mockData";
 import { toast } from "sonner";
 import { PRODUCT_CATEGORIES, toCategoryValue } from "@/lib/categories";
+import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
+import type { ProductVariationTypeDef } from "@/lib/productVariations";
 
 interface AddProductModalProps {
   open: boolean;
@@ -80,6 +82,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
 
   // Hydrate form when opening in edit mode (or reset when switching back to add).
   useEffect(() => {
@@ -113,6 +116,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setImages(
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
       );
+      setVariationTypes(
+        Array.isArray(editProduct.variationTypes) ? editProduct.variationTypes : [],
+      );
     } else {
       setForm({
         name: "",
@@ -126,6 +132,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         stockCount: "",
       });
       setImages([]);
+      setVariationTypes([]);
     }
     setSubmitError("");
     setFieldErrors({});
@@ -268,18 +275,38 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       if (imageUrls.length > 0) {
         payload.images = imageUrls;
       }
+      payload.variationTypes = variationTypes;
 
       if (isEdit && editProduct) {
         await artisanService.updateProduct(editProduct.id, payload);
-        toast.success("Product updated successfully!");
+        try {
+          await artisanService.replaceProductVariations(editProduct.id, variationTypes);
+        } catch {
+          // Product PATCH may already persist variationTypes; dedicated route is optional until BE deploys.
+        }
+        toast.success("Product updated successfully!", {
+          id: "success-toast",
+        });
       } else {
-        await artisanService.createProduct(payload);
+        const created = await artisanService.createProduct(payload);
+        const newId =
+          created && typeof (created as Product).id === "number"
+            ? (created as Product).id
+            : null;
+        if (newId && variationTypes.length > 0) {
+          try {
+            await artisanService.replaceProductVariations(newId, variationTypes);
+          } catch {
+            /* optional until BE deploys */
+          }
+        }
         toast.success("Product added successfully!");
       }
       onProductAdded();
       onOpenChange(false);
       images.forEach((i) => i.previewUrl && i.previewUrl.startsWith("blob:") && URL.revokeObjectURL(i.previewUrl));
       setImages([]);
+      setVariationTypes([]);
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
         materials: "", estimatedDelivery: "", tags: [], stockCount: "",
@@ -361,6 +388,12 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               <p className="text-xs text-destructive">{fieldErrors.category}</p>
             )}
           </div>
+
+          <ProductVariationsEditor
+            category={form.category}
+            value={variationTypes}
+            onChange={setVariationTypes}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -551,7 +584,11 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isSubmitting || isUploading}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid || isSubmitting || isUploading}
+            data-testid={isEdit ? "save-variations-btn" : "submit-product-btn"}
+          >
             {isSubmitting ? (
               <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEdit ? "Saving..." : "Adding..."}</>
             ) : (

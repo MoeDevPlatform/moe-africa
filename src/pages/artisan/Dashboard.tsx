@@ -17,12 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
   Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare, ClipboardList,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
 import CustomerInquiries from "@/components/artisan/CustomerInquiries";
 import VerificationSection from "@/components/artisan/VerificationSection";
 import ArtisanOrdersPanel from "@/components/artisan/ArtisanOrdersPanel";
+import ArtisanCustomOrdersPanel from "@/components/artisan/ArtisanCustomOrdersPanel";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -486,6 +488,12 @@ const ArtisanDashboard = () => {
             <TabsTrigger value="orders" className="flex items-center gap-2 flex-1">
               <ClipboardList className="h-4 w-4" /> Orders
             </TabsTrigger>
+            {(artisanProfile?.isCustomOrderEligible ||
+              artisanProfile?.customOrdersEnabled) && (
+              <TabsTrigger value="custom-orders" className="flex items-center gap-2 flex-1">
+                <Sparkles className="h-4 w-4" /> Custom Orders
+              </TabsTrigger>
+            )}
             <TabsTrigger value="verification" className="flex items-center gap-2 flex-1">
               <CheckCircle className="h-4 w-4" /> Verification
             </TabsTrigger>
@@ -505,7 +513,12 @@ const ArtisanDashboard = () => {
                     </CardTitle>
                     <CardDescription>Manage your product listings</CardDescription>
                   </div>
-                  <Button size="sm" className="gap-1" onClick={() => setShowAddProduct(true)}>
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    data-testid="add-product-btn"
+                    onClick={() => setShowAddProduct(true)}
+                  >
                     <Plus className="h-4 w-4" /> Add Product
                   </Button>
                 </div>
@@ -560,6 +573,7 @@ const ArtisanDashboard = () => {
                         <div className="flex gap-1">
                           <Button
                             variant="ghost" size="icon" title="Edit"
+                            data-testid="edit-product-btn"
                             onClick={() => setEditingProduct(product)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -609,6 +623,25 @@ const ArtisanDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {(artisanProfile?.isCustomOrderEligible ||
+            artisanProfile?.customOrdersEnabled) && (
+            <TabsContent value="custom-orders">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" /> Custom Orders
+                  </CardTitle>
+                  <CardDescription>
+                    Bespoke commission requests from customers. Separate from product variations.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ArtisanCustomOrdersPanel />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="verification">
             <VerificationSection />

@@ -107,3 +107,37 @@ All colors MUST be HSL.
   input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
+
+/* Sold-out variation options — visible but unselectable */
+.variation-option--sold-out {
+  opacity: 0.4;
+  cursor: not-allowed;
+  position: relative;
+  pointer-events: none;
+}
+.variation-option--sold-out::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(0, 0, 0, 0.15) 4px,
+    rgba(0, 0, 0, 0.15) 5px
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+@keyframes product-price-pulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.product-price-animate {
+  animation: product-price-pulse 0.35s ease-out;
+}

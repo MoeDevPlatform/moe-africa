@@ -14,9 +14,6 @@ loadEnvFile();
  * Feature suite:
  *   npx playwright test tests/playwright --reporter=html
  *
- * Seed 20 artisans × 5 products:
- *   npm run test:seed
- *
  * Do not run the feature suite until deployment is confirmed.
  */
 export default defineConfig({
@@ -37,13 +34,29 @@ export default defineConfig({
     headless: true,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    trace: process.env.PW_TRACE === '1' ? 'retain-on-failure' : 'off',
+    trace: 'on-first-retry',
     ignoreHTTPSErrors: false,
   },
   projects: [
     {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+      testIgnore: [/seed-artisans-products\.spec\.ts/, /humanize-marketplace\.spec\.ts/],
+    },
+    {
+      name: 'tablet',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } },
+      testMatch: [/ui-audit\.spec\.ts/, /visual-regression\.spec\.ts/, /accessibility\.spec\.ts/, /mobile\.spec\.ts/],
+    },
+    {
+      name: 'mobile',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
+      testMatch: [/ui-audit\.spec\.ts/, /visual-regression\.spec\.ts/, /accessibility\.spec\.ts/, /mobile\.spec\.ts/],
+    },
+    // Alias kept for existing npm scripts (`--project=chromium`)
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
       testIgnore: [/seed-artisans-products\.spec\.ts/, /humanize-marketplace\.spec\.ts/],
     },
     {

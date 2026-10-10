@@ -13,7 +13,12 @@
     "test:e2e:report": "playwright show-report",
     "test:playwright": "playwright test tests/playwright --project=chromium --reporter=html",
     "test:seed": "playwright test tests/seed-artisans-products.spec.ts --project=seed",
-    "test:seed:report": "playwright show-report"
+    "test:seed:report": "playwright show-report",
+    "test:ui": "playwright test tests/playwright/ui-audit.spec.ts --project=desktop",
+    "test:visual": "playwright test tests/playwright/visual-regression.spec.ts --project=desktop",
+    "test:a11y": "playwright test tests/playwright/accessibility.spec.ts --project=desktop",
+    "test:all": "playwright test --project=desktop",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@clerk/react": "^6.17.5",
@@ -71,6 +76,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "1.57.0",
     "@tailwindcss/typography": "^0.5.16",

@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Check, X, Loader2, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -56,6 +58,8 @@ const ArtisanDetailPage = () => {
   const [documents, setDocuments] = useState<VerificationDocument[]>([]);
   const [reviews, setReviews] = useState<ArtisanReviewApi[]>([]);
   const [docNotes, setDocNotes] = useState<Record<number, string>>({});
+  const [pendingEligibility, setPendingEligibility] = useState<boolean | null>(null);
+  const [eligibilityBusy, setEligibilityBusy] = useState(false);
 
   const avgReview = useMemo(() => {
     if (!reviews.length) return null;
@@ -73,6 +77,43 @@ const ArtisanDetailPage = () => {
         else toast.error(e?.message || "Failed to load artisan");
       })
       .finally(() => setIsLoading(false));
+  };
+
+  const confirmEligibilityToggle = async () => {
+    if (pendingEligibility == null || !id) return;
+    setEligibilityBusy(true);
+    try {
+      const res = await adminService.setCustomOrderEligibility(
+        Number(id),
+        pendingEligibility,
+      );
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              isCustomOrderEligible: res.isCustomOrderEligible,
+              customOrderApprovedAt: res.customOrderApprovedAt,
+              customOrderApprovedBy: res.customOrderApprovedBy,
+              businessProfile: prev.businessProfile
+                ? {
+                    ...prev.businessProfile,
+                    customOrdersEnabled: res.isCustomOrderEligible,
+                  }
+                : prev.businessProfile,
+            }
+          : prev,
+      );
+      toast.success(
+        pendingEligibility
+          ? "Artisan marked eligible for custom orders"
+          : "Custom order eligibility revoked",
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update eligibility");
+    } finally {
+      setEligibilityBusy(false);
+      setPendingEligibility(null);
+    }
   };
 
   useEffect(() => {
@@ -234,10 +275,6 @@ const ArtisanDetailPage = () => {
                 <CardContent>
                   <Row label="Business name" value={detail.businessProfile?.businessName} />
                   <Row
-                    label="Custom orders"
-                    value={detail.businessProfile?.customOrdersEnabled ? "Enabled" : "Disabled"}
-                  />
-                  <Row
                     label="Rush orders"
                     value={detail.businessProfile?.rushOrderEnabled ? "Enabled" : "Disabled"}
                   />
@@ -255,6 +292,51 @@ const ArtisanDetailPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Custom Orders</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Separate from product variations. Eligible artisans can receive
+                  bespoke commission requests on their public profile.
+                </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="custom-order-toggle">Eligible for custom orders</Label>
+                    <p
+                      className="text-sm mt-1"
+                      data-testid="custom-order-status"
+                    >
+                      {(detail.isCustomOrderEligible ??
+                      detail.businessProfile?.customOrdersEnabled)
+                        ? "Eligible"
+                        : "Not Eligible"}
+                    </p>
+                    {detail.customOrderApprovedAt && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Approved{" "}
+                        {new Date(detail.customOrderApprovedAt).toLocaleString()}
+                        {detail.customOrderApprovedBy
+                          ? ` · by ${detail.customOrderApprovedBy}`
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+                  <Switch
+                    id="custom-order-toggle"
+                    data-testid="custom-order-toggle"
+                    checked={Boolean(
+                      detail.isCustomOrderEligible ??
+                        detail.businessProfile?.customOrdersEnabled,
+                    )}
+                    disabled={eligibilityBusy}
+                    onCheckedChange={(v) => setPendingEligibility(v)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader><CardTitle>Verification documents</CardTitle></CardHeader>
@@ -360,6 +442,39 @@ const ArtisanDetailPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={pendingEligibility !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingEligibility(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update custom order eligibility?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will notify the artisan. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eligibilityBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="confirm-toggle-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmEligibilityToggle();
+              }}
+              disabled={eligibilityBusy}
+            >
+              {eligibilityBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Continue"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={confirmDelete}

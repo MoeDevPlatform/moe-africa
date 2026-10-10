@@ -2,197 +2,197 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import BodyTypeSelector from "@/components/marketplace/BodyTypeSelector";
+import {
+  type ProductVariationTypeDef,
+  type VariationOptionDef,
+  type VariationSelection,
+  enabledTypes,
+  isOptionSoldOut,
+  kindForTypeName,
+  labelForTypeName,
+  requiredTypeNames,
+  resolveDisplayPrice,
+} from "@/lib/productVariations";
 
-export type VariationSelection = Record<string, string>;
-
-type VariationField =
-  | { key: string; label: string; kind: "swatch"; options: { value: string; color: string }[]; required?: boolean }
-  | { key: string; label: string; kind: "chip"; options: string[]; required?: boolean }
-  | { key: string; label: string; kind: "text"; placeholder?: string; required?: boolean }
-  | { key: string; label: string; kind: "number"; unit?: string; required?: boolean };
-
-const COLOURS = [
-  { value: "Navy", color: "#1e3a5f" },
-  { value: "Black", color: "#111111" },
-  { value: "White", color: "#f5f5f5" },
-  { value: "Cream", color: "#f5efe6" },
-  { value: "Olive", color: "#556b2f" },
-  { value: "Burgundy", color: "#6b1e2a" },
-  { value: "Gold", color: "#c9a227" },
-  { value: "Brown", color: "#6b4423" },
-];
-
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
-const SHOE_SIZES = ["38", "39", "40", "41", "42", "43", "44", "45"];
-const MATERIALS = ["Cotton", "Linen", "Silk", "Wool", "Leather", "Ankara", "Lace"];
-const METALS = ["Gold", "Silver", "Brass", "Beaded"];
-
-function fieldsForCategory(category: string): VariationField[] {
-  const cat = (category || "").toLowerCase().replace(/_/g, " ");
-  if (cat.includes("tailor")) {
-    return [
-      { key: "size", label: "Size", kind: "chip", options: SIZES, required: true },
-      { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-      { key: "material", label: "Material", kind: "chip", options: MATERIALS, required: true },
-      { key: "measurements", label: "Custom measurements (optional)", kind: "text", placeholder: "Chest, waist, length…" },
-    ];
-  }
-  if (cat.includes("shoe")) {
-    return [
-      { key: "size", label: "Shoe size", kind: "chip", options: SHOE_SIZES, required: true },
-      { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-      { key: "material", label: "Material", kind: "chip", options: ["Leather", "Suede", "Canvas"], required: true },
-    ];
-  }
-  if (cat.includes("jewell") || cat.includes("jewel")) {
-    return [
-      { key: "metal", label: "Metal type", kind: "chip", options: METALS, required: true },
-      { key: "size", label: "Size", kind: "chip", options: ["Small", "Medium", "Large"], required: true },
-      { key: "engraving", label: "Engraving (optional)", kind: "text", placeholder: "Up to 20 characters" },
-    ];
-  }
-  if (cat.includes("home") || cat.includes("decor")) {
-    return [
-      { key: "width", label: "Width", kind: "number", unit: "cm", required: true },
-      { key: "height", label: "Height", kind: "number", unit: "cm", required: true },
-      { key: "depth", label: "Depth", kind: "number", unit: "cm", required: true },
-      { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-      { key: "material", label: "Material", kind: "chip", options: MATERIALS, required: true },
-    ];
-  }
-  if (cat.includes("art") || cat.includes("craft") || cat.includes("canvas") || cat.includes("paint")) {
-    return [
-      { key: "width", label: "Width", kind: "number", unit: "cm", required: true },
-      { key: "height", label: "Height", kind: "number", unit: "cm", required: true },
-      { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-    ];
-  }
-  if (cat.includes("beauty")) {
-    return [
-      { key: "shade", label: "Shade / variant", kind: "chip", options: ["Light", "Medium", "Deep", "Rich"], required: true },
-    ];
-  }
-  if (cat.includes("leather")) {
-    return [
-      { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-      { key: "size", label: "Size", kind: "chip", options: ["S", "M", "L", "One size"], required: true },
-      { key: "material", label: "Material", kind: "chip", options: ["Leather", "Suede", "Vegan leather"], required: true },
-    ];
-  }
-  return [
-    { key: "size", label: "Size", kind: "chip", options: SIZES, required: true },
-    { key: "colour", label: "Colour", kind: "swatch", options: COLOURS, required: true },
-  ];
-}
+export type { VariationSelection };
 
 interface ProductVariationSelectorProps {
   category: string;
-  onSelectionChange: (selection: VariationSelection, allRequiredSelected: boolean) => void;
+  /** When provided, drives the selector. Empty enabled list = no variations (cart ready). */
+  variationTypes?: ProductVariationTypeDef[] | null;
+  basePrice: number;
+  onSelectionChange: (
+    selection: VariationSelection,
+    allRequiredSelected: boolean,
+    displayPrice: number,
+  ) => void;
+}
+
+function optionTestId(typeName: string, opt: VariationOptionDef, soldOut: boolean): string {
+  if (soldOut) return "variation-option-sold-out";
+  const slug = (opt.value || opt.label).toLowerCase().replace(/\s+/g, "-");
+  if (typeName === "size" || typeName === "shoe_size") {
+    if (/^(l|large)$/i.test(opt.value) || /large/i.test(opt.label)) {
+      return "variation-option-large";
+    }
+    return `size-chip-${opt.label}`;
+  }
+  if (kindForTypeName(typeName) === "swatch") {
+    return `colour-swatch-${opt.label}`;
+  }
+  return `variation-option-${typeName}-${slug}`;
 }
 
 const ProductVariationSelector = ({
-  category,
+  category: _category,
+  variationTypes,
+  basePrice,
   onSelectionChange,
 }: ProductVariationSelectorProps) => {
-  const fields = useMemo(() => fieldsForCategory(category), [category]);
+  const types = useMemo(() => enabledTypes(variationTypes ?? []), [variationTypes]);
   const [selection, setSelection] = useState<VariationSelection>({});
 
-  const required = useMemo(
-    () => fields.filter((f) => f.required).map((f) => f.key),
-    [fields],
-  );
+  const required = useMemo(() => requiredTypeNames(types), [types]);
 
   useEffect(() => {
+    // Reset selection when product variation config changes.
+    setSelection({});
+  }, [variationTypes]);
+
+  useEffect(() => {
+    if (types.length === 0) {
+      onSelectionChange({}, true, basePrice);
+      return;
+    }
     const ok = required.every((k) => Boolean(selection[k]?.trim()));
-    onSelectionChange(selection, ok);
-  }, [selection, required, onSelectionChange]);
+    const { displayPrice } = resolveDisplayPrice(basePrice, types, selection);
+    onSelectionChange(selection, ok, displayPrice);
+  }, [selection, required, types, basePrice, onSelectionChange]);
 
   const setValue = (key: string, value: string) => {
     setSelection((prev) => ({ ...prev, [key]: value }));
   };
 
+  if (types.length === 0) {
+    return null;
+  }
+
   return (
     <div className="space-y-5" data-testid="variation-selector">
-      {fields.map((field) => (
-        <div key={field.key} className="space-y-2">
-          <Label className="text-sm font-medium">
-            {field.label}
-            {field.required ? <span className="text-destructive"> *</span> : null}
-          </Label>
+      {types.map((type) => {
+        const kind = kindForTypeName(type.typeName);
+        const label = labelForTypeName(type.typeName);
 
-          {field.kind === "swatch" && (
-            <div className="flex flex-wrap gap-2">
-              {field.options.map((opt) => {
-                const selected = selection[field.key] === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    data-testid={`colour-swatch-${opt.value}`}
-                    aria-label={opt.value}
-                    aria-pressed={selected}
-                    onClick={() => setValue(field.key, opt.value)}
-                    className={cn(
-                      "h-10 w-10 rounded-full border-2 transition-all",
-                      selected ? "border-primary scale-105" : "border-transparent",
-                    )}
-                    style={{ backgroundColor: opt.color }}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {field.kind === "chip" && (
-            <div className="flex flex-wrap gap-2">
-              {field.options.map((opt) => {
-                const selected = selection[field.key] === opt;
-                const testId =
-                  field.key === "size" ? `size-chip-${opt}` : `${field.key}-chip-${opt}`;
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    data-testid={testId}
-                    aria-pressed={selected}
-                    onClick={() => setValue(field.key, opt)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md text-sm border transition-colors",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-foreground border-border hover:border-primary/50",
-                    )}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {field.kind === "text" && (
-            <Input
-              value={selection[field.key] ?? ""}
-              onChange={(e) => setValue(field.key, e.target.value)}
-              placeholder={field.placeholder}
-            />
-          )}
-
-          {field.kind === "number" && (
-            <div className="flex items-center gap-2 max-w-[180px]">
-              <Input
-                type="number"
-                min={0}
-                value={selection[field.key] ?? ""}
-                onChange={(e) => setValue(field.key, e.target.value)}
+        if (kind === "body_type") {
+          return (
+            <div key={type.typeName} data-testid={`variation-selector-${type.typeName}`}>
+              <BodyTypeSelector
+                value={selection[type.typeName]}
+                onChange={(v) => setValue(type.typeName, v)}
+                required={type.isRequired}
               />
-              {field.unit && (
-                <span className="text-sm text-muted-foreground">{field.unit}</span>
-              )}
             </div>
-          )}
-        </div>
-      ))}
+          );
+        }
+
+        return (
+          <div
+            key={type.typeName}
+            className="space-y-2"
+            data-testid={`variation-selector-${type.typeName}`}
+          >
+            <Label className="text-sm font-medium">
+              {label}
+              {type.isRequired ? <span className="text-destructive"> *</span> : null}
+            </Label>
+
+            {(kind === "swatch" || kind === "chip") && (
+              <div className="flex flex-wrap gap-2">
+                {type.options.map((opt) => {
+                  const soldOut = isOptionSoldOut(opt);
+                  const selected =
+                    selection[type.typeName] === opt.value ||
+                    selection[type.typeName] === opt.label;
+                  const testId = optionTestId(type.typeName, opt, soldOut);
+
+                  if (kind === "swatch") {
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        data-testid={testId}
+                        aria-label={opt.label}
+                        aria-pressed={selected}
+                        disabled={soldOut}
+                        onClick={() => {
+                          if (!soldOut) setValue(type.typeName, opt.value);
+                        }}
+                        className={cn(
+                          "h-10 w-10 rounded-full border-2 transition-all relative overflow-hidden",
+                          selected ? "border-primary scale-105 selected" : "border-transparent",
+                          soldOut && "variation-option--sold-out",
+                        )}
+                        style={{ backgroundColor: opt.colorHex || "#ccc" }}
+                        title={soldOut ? `${opt.label} — Sold out` : opt.label}
+                      />
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      data-testid={testId}
+                      aria-pressed={selected}
+                      disabled={soldOut}
+                      onClick={() => {
+                        if (!soldOut) setValue(type.typeName, opt.value);
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-sm border transition-colors relative overflow-hidden",
+                        selected
+                          ? "bg-primary text-primary-foreground border-primary selected"
+                          : "bg-background text-foreground border-border hover:border-primary/50",
+                        soldOut && "variation-option--sold-out",
+                      )}
+                    >
+                      {opt.label}
+                      {soldOut ? (
+                        <span className="block text-[10px] opacity-80">Sold out</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {kind === "text" && (
+              <Input
+                value={selection[type.typeName] ?? ""}
+                onChange={(e) => setValue(type.typeName, e.target.value)}
+                placeholder={
+                  type.typeName === "engraving"
+                    ? "Up to 20 characters"
+                    : "Chest, waist, length…"
+                }
+              />
+            )}
+
+            {kind === "number" && (
+              <div className="flex items-center gap-2 max-w-[180px]">
+                <Input
+                  type="number"
+                  min={0}
+                  value={selection[type.typeName] ?? ""}
+                  onChange={(e) => setValue(type.typeName, e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">cm</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

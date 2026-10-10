@@ -35,6 +35,8 @@ export interface Product {
   viewsToday?: number;
   viewsThisWeek?: number;
   isHighDemand?: boolean;
+  /** Artisan-configured variation types. Empty / missing enabled types ⇒ fixed product. */
+  variationTypes?: import("@/lib/productVariations").ProductVariationTypeDef[];
 }
 
 export interface Provider {
@@ -55,6 +57,10 @@ export interface Provider {
   estimatedDeliveryDays: number;
   heroImage: string;
   customOrdersEnabled: boolean;
+  /** Admin-controlled custom-order eligibility (preferred over customOrdersEnabled). */
+  isCustomOrderEligible?: boolean;
+  customOrderApprovedAt?: string | null;
+  customOrderApprovedBy?: string | null;
   category: string;
   styleTags: string[];
   metaTitle?: string | null;

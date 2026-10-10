@@ -8,6 +8,7 @@
 
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete, MoeApiError } from "./moeApi";
 import { FALLBACK_IMAGE } from "./imageFallback";
+import { normalizeVariationTypes, type ProductVariationTypeDef } from "./productVariations";
 import {
   Product,
   Provider,
@@ -170,6 +171,8 @@ export interface ArtisanProfile {
   serviceCategories?: string | string[];
   rushOrderEnabled?: boolean;
   rushOrderSurchargePercent?: number;
+  customOrdersEnabled?: boolean;
+  isCustomOrderEligible?: boolean;
   createdAt: string;
 }
 
@@ -290,6 +293,25 @@ export const artisanService = {
     apiPost<Product>("/artisans/me/products", data),
   updateProduct: (id: number, data: Record<string, unknown>) =>
     apiPatch<Product>(`/artisans/me/products/${id}`, data),
+  /** Replace-strategy update of all variation types for a product. */
+  replaceProductVariations: (id: number, variationTypes: ProductVariationTypeDef[]) =>
+    apiPatch<{ variationTypes: ProductVariationTypeDef[] }>(
+      `/artisans/products/${id}/variations`,
+      { variationTypes },
+    ),
+  /** Toggle a single variation type on/off. */
+  toggleProductVariationType: (id: number, typeId: string, isEnabled: boolean) =>
+    apiPatch(`/artisans/products/${id}/variations/${typeId}`, { isEnabled }),
+  /** Update per-option stock. */
+  updateVariationOptionStock: (
+    productId: number,
+    typeId: string,
+    optionId: string,
+    stockCount: number | null,
+  ) =>
+    apiPatch(`/artisans/products/${productId}/variations/${typeId}/options/${optionId}`, {
+      stockCount,
+    }),
   deleteProduct: (id: number) => apiDelete(`/artisans/me/products/${id}`),
   uploadProductImage: async (file: File): Promise<{ url: string }> => {
     const res = await uploadFileWithAuth("/artisans/me/products/upload-image", file);
@@ -570,6 +592,10 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     ...(typeof raw.viewsToday === "number" ? { viewsToday: raw.viewsToday } : {}),
     ...(typeof raw.viewsThisWeek === "number" ? { viewsThisWeek: raw.viewsThisWeek } : {}),
     ...(typeof raw.isHighDemand === "boolean" ? { isHighDemand: raw.isHighDemand } : {}),
+    ...(() => {
+      const variationTypes = normalizeVariationTypes(raw.variationTypes);
+      return variationTypes ? { variationTypes } : {};
+    })(),
   };
 };
 
@@ -773,6 +799,15 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     ...({ averageRating: ratingValue } as Record<string, unknown>),
     ...(productCount !== undefined ? { productCount } : {}),
     ...(raw.userId != null ? { userId: raw.userId } : {}),
+    customOrdersEnabled: Boolean(
+      raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
+    ),
+    isCustomOrderEligible: Boolean(
+      raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
+    ),
+    ...(raw.customOrderApprovedAt != null
+      ? { customOrderApprovedAt: raw.customOrderApprovedAt }
+      : {}),
   };
 };
 
@@ -1212,9 +1247,66 @@ export interface CustomOrderRequest {
   referenceImageUrl?: string;
 }
 
+/** Sprint custom-order commission payload (POST /custom-orders). */
+export interface CustomOrderCommissionRequest {
+  artisanId: number | string;
+  description: string;
+  referenceImages?: string[];
+  budget?: number;
+  deadline?: string;
+}
+
+export interface CustomOrderRecord {
+  id: string;
+  artisanId: string | number;
+  customerId: string | number;
+  description: string;
+  referenceImages: string[];
+  budget?: number | null;
+  deadline?: string | null;
+  status:
+    | "pending"
+    | "accepted"
+    | "declined"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
+  artisanResponse?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  artisanName?: string;
+  customerName?: string;
+}
+
 export const customOrderService = {
   create: (data: CustomOrderRequest) =>
     apiPost<{ id: number; status: string }>("/orders/custom-requests", data),
+  /** New commission flow — requires artisan isCustomOrderEligible. */
+  createCommission: async (data: CustomOrderCommissionRequest) => {
+    try {
+      return await apiPost<CustomOrderRecord>("/custom-orders", data);
+    } catch (err) {
+      // Soft fallback to legacy endpoint shape while BE rolls out.
+      if (err instanceof MoeApiError && (err.status === 404 || err.status === 405)) {
+        return customOrderService.create({
+          providerId: Number(data.artisanId),
+          description: data.description,
+          additionalNotes: [
+            data.budget != null ? `Budget: ₦${data.budget}` : null,
+            data.deadline ? `Deadline: ${data.deadline}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          referenceImageUrl: data.referenceImages?.[0],
+        }) as unknown as Promise<CustomOrderRecord>;
+      }
+      throw err;
+    }
+  },
+  listForArtisan: () => apiGet<CustomOrderRecord[]>("/artisans/me/custom-orders"),
+  respond: (id: string, body: { status: "accepted" | "declined"; artisanResponse?: string }) =>
+    apiPatch<CustomOrderRecord>(`/artisans/me/custom-orders/${id}`, body),
+  listAdmin: () => apiGet<CustomOrderRecord[]>("/admin/custom-orders"),
 };
 
 // ─── Payments ─────────────────────────────────────────────
@@ -2036,6 +2128,10 @@ export interface AdminArtisanDetail {
     rushOrderEnabled: boolean;
     estimatedDeliveryDays: number | null;
   } | null;
+  /** Admin custom-order eligibility (separate from product variations). */
+  isCustomOrderEligible?: boolean;
+  customOrderApprovedAt?: string | null;
+  customOrderApprovedBy?: string | null;
   user: {
     id: number;
     name: string;
@@ -2117,6 +2213,13 @@ export const adminService = {
       `/admin/artisans/${id}/status`,
       reason ? { status, reason } : { status },
     ),
+
+  setCustomOrderEligibility: (id: number, isEligible: boolean) =>
+    apiPatch<{
+      isCustomOrderEligible: boolean;
+      customOrderApprovedAt: string | null;
+      customOrderApprovedBy: string | null;
+    }>(`/admin/artisans/${id}/custom-order-eligibility`, { isEligible }),
 
   /**
    * Permanently remove an artisan. Prefers DELETE /admin/artisans/:id.

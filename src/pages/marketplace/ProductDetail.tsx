@@ -51,16 +51,24 @@ const ProductDetail = () => {
   const [showMessaging, setShowMessaging] = useState(false);
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const [variations, setVariations] = useState<VariationSelection>({});
-  const [variationsReady, setVariationsReady] = useState(false);
+  const [variationsReady, setVariationsReady] = useState(true);
+  const [displayPrice, setDisplayPrice] = useState<number | null>(null);
+  const [priceKey, setPriceKey] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
   const { addItem: addToCart } = useCart();
   const { toast } = useToast();
   const { user } = useAuth();
 
   const onVariationChange = useCallback(
-    (selection: VariationSelection, allRequiredSelected: boolean) => {
+    (selection: VariationSelection, allRequiredSelected: boolean, price: number) => {
       setVariations(selection);
       setVariationsReady(allRequiredSelected);
+      setDisplayPrice((prev) => {
+        if (prev != null && prev !== price) {
+          queueMicrotask(() => setPriceKey((k) => k + 1));
+        }
+        return price;
+      });
     },
     [],
   );
@@ -192,8 +200,11 @@ const ProductDetail = () => {
 
   const priceMin = product.priceRange?.min ?? 0;
   const priceMax = product.priceRange?.max ?? priceMin;
-  const priceLabel =
-    priceMin === priceMax
+  const effectiveUnit = displayPrice ?? priceMin;
+  const overrideActive = displayPrice != null && displayPrice !== priceMin;
+  const priceLabel = overrideActive
+    ? `₦${effectiveUnit.toLocaleString()}`
+    : priceMin === priceMax
       ? `₦${priceMin.toLocaleString()}`
       : `₦${priceMin.toLocaleString()} – ₦${priceMax.toLocaleString()}`;
 
@@ -203,18 +214,20 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product || !provider || !variationsReady) return;
-    const base = (product.priceRange?.min ?? 0) + rushOrderCost;
+    const unit = (displayPrice ?? product.priceRange?.min ?? 0) + rushOrderCost;
     addToCart({
       id: `${product.id}-${Date.now()}`,
       productId: product.id,
       productName: product.name,
       providerId: product.providerId,
       providerName: provider.brandName,
-      basePrice: base,
-      finalPrice: base,
+      basePrice: unit,
+      finalPrice: unit,
       category: (product.category as "tailoring" | "shoemaking" | "canvas") || "tailoring",
-      selectedSize: variations.size,
+      selectedSize: variations.size || variations.shoe_size,
+      selectedBodyType: variations.body_type,
       selectedVariants: variations,
+      selectedVariations: variations,
       measurements: {},
       notes: "",
       quantity: 1,
@@ -352,12 +365,27 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* 5. Price */}
+            {/* 5. Price — displayPrice may be overridden by variation selection */}
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
                 Price
               </p>
-              <p className="text-2xl font-bold text-primary">{priceLabel}</p>
+              <p
+                key={priceKey}
+                className="text-2xl font-bold text-primary product-price-animate flex flex-wrap items-baseline gap-2"
+                data-testid="product-price"
+              >
+                {overrideActive ? (
+                  <>
+                    <span className="text-base font-normal text-muted-foreground line-through">
+                      ₦{priceMin.toLocaleString()}
+                    </span>
+                    <span>{priceLabel}</span>
+                  </>
+                ) : (
+                  priceLabel
+                )}
+              </p>
               {rushOrderCost > 0 && (
                 <p className="text-sm text-accent mt-1">
                   +₦{rushOrderCost.toLocaleString()} rush order fee
@@ -417,9 +445,11 @@ const ProductDetail = () => {
               </p>
             )}
 
-            {/* Inline variations */}
+            {/* Inline variations — omitted when product has no enabled variation types */}
             <ProductVariationSelector
               category={product.category}
+              variationTypes={product.variationTypes}
+              basePrice={priceMin}
               onSelectionChange={onVariationChange}
             />
 

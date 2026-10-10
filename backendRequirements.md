@@ -828,3 +828,90 @@ See also root `security-audit.md`.
 - 🔴 `PATCH /admin/disputes/:id` `{ status?, resolution? }` — `open | under_review | resolved | closed`
 
 Apply migration on deploy: `npx prisma migrate deploy`
+
+---
+
+## Variations, Quality Audit & Custom Orders Sprint — Backend Contracts
+
+Variations and Custom Orders are **separate systems**. Do not conflate them.
+
+### Product variation types (per product, optional)
+
+Prisma (new / extend):
+
+```prisma
+model ProductVariationType {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  typeName   String   // size | colour | material | body_type | …
+  isEnabled  Boolean  @default(true)
+  isRequired Boolean  @default(false)
+  options    VariationOption[]
+}
+
+model VariationOption {
+  id              String               @id @default(uuid())
+  variationTypeId String
+  variationType   ProductVariationType @relation(fields: [variationTypeId], references: [id], onDelete: Cascade)
+  label           String
+  value           String
+  colorHex        String?
+  priceOverride   Float?   // null ⇒ use product base price
+  stockCount      Int?     // null ⇒ not tracked; 0 ⇒ sold out
+  isAvailable     Boolean  @default(true)
+  position        Int      @default(0)
+}
+```
+
+Endpoints:
+
+- 🔴 `GET /products/:id` — include `variationTypes[]` with options (`priceOverride`, `stockCount`, `isAvailable`, `colorHex`)
+- 🔴 Product create / update DTOs accept `variationTypes[]` (same shape as FE payload)
+- 🔴 `PATCH /artisans/products/:id/variations` — replace-strategy full `variationTypes` array (artisan auth)
+- 🔴 `PATCH /artisans/products/:id/variations/:typeId` — `{ isEnabled: boolean }`
+- 🔴 `PATCH /artisans/products/:id/variations/:typeId/options/:optionId` — `{ stockCount: number | null }`
+
+Sold-out rule: option unavailable when `isAvailable === false` OR (`stockCount !== null && stockCount === 0`). Keep option visible on FE.
+
+`body_type` is a normal `typeName` with fixed options (`slim|athletic|average|curvy|plus`). Include selected `body_type` on order line items so artisans see it when fulfilling.
+
+Price display (FE): highest single selected `priceOverride` wins (MVP). Cart `finalPrice` uses that unit price.
+
+A product with **zero enabled** variation types is a fixed product — Add to Cart enabled with no selector.
+
+### Custom order eligibility (admin opt-in)
+
+```prisma
+// on Artisan
+isCustomOrderEligible   Boolean   @default(false)
+customOrderApprovedAt   DateTime?
+customOrderApprovedBy   String?
+
+model CustomOrder {
+  id              String   @id @default(uuid())
+  artisanId       String
+  customerId      String
+  description     String
+  referenceImages String[]
+  budget          Float?
+  deadline        String?
+  status          String   @default("pending")
+  // pending | accepted | declined | in_progress | completed | cancelled
+  artisanResponse String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+```
+
+Endpoints:
+
+- 🔴 `PATCH /admin/artisans/:id/custom-order-eligibility` `{ isEligible: boolean }` — admin guard; set approvedAt/By; notify artisan (in-app + email)
+- 🔴 `GET /artisans/:id` (public) — include `isCustomOrderEligible` only (never expose approvedBy)
+- 🔴 `POST /custom-orders` — customer auth; 403 if artisan not eligible
+- 🔴 `GET /artisans/me/custom-orders` + `PATCH /artisans/me/custom-orders/:id` `{ status, artisanResponse? }`
+- 🔴 `GET /admin/custom-orders` — admin list
+
+Legacy: FE still soft-falls back to `POST /orders/custom-requests` and `customOrdersEnabled` when new fields/routes are missing.
+
+Apply migrations on deploy after Prisma models land.

@@ -5,7 +5,7 @@ import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
-import CustomOrderModal from "@/components/marketplace/CustomOrderModal";
+import RequestCustomOrderModal from "@/components/marketplace/RequestCustomOrderModal";
 import MessagingModal from "@/components/marketplace/MessagingModal";
 import CustomerReviews, { Review } from "@/components/marketplace/CustomerReviews";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -353,18 +353,23 @@ const ProviderDetail = () => {
                     </Button>
                   )}
                 </div>
-                {provider.customOrdersEnabled && (
+                {(provider.isCustomOrderEligible ?? provider.customOrdersEnabled) && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button 
-                          className="w-full mt-6 bg-secondary hover:bg-secondary-dark" 
+                        <Button
+                          className="w-full mt-6 bg-secondary hover:bg-secondary-dark"
+                          data-testid="request-custom-order-btn"
                           onClick={() => setShowCustomOrderModal(true)}
                         >
-                          Start Custom Order
+                          Request Custom Order
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent><p className="text-xs">Request a fully custom piece from this artisan</p></TooltipContent>
+                      <TooltipContent>
+                        <p className="text-xs">
+                          Request a fully custom commission from this artisan
+                        </p>
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -375,12 +380,12 @@ const ProviderDetail = () => {
       </main>
 
       <MarketplaceFooter />
-      
-      <CustomOrderModal
+
+      <RequestCustomOrderModal
         open={showCustomOrderModal}
         onOpenChange={setShowCustomOrderModal}
-        providerId={provider.id}
-        providerName={provider.brandName}
+        artisanId={provider.id}
+        artisanName={provider.brandName}
       />
 
       <CustomizationFormModal
