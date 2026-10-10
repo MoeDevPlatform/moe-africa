@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnvFile } from './tests/helpers/loadEnv';
 
+// Requires @playwright/test@1.57.x (test-server for the IDE; Chromium still supports macOS 12).
 // Load local .env (ADMIN_EMAIL / ADMIN_PASSWORD / PLAYWRIGHT_*) — never commit that file.
 loadEnvFile();
 
