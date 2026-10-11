@@ -7,22 +7,40 @@ interface BodyTypeSelectorProps {
   required?: boolean;
 }
 
-/** Simple silhouette SVGs — no external images. */
+/**
+ * Parametric figure silhouettes — shoulder / bust / waist / hip proportions
+ * per build, drawn as smooth symmetric curves. No external images.
+ */
 function Silhouette({ variant }: { variant: string }) {
-  const scale =
+  // Half-widths in the 40x70 viewBox: shoulders, waist, hip, hem.
+  const p =
     variant === "slim"
-      ? 0.75
+      ? { s: 6.5, w: 5.5, h: 7, hem: 7 }
       : variant === "athletic"
-        ? 0.9
+        ? { s: 10, w: 8, h: 8.5, hem: 8 }
         : variant === "average"
-          ? 1
+          ? { s: 8.5, w: 6.5, h: 9, hem: 9 }
           : variant === "curvy"
-            ? 1.15
-            : 1.3;
-  const hip =
-    variant === "curvy" || variant === "plus" ? 18 * scale : 12 * scale;
-  const shoulder =
-    variant === "athletic" || variant === "plus" ? 16 * scale : 12 * scale;
+            ? { s: 8, w: 5.5, h: 11, hem: 11 }
+            : { s: 12, w: 10.5, h: 13.5, hem: 13.5 }; // plus
+  const { s, w, h, hem } = p;
+
+  const d = [
+    `M${20 - s} 19`,
+    `Q${20 - s} 16.5 20 16.5`,
+    `Q${20 + s} 16.5 ${20 + s} 19`,
+    // gentle taper into the waist
+    `C${20 + s} 23 ${20 + w} 27 ${20 + w} 33`,
+    // flare out to the hips
+    `C${20 + w} 39 ${20 + h} 42 ${20 + h} 50`,
+    // round into the hem
+    `Q${20 + h} 59 ${20 + hem} 61`,
+    `L${20 - hem} 61`,
+    `Q${20 - h} 59 ${20 - h} 50`,
+    `C${20 - h} 42 ${20 - w} 39 ${20 - w} 33`,
+    `C${20 - w} 27 ${20 - s} 23 ${20 - s} 19`,
+    "Z",
+  ].join(" ");
 
   return (
     <svg
@@ -31,17 +49,9 @@ function Silhouette({ variant }: { variant: string }) {
       aria-hidden="true"
       fill="currentColor"
     >
-      <circle cx="20" cy="10" r="6" opacity="0.9" />
-      <path
-        d={`M${20 - shoulder} 18
-           Q20 22 ${20 + shoulder} 18
-           L${20 + shoulder * 0.7} 36
-           L${20 + hip} 58
-           L${20 - hip} 58
-           L${20 - shoulder * 0.7} 36
-           Z`}
-        opacity="0.85"
-      />
+      <circle cx="20" cy="9.5" r="5.2" opacity="0.9" />
+      <path d="M18.6 13.5 L21.4 13.5 L21.9 17.5 L18.1 17.5 Z" opacity="0.9" />
+      <path d={d} opacity="0.85" />
     </svg>
   );
 }

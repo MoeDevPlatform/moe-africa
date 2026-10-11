@@ -333,7 +333,7 @@ export function normalizeVariationTypes(raw: unknown): ProductVariationTypeDef[]
         id: typeof o.id === "string" ? o.id : undefined,
         label: String(o.label ?? o.value ?? `Option ${j + 1}`),
         value: String(o.value ?? o.label ?? `opt_${j}`),
-        colorHex: typeof o.colorHex === "string" ? o.colorHex : o.colorHex ?? null,
+        colorHex: typeof o.colorHex === "string" ? o.colorHex : null,
         priceOverride:
           typeof o.priceOverride === "number"
             ? o.priceOverride
