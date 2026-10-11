@@ -12,34 +12,33 @@ interface BodyTypeSelectorProps {
  * per build, drawn as smooth symmetric curves. No external images.
  */
 function Silhouette({ variant }: { variant: string }) {
-  // Half-widths in the 40x70 viewBox: shoulders, chest, waist, hips, hem.
+  // Half-widths in the 40x70 viewBox: shoulders, waist, hip, hem.
   const p =
     variant === "slim"
-      ? { s: 6.5, b: 6, w: 5, h: 7.5, hem: 6 }
+      ? { s: 6.5, w: 5.5, h: 7, hem: 7 }
       : variant === "athletic"
-        ? { s: 10, b: 8, w: 6.5, h: 8, hem: 7 }
+        ? { s: 10, w: 8, h: 8.5, hem: 8 }
         : variant === "average"
-          ? { s: 8.5, b: 8, w: 6.5, h: 9.5, hem: 8 }
+          ? { s: 8.5, w: 6.5, h: 9, hem: 9 }
           : variant === "curvy"
-            ? { s: 8, b: 9.5, w: 5.5, h: 12, hem: 10 }
-            : { s: 11.5, b: 12, w: 11, h: 14, hem: 12.5 }; // plus
-  const { s, b, w, h, hem } = p;
+            ? { s: 8, w: 5.5, h: 11, hem: 11 }
+            : { s: 12, w: 10.5, h: 13.5, hem: 13.5 }; // plus
+  const { s, w, h, hem } = p;
 
   const d = [
     `M${20 - s} 19`,
     `Q${20 - s} 16.5 20 16.5`,
     `Q${20 + s} 16.5 ${20 + s} 19`,
-    // torso: shoulders → chest → waist
-    `C${20 + s} 24 ${20 + b} 26 ${20 + b} 30`,
-    `C${20 + b} 34 ${20 + w} 34.5 ${20 + w} 38`,
-    // waist → hips → rounded hem
-    `C${20 + w} 44 ${20 + h} 46 ${20 + h} 53`,
-    `Q${20 + h} 59.5 ${20 + hem} 61`,
+    // gentle taper into the waist
+    `C${20 + s} 23 ${20 + w} 27 ${20 + w} 33`,
+    // flare out to the hips
+    `C${20 + w} 39 ${20 + h} 42 ${20 + h} 50`,
+    // round into the hem
+    `Q${20 + h} 59 ${20 + hem} 61`,
     `L${20 - hem} 61`,
-    `Q${20 - h} 59.5 ${20 - h} 53`,
-    `C${20 - h} 46 ${20 - w} 44 ${20 - w} 38`,
-    `C${20 - w} 34.5 ${20 - b} 34 ${20 - b} 30`,
-    `C${20 - b} 26 ${20 - s} 24 ${20 - s} 19`,
+    `Q${20 - h} 59 ${20 - h} 50`,
+    `C${20 - h} 42 ${20 - w} 39 ${20 - w} 33`,
+    `C${20 - w} 27 ${20 - s} 23 ${20 - s} 19`,
     "Z",
   ].join(" ");
 
