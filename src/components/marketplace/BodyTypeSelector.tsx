@@ -12,35 +12,34 @@ interface BodyTypeSelectorProps {
  * per build, drawn as smooth symmetric curves. No external images.
  */
 function Silhouette({ variant }: { variant: string }) {
-  // Half-widths in the 40x70 viewBox: shoulders, bust, waist, hips, hem.
+  // Half-widths in the 40x70 viewBox: shoulders, chest, waist, hips, hem.
   const p =
     variant === "slim"
-      ? { s: 6, b: 6, w: 4.5, h: 7.5 }
+      ? { s: 6.5, b: 6, w: 5, h: 7.5, hem: 6 }
       : variant === "athletic"
-        ? { s: 9.5, b: 7.5, w: 6, h: 8 }
+        ? { s: 10, b: 8, w: 6.5, h: 8, hem: 7 }
         : variant === "average"
-          ? { s: 8, b: 8.5, w: 6.5, h: 10 }
+          ? { s: 8.5, b: 8, w: 6.5, h: 9.5, hem: 8 }
           : variant === "curvy"
-            ? { s: 7.5, b: 10, w: 5.5, h: 12.5 }
-            : { s: 11, b: 12.5, w: 10.5, h: 14 }; // plus
-  const { s, b, w, h } = p;
-  const hem = Math.max(h - 2.5, 4);
+            ? { s: 8, b: 9.5, w: 5.5, h: 12, hem: 10 }
+            : { s: 11.5, b: 12, w: 11, h: 14, hem: 12.5 }; // plus
+  const { s, b, w, h, hem } = p;
 
   const d = [
     `M${20 - s} 19`,
     `Q${20 - s} 16.5 20 16.5`,
     `Q${20 + s} 16.5 ${20 + s} 19`,
-    // torso: shoulders → bust → waist
-    `C${20 + s} 22.5 ${20 + b} 24.5 ${20 + b} 28`,
-    `C${20 + b} 32.5 ${20 + w} 33 ${20 + w} 37`,
+    // torso: shoulders → chest → waist
+    `C${20 + s} 24 ${20 + b} 26 ${20 + b} 30`,
+    `C${20 + b} 34 ${20 + w} 34.5 ${20 + w} 38`,
     // waist → hips → rounded hem
-    `C${20 + w} 43 ${20 + h} 45.5 ${20 + h} 52`,
-    `Q${20 + h} 58.5 ${20 + hem} 61`,
+    `C${20 + w} 44 ${20 + h} 46 ${20 + h} 53`,
+    `Q${20 + h} 59.5 ${20 + hem} 61`,
     `L${20 - hem} 61`,
-    `Q${20 - h} 58.5 ${20 - h} 52`,
-    `C${20 - h} 45.5 ${20 - w} 43 ${20 - w} 37`,
-    `C${20 - w} 33 ${20 - b} 32.5 ${20 - b} 28`,
-    `C${20 - b} 24.5 ${20 - s} 22.5 ${20 - s} 19`,
+    `Q${20 - h} 59.5 ${20 - h} 53`,
+    `C${20 - h} 46 ${20 - w} 44 ${20 - w} 38`,
+    `C${20 - w} 34.5 ${20 - b} 34 ${20 - b} 30`,
+    `C${20 - b} 26 ${20 - s} 24 ${20 - s} 19`,
     "Z",
   ].join(" ");
 
