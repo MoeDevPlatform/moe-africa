@@ -7,22 +7,42 @@ interface BodyTypeSelectorProps {
   required?: boolean;
 }
 
-/** Simple silhouette SVGs — no external images. */
+/**
+ * Parametric figure silhouettes — shoulder / bust / waist / hip proportions
+ * per build, drawn as smooth symmetric curves. No external images.
+ */
 function Silhouette({ variant }: { variant: string }) {
-  const scale =
+  // Half-widths in the 40x70 viewBox: shoulders, bust, waist, hips, hem.
+  const p =
     variant === "slim"
-      ? 0.75
+      ? { s: 6, b: 6, w: 4.5, h: 7.5 }
       : variant === "athletic"
-        ? 0.9
+        ? { s: 9.5, b: 7.5, w: 6, h: 8 }
         : variant === "average"
-          ? 1
+          ? { s: 8, b: 8.5, w: 6.5, h: 10 }
           : variant === "curvy"
-            ? 1.15
-            : 1.3;
-  const hip =
-    variant === "curvy" || variant === "plus" ? 18 * scale : 12 * scale;
-  const shoulder =
-    variant === "athletic" || variant === "plus" ? 16 * scale : 12 * scale;
+            ? { s: 7.5, b: 10, w: 5.5, h: 12.5 }
+            : { s: 11, b: 12.5, w: 10.5, h: 14 }; // plus
+  const { s, b, w, h } = p;
+  const hem = Math.max(h - 2.5, 4);
+
+  const d = [
+    `M${20 - s} 19`,
+    `Q${20 - s} 16.5 20 16.5`,
+    `Q${20 + s} 16.5 ${20 + s} 19`,
+    // torso: shoulders → bust → waist
+    `C${20 + s} 22.5 ${20 + b} 24.5 ${20 + b} 28`,
+    `C${20 + b} 32.5 ${20 + w} 33 ${20 + w} 37`,
+    // waist → hips → rounded hem
+    `C${20 + w} 43 ${20 + h} 45.5 ${20 + h} 52`,
+    `Q${20 + h} 58.5 ${20 + hem} 61`,
+    `L${20 - hem} 61`,
+    `Q${20 - h} 58.5 ${20 - h} 52`,
+    `C${20 - h} 45.5 ${20 - w} 43 ${20 - w} 37`,
+    `C${20 - w} 33 ${20 - b} 32.5 ${20 - b} 28`,
+    `C${20 - b} 24.5 ${20 - s} 22.5 ${20 - s} 19`,
+    "Z",
+  ].join(" ");
 
   return (
     <svg
@@ -31,17 +51,9 @@ function Silhouette({ variant }: { variant: string }) {
       aria-hidden="true"
       fill="currentColor"
     >
-      <circle cx="20" cy="10" r="6" opacity="0.9" />
-      <path
-        d={`M${20 - shoulder} 18
-           Q20 22 ${20 + shoulder} 18
-           L${20 + shoulder * 0.7} 36
-           L${20 + hip} 58
-           L${20 - hip} 58
-           L${20 - shoulder * 0.7} 36
-           Z`}
-        opacity="0.85"
-      />
+      <circle cx="20" cy="9.5" r="5.2" opacity="0.9" />
+      <path d="M18.6 13.5 L21.4 13.5 L21.9 17.5 L18.1 17.5 Z" opacity="0.9" />
+      <path d={d} opacity="0.85" />
     </svg>
   );
 }
