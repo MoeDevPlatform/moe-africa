@@ -8,50 +8,60 @@ interface BodyTypeSelectorProps {
 }
 
 /**
- * Parametric figure silhouettes — shoulder / bust / waist / hip proportions
- * per build, drawn as smooth symmetric curves. No external images.
+ * Full-body figure silhouettes (head, arms, torso, legs) in the style used by
+ * fit-finder tools on fashion apps. Proportions are parametric per build.
  */
 function Silhouette({ variant }: { variant: string }) {
-  // Half-widths in the 40x70 viewBox: shoulders, waist, hip, hem.
+  // Half-widths in a 40x80 viewBox: shoulder, chest, waist, hip, ankle, arm thickness.
   const p =
     variant === "slim"
-      ? { s: 6.5, w: 5.5, h: 7, hem: 7 }
+      ? { s: 6.5, c: 5.5, w: 4.5, h: 5.5, k: 2.6, a: 2.2 }
       : variant === "athletic"
-        ? { s: 10, w: 8, h: 8.5, hem: 8 }
+        ? { s: 9.5, c: 8, w: 6, h: 6.5, k: 3, a: 3.2 }
         : variant === "average"
-          ? { s: 8.5, w: 6.5, h: 9, hem: 9 }
+          ? { s: 8, c: 7, w: 6.2, h: 7.5, k: 3, a: 2.8 }
           : variant === "curvy"
-            ? { s: 8, w: 5.5, h: 11, hem: 11 }
-            : { s: 12, w: 10.5, h: 13.5, hem: 13.5 }; // plus
-  const { s, w, h, hem } = p;
+            ? { s: 7.5, c: 7.5, w: 5, h: 9.5, k: 3, a: 2.7 }
+            : { s: 10, c: 10.5, w: 10, h: 11.5, k: 3.6, a: 3.6 }; // plus
+  const { s, c, w, h, k, a } = p;
+  const side = (m: 1 | -1) => (x: number) => 20 + m * x;
+  const R = side(1);
+  const L = side(-1);
 
-  const d = [
-    `M${20 - s} 19`,
-    `Q${20 - s} 16.5 20 16.5`,
-    `Q${20 + s} 16.5 ${20 + s} 19`,
-    // gentle taper into the waist
-    `C${20 + s} 23 ${20 + w} 27 ${20 + w} 33`,
-    // flare out to the hips
-    `C${20 + w} 39 ${20 + h} 42 ${20 + h} 50`,
-    // round into the hem
-    `Q${20 + h} 59 ${20 + hem} 61`,
-    `L${20 - hem} 61`,
-    `Q${20 - h} 59 ${20 - h} 50`,
-    `C${20 - h} 42 ${20 - w} 39 ${20 - w} 33`,
-    `C${20 - w} 27 ${20 - s} 23 ${20 - s} 19`,
+  const body = [
+    `M20 16`,
+    `C${R(s * 0.6)} 16 ${R(s)} 16.5 ${R(s)} 19.5`,
+    `C${R(s)} 23 ${R(c)} 23.5 ${R(c)} 27`,
+    `C${R(c)} 30.5 ${R(w)} 31 ${R(w)} 34.5`,
+    `C${R(w)} 38.5 ${R(h)} 39.5 ${R(h)} 44`,
+    `C${R(h)} 54 ${R(k + 1.5)} 64 ${R(k)} 75`,
+    `Q${R(k)} 77 ${R(0.9)} 77`,
+    `L${R(0.9)} 52`,
+    `Q20 49.5 ${L(0.9)} 52`,
+    `L${L(0.9)} 77`,
+    `Q${L(k)} 77 ${L(k)} 75`,
+    `C${L(k + 1.5)} 64 ${L(h)} 54 ${L(h)} 44`,
+    `C${L(h)} 39.5 ${L(w)} 38.5 ${L(w)} 34.5`,
+    `C${L(w)} 31 ${L(c)} 30.5 ${L(c)} 27`,
+    `C${L(c)} 23.5 ${L(s)} 23 ${L(s)} 19.5`,
+    `C${L(s)} 16.5 ${L(s * 0.6)} 16 20 16`,
     "Z",
   ].join(" ");
 
+  // Arms hang just outside the widest point of the torso.
+  const armX = Math.max(c, h * 0.85) + a / 2 + 0.9;
+  const arm = (m: 1 | -1) =>
+    `M${20 + m * (s - a / 2 + 0.6)} 19.5 Q${20 + m * (armX + 0.6)} 27 ${20 + m * armX} 46`;
+
   return (
-    <svg
-      viewBox="0 0 40 70"
-      className="h-14 w-10 mx-auto"
-      aria-hidden="true"
-      fill="currentColor"
-    >
-      <circle cx="20" cy="9.5" r="5.2" opacity="0.9" />
-      <path d="M18.6 13.5 L21.4 13.5 L21.9 17.5 L18.1 17.5 Z" opacity="0.9" />
-      <path d={d} opacity="0.85" />
+    <svg viewBox="0 0 40 80" className="h-16 w-9 mx-auto" aria-hidden="true">
+      <g fill="currentColor" stroke="currentColor" opacity="0.85">
+        <circle cx="20" cy="8.5" r="5" stroke="none" />
+        <rect x="18.4" y="12.5" width="3.2" height="4.5" rx="1" stroke="none" />
+        <path d={body} stroke="none" />
+        <path d={arm(1)} fill="none" strokeWidth={a} strokeLinecap="round" />
+        <path d={arm(-1)} fill="none" strokeWidth={a} strokeLinecap="round" />
+      </g>
     </svg>
   );
 }
