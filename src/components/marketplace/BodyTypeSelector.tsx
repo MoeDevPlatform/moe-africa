@@ -53,15 +53,24 @@ function Silhouette({ variant }: { variant: string }) {
   const arm = (m: 1 | -1) =>
     `M${20 + m * (s - a / 2 + 0.6)} 19.5 Q${20 + m * (armX + 0.6)} 27 ${20 + m * armX} 46`;
 
+  // Line-art style used by fit-finder tools (Fit Analytics, True Fit, ASOS
+  // Fit Assistant): one continuous outline around head, arms, torso and legs,
+  // with a soft tint inside. Drawn as outline layer → solid fill → tint.
+  const shapes = (extra: number) => (
+    <>
+      <circle cx="20" cy="8.5" r={5 + extra / 2} />
+      <rect x={18.4 - extra / 2} y="12" width={3.2 + extra} height="5.5" rx="1" />
+      <path d={body} strokeWidth={extra} strokeLinejoin="round" />
+      <path d={arm(1)} fill="none" strokeWidth={a + extra} strokeLinecap="round" />
+      <path d={arm(-1)} fill="none" strokeWidth={a + extra} strokeLinecap="round" />
+    </>
+  );
+
   return (
-    <svg viewBox="0 0 40 80" className="h-16 w-9 mx-auto" aria-hidden="true">
-      <g fill="currentColor" stroke="currentColor" opacity="0.85">
-        <circle cx="20" cy="8.5" r="5" stroke="none" />
-        <rect x="18.4" y="12.5" width="3.2" height="4.5" rx="1" stroke="none" />
-        <path d={body} stroke="none" />
-        <path d={arm(1)} fill="none" strokeWidth={a} strokeLinecap="round" />
-        <path d={arm(-1)} fill="none" strokeWidth={a} strokeLinecap="round" />
-      </g>
+    <svg viewBox="-2 -2 44 84" className="h-[72px] w-10 mx-auto" aria-hidden="true">
+      <g fill="currentColor" stroke="currentColor">{shapes(2.2)}</g>
+      <g fill="hsl(var(--card))" stroke="hsl(var(--card))">{shapes(0)}</g>
+      <g fill="currentColor" stroke="currentColor" opacity="0.14">{shapes(0)}</g>
     </svg>
   );
 }
