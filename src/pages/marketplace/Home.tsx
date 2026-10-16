@@ -369,7 +369,7 @@ const MarketplaceHome = () => {
   }, [filteredProviders, artisanSort, hydratedRatings]);
 
   return (
-    <div className="min-h-screen bg-gradient-subtle overflow-x-hidden">
+    <div className="marketplace-home min-h-screen bg-gradient-subtle overflow-x-hidden">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">
@@ -526,7 +526,7 @@ const MarketplaceHome = () => {
         )}
 
         {/* Recommended Providers */}
-        <AnimatedSection delay={200}><section className="mb-12 md:mb-16">
+        <AnimatedSection delay={200}><section className="home-band mb-12 md:mb-16">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4">
             <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
               {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
