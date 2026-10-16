@@ -38,7 +38,9 @@ const SectionDetail = () => {
         setSection(s);
         const sorted = [...(s.items ?? [])].sort((a, b) => a.position - b.position);
         setItems(sorted);
-        setKeywordsText((s.keywords ?? []).join(", "));
+        const kws = (s.keywords ?? []).map((k) => k.term ?? k).filter(Boolean) as string[];
+        setSavedKeywords(kws);
+        setKeywordsText(kws.join(", "));
       })
       .catch((err) => toast.error(err?.message || "Failed to load section"))
       .finally(() => setLoading(false));
