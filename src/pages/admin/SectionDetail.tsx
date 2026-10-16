@@ -46,9 +46,7 @@ const SectionDetail = () => {
         setSection(s);
         const sorted = [...(s.items ?? [])].sort((a, b) => a.position - b.position);
         setItems(sorted);
-        const kws = s.keywords ?? [];
-        setSavedKeywords(kws);
-        setKeywordsText(kws.join(", "));
+        setSavedKeywords(s.keywords ?? []);
       })
       .catch((err) => toast.error(err?.message || "Failed to load section"))
       .finally(() => setLoading(false));
@@ -212,32 +210,53 @@ const SectionDetail = () => {
     }
   };
 
-  const saveKeywords = async () => {
-    const keywords = keywordsText
-      .split(",")
-      .map((k) => k.trim())
-      .filter(Boolean);
+  const addKeywords = async () => {
+    const incoming = parseKeywordInput(keywordsText);
+    if (incoming.length === 0) return;
+    const { merged, added, duplicates } = mergeKeywords(savedKeywords, incoming);
+    if (added.length === 0) {
+      toast.info(
+        duplicates.length === 1
+          ? `"${duplicates[0]}" is already saved`
+          : `${duplicates.map((d) => `"${d}"`).join(", ")} are already saved`,
+      );
+      setKeywordsText("");
+      return;
+    }
+    const previous = savedKeywords;
+    setSavingKeywords(true);
+    setSavedKeywords(merged);
     try {
-      await adminService.setSeasonalKeywords(keywords);
-      toast.success("Seasonal keywords updated");
-      load();
+      await adminService.setSeasonalKeywords(merged);
+      toast.success(
+        added.length === 1 ? `Saved "${added[0]}"` : `Saved ${added.length} keywords`,
+      );
+      if (duplicates.length > 0) {
+        toast.info(
+          duplicates.length === 1
+            ? `"${duplicates[0]}" was already saved`
+            : `${duplicates.map((d) => `"${d}"`).join(", ")} were already saved`,
+        );
+      }
+      setKeywordsText("");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to update keywords");
+      setSavedKeywords(previous);
+      toast.error(err instanceof Error ? err.message : "Failed to save keywords");
+    } finally {
+      setSavingKeywords(false);
     }
   };
 
   const removeKeyword = async (keyword: string) => {
     setRemovingKeyword(keyword);
-    const next = savedKeywords.filter((k) => k !== keyword);
+    const next = removeKeywordFrom(savedKeywords, keyword);
     setSavedKeywords(next);
-    setKeywordsText(next.join(", "));
     try {
       await adminService.setSeasonalKeywords(next);
       toast.success(`Removed "${keyword}"`);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove keyword");
       setSavedKeywords(savedKeywords);
-      setKeywordsText(savedKeywords.join(", "));
+      toast.error(err instanceof Error ? err.message : "Failed to remove keyword");
     } finally {
       setRemovingKeyword(null);
     }
@@ -283,23 +302,56 @@ const SectionDetail = () => {
             {sectionKey === "seasonal_picks" && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Seasonal keywords</CardTitle>
+                  <CardTitle className="text-lg">
+                    Seasonal keywords
+                    {savedKeywords.length > 0 && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        {savedKeywords.length} saved
+                      </span>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Input
+                      data-testid="keyword-input"
                       value={keywordsText}
                       onChange={(e) => setKeywordsText(e.target.value)}
-                      placeholder="eid, graduation, harmattan"
-                      aria-label="Seasonal keywords, comma separated"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void addKeywords();
+                        }
+                      }}
+                      placeholder="Add a keyword — or paste several, separated by commas"
+                      aria-label="Add seasonal keywords, comma separated"
                     />
-                    <Button onClick={saveKeywords}>Save keywords</Button>
+                    <Button
+                      data-testid="add-keywords"
+                      onClick={addKeywords}
+                      disabled={savingKeywords || keywordsText.trim().length === 0}
+                    >
+                      {savingKeywords ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Add keywords
+                    </Button>
                   </div>
-                  {savedKeywords.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Saved keywords
+                  <p className="text-xs text-muted-foreground">
+                    You can save as many keywords as you like — each one you add is kept
+                    alongside the others. Delete any keyword with its trash icon.
+                  </p>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      Saved keywords
+                    </p>
+                    {savedKeywords.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        None saved yet. Add one above.
                       </p>
+                    ) : (
                       <div className="flex flex-wrap gap-2">
                         {savedKeywords.map((keyword) => (
                           <span
@@ -309,6 +361,7 @@ const SectionDetail = () => {
                             {keyword}
                             <button
                               type="button"
+                              data-testid={`remove-keyword-${keyword}`}
                               onClick={() => removeKeyword(keyword)}
                               disabled={removingKeyword !== null}
                               aria-label={`Delete saved keyword ${keyword}`}
@@ -323,8 +376,8 @@ const SectionDetail = () => {
                           </span>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
