@@ -808,9 +808,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     customOrdersEnabled: Boolean(
       raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
     ),
-    isCustomOrderEligible: Boolean(
-      raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
-    ),
+    isCustomOrderEligible: raw.isCustomOrderEligible === true,
     ...(raw.customOrderApprovedAt != null
       ? { customOrderApprovedAt: raw.customOrderApprovedAt }
       : {}),
@@ -1304,6 +1302,8 @@ export const customOrderService = {
       return await apiPost<CustomOrderRecord>("/custom-orders", data);
     } catch (err) {
       // Soft fallback to legacy endpoint shape while BE rolls out.
+      // Structured requests must not silently lose fields on the legacy endpoint.
+      if (data.categoryDetails || data.budgetMin != null || data.budgetMax != null || data.specialInstructions) throw err;
       if (err instanceof MoeApiError && (err.status === 404 || err.status === 405)) {
         return customOrderService.create({
           providerId: Number(data.artisanId),

@@ -24,6 +24,7 @@ import { Loader2 } from "lucide-react";
 import { apiGet } from "@/lib/moeApi";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { trackBehaviour } from "@/lib/trackBehaviour";
+import ArtisanProductPreviews from "./ArtisanProductPreviews";
 
 interface SearchResultsProps {
   searchQuery: string;
@@ -64,6 +65,9 @@ type ProviderResult = {
   state?: string;
   rating?: number;
   reviewCount?: number;
+  isCustomOrderEligible?: boolean;
+  productPreviews?: unknown;
+  products?: unknown;
 };
 
 type ProductResult = {
@@ -102,6 +106,9 @@ function mapProvider(p: any): ProviderResult {
     state: p.state,
     rating: typeof p.rating === "number" ? p.rating : undefined,
     reviewCount: typeof p.reviewCount === "number" ? p.reviewCount : undefined,
+    isCustomOrderEligible: p.isCustomOrderEligible === true,
+    productPreviews: p.productPreviews,
+    products: p.products,
   };
 }
 
@@ -373,7 +380,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                     {providers.slice(0, 5).map((provider) => (
                       <Card
                         key={provider.id}
-                        className="hover:border-primary cursor-pointer transition-colors group"
+                        className="artisan-card hover:border-primary cursor-pointer group"
                         onClick={() => handleProviderClick(provider.id)}
                       >
                         <CardContent className="p-4">
@@ -384,6 +391,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                                   src={provider.heroImage}
                                   alt={provider.brandName}
                                   className="w-full h-full object-cover"
+                                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                                 />
                               ) : (
                                 <User className="h-6 w-6 text-primary" />
@@ -404,6 +412,8 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                             </div>
                           </div>
+                          <ArtisanProductPreviews artisan={provider} />
+                          {provider.isCustomOrderEligible === true && <Button variant="outline" size="sm" className="mt-3 rounded-full text-primary border-primary" onClick={(e) => { e.stopPropagation(); onClose(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }}>Request Custom Order</Button>}
                         </CardContent>
                       </Card>
                     ))}

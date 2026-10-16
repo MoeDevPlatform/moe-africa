@@ -161,6 +161,12 @@ All colors MUST be HSL.
 .nav-link::after { content: ""; position: absolute; bottom: 2px; left: 0.75rem; width: 0; height: 2px; background: hsl(var(--primary)); transition: width 0.2s ease; }
 .nav-link:hover::after { width: calc(100% - 1.5rem); }
 header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primary) / 0.1); border-radius: 9999px; }
-.artisan-dashboard { --dashboard-cream: 39 41% 93%; background: hsl(var(--dashboard-cream)); }
+.artisan-dashboard { --dashboard-cream: 37 39% 94%; background: hsl(var(--dashboard-cream)); }
 .dark .artisan-dashboard { background: hsl(var(--background)); }
+.dashboard-tabs [role="tab"] { flex: 0 0 auto; border-radius: 0; padding: 1rem 0.5rem; border-bottom: 2px solid transparent; background: transparent; box-shadow: none; }
+.dashboard-tabs [role="tab"][data-state="active"] { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+.artisan-dashboard main > [data-orientation] > [role="tabpanel"] > div { border: 0; box-shadow: var(--shadow-sm); border-radius: 12px; }
+.dashboard-product-row { grid-template-columns: 64px minmax(0, 1fr); align-items: center; }
+.dashboard-product-row > :nth-child(n+3) { grid-column: 2; }
+@media (min-width: 768px) { .dashboard-product-row { grid-template-columns: 64px minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.7fr) 80px; column-gap: 1rem; } .dashboard-product-row > :nth-child(n+3) { grid-column: auto; } }
 @media (prefers-reduced-motion: reduce) { .section-hidden, .section-animated, .route-entry { opacity: 1; transform: none; animation: none; } .product-card:hover, .artisan-card:hover, .category-card:hover { transform: none; } }

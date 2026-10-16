@@ -481,7 +481,7 @@ const ArtisanDashboard = () => {
         <Tabs defaultValue="products" className="w-full">
           <div className="flex flex-wrap gap-3 mb-6">
             <Button onClick={() => setShowAddProduct(true)}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
-            <Button variant="outline" onClick={() => { document.querySelector<HTMLButtonElement>('[role="tab"][data-state][id$="trigger-profile"]')?.click(); setEditingProfile(true); }}><Pencil className="h-4 w-4 mr-2" />Edit Business Profile</Button>
+            <Button variant="outline" disabled={!artisanProfile} onClick={() => { document.querySelector<HTMLButtonElement>('[role="tab"][data-state][id$="trigger-profile"]')?.click(); document.getElementById("business-profile-edit")?.click(); }}><Pencil className="h-4 w-4 mr-2" />Edit Business Profile</Button>
             <Button variant="outline" disabled={!artisanProfile?.id} onClick={() => { if (artisanProfile?.id) navigate(`/marketplace/provider/${artisanProfile.id}`); }}><ExternalLink className="h-4 w-4 mr-2" />View Public Profile</Button>
           </div>
           <TabsList className="dashboard-tabs w-full justify-start overflow-x-auto h-auto gap-4 mb-6 bg-transparent p-0 rounded-none border-b">
@@ -630,6 +630,7 @@ const ArtisanDashboard = () => {
                     <CardDescription>Manage your artisan store details</CardDescription>
                   </div>
                   <Button
+                    id="business-profile-edit"
                     variant={editingProfile ? "ghost" : "outline"} size="sm"
                     onClick={() => {
                       if (artisanProfile) {
