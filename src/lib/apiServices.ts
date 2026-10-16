@@ -148,6 +148,8 @@ export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthRespon
 // ─── Artisan Profile ──────────────────────────────────────
 
 export interface ArtisanProfile {
+  profileViews?: number;
+  totalOrders?: number;
   id: number;
   userId: number;
   businessName: string;
@@ -814,6 +816,12 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
 };
 
 export const providersService = {
+  /** Custom Orders discovery only; never use this ranking for homepage curation. */
+  listCustomOrderRanked: async (): Promise<Provider[]> => {
+    const res = await apiGet<{ data?: Record<string, any>[] } | Record<string, any>[]>("/artisans", { isCustomOrderEligible: true, sort: "customOrderRank" });
+    const rows = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    return rows.map(normalizeProvider).filter((provider) => provider.isCustomOrderEligible === true);
+  },
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
       const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
@@ -1255,7 +1263,12 @@ export interface CustomOrderCommissionRequest {
   description: string;
   referenceImages?: string[];
   budget?: number;
+  budgetMin?: number;
+  budgetMax?: number;
   deadline?: string;
+  specialInstructions?: string;
+  category?: string;
+  categoryDetails?: Record<string, string>;
 }
 
 export interface CustomOrderRecord {
@@ -1295,7 +1308,10 @@ export const customOrderService = {
           description: data.description,
           additionalNotes: [
             data.budget != null ? `Budget: ₦${data.budget}` : null,
+            data.budgetMin != null || data.budgetMax != null ? `Budget: ₦${data.budgetMin ?? "?"} – ₦${data.budgetMax ?? "?"}` : null,
             data.deadline ? `Deadline: ${data.deadline}` : null,
+            data.specialInstructions ? `Instructions: ${data.specialInstructions}` : null,
+            data.categoryDetails && Object.keys(data.categoryDetails).length ? `Details: ${JSON.stringify(data.categoryDetails)}` : null,
           ]
             .filter(Boolean)
             .join("\n"),

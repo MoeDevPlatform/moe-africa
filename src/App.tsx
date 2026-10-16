@@ -49,6 +49,8 @@ import AuthCallback from "./pages/AuthCallback";
 import SSOCallback from "./pages/auth/SSOCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
+import CustomOrders from "./pages/marketplace/CustomOrders";
+import RouteEntry from "./components/common/RouteEntry";
 import ArtisanDashboard from "./pages/artisan/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -98,6 +100,7 @@ const App = () => (
               <ScrollToTopButton />
               <BrowserRouter>
                 <ScrollToTopOnRouteChange />
+                <RouteEntry>
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
@@ -119,6 +122,8 @@ const App = () => (
                   <Route path="/marketplace" element={<MarketplaceHome />} />
                   <Route path="/marketplace/products" element={<AllProducts />} />
                   <Route path="/marketplace/artisans" element={<AllArtisans />} />
+                  <Route path="/marketplace/custom-orders" element={<CustomOrders />} />
+                  <Route path="/marketplace/artisan/:id" element={<ProviderDetail />} />
                   <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
                   <Route path="/marketplace/category/:category/products" element={<CategoryProducts />} />
                   <Route path="/marketplace/provider/:id" element={<ProviderDetail />} />
@@ -176,6 +181,7 @@ const App = () => (
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </RouteEntry>
               </BrowserRouter>
             </TooltipProvider>
           </PreferencesProvider>

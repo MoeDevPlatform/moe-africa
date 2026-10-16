@@ -25,6 +25,7 @@ import {
   MapPin,
   Shield,
   ShoppingCart,
+  PencilLine,
 } from "lucide-react";
 import { getProviderById as mockGetProviderById } from "@/data/mockData";
 import { productsService, providersService, productReviewsService } from "@/lib/apiServices";
@@ -44,6 +45,7 @@ import SEOMeta from "@/components/common/SEOMeta";
 import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 import { trackBehaviour } from "@/lib/trackBehaviour";
+import Skeleton from "@/components/common/Skeleton";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -181,7 +183,9 @@ const ProductDetail = () => {
     setRushOrderCost(additionalCost);
   };
 
-  if (isLoading) return null; // or a spinner if one exists in the project
+  if (isLoading) {
+    return <div className="min-h-screen bg-gradient-subtle"><MarketplaceNavbar /><main className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-5 gap-8" role="status" aria-label="Loading product"><Skeleton variant="image" aspectRatio="1/1" className="lg:col-span-3" /><div className="lg:col-span-2 space-y-4"><Skeleton variant="text" width="35%" /><Skeleton variant="text" className="h-8" /><Skeleton variant="text" width="60%" /><Skeleton variant="table-row" /></div></main></div>;
+  }
   if (!product) {
     return <Navigate to="/marketplace" replace />;
   }
@@ -443,6 +447,13 @@ const ProductDetail = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {product.description}
               </p>
+            )}
+
+            {(provider.isCustomOrderEligible === true || (product as Product & { isCustomOrderEligible?: boolean }).isCustomOrderEligible === true) && (
+              <div className="rounded-xl bg-primary/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex gap-3"><PencilLine className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden="true" /><div><p className="font-semibold">Want something different?</p><p className="text-sm text-muted-foreground">This artisan accepts custom orders.</p></div></div>
+                <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary/10 shrink-0" onClick={() => navigate(`/marketplace/artisan/${provider.id}#custom-order`)}>Request a Custom Order</Button>
+              </div>
             )}
 
             {/* Inline variations — omitted when product has no enabled variation types */}

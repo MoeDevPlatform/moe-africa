@@ -1,6 +1,6 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
@@ -22,10 +22,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { Product, Provider } from "@/data/mockData";
 import SEOMeta from "@/components/common/SEOMeta";
 import { trackBehaviour } from "@/lib/trackBehaviour";
+import Skeleton from "@/components/common/Skeleton";
 
 const ProviderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
@@ -124,12 +126,20 @@ const ProviderDetail = () => {
     }
   }, [provider?.id]);
 
+  useEffect(() => {
+    if (location.hash !== "#custom-order" || provider?.isCustomOrderEligible !== true) return;
+    document.getElementById("custom-order")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setShowCustomOrderModal(true);
+  }, [location.hash, provider?.id, provider?.isCustomOrderEligible]);
+
   if (isLoading && !provider) {
     return (
       <div className="min-h-screen bg-gradient-subtle">
         <MarketplaceNavbar />
-        <main className="container mx-auto px-4 py-24 text-center text-muted-foreground">
-          Loading artisan profile…
+        <main className="container mx-auto px-4 py-12 space-y-6" role="status" aria-label="Loading artisan profile">
+          <Skeleton variant="image" aspectRatio="16/5" />
+          <Skeleton variant="text" width="40%" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><Skeleton variant="card" /><Skeleton variant="card" /></div>
         </main>
         <MarketplaceFooter />
       </div>
@@ -358,6 +368,7 @@ const ProviderDetail = () => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
+                          id="custom-order"
                           className="w-full mt-6 bg-secondary hover:bg-secondary-dark"
                           data-testid="request-custom-order-btn"
                           onClick={() => setShowCustomOrderModal(true)}
@@ -386,6 +397,7 @@ const ProviderDetail = () => {
         onOpenChange={setShowCustomOrderModal}
         artisanId={provider.id}
         artisanName={provider.brandName}
+        category={provider.category}
       />
 
       <CustomizationFormModal

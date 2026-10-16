@@ -136,6 +136,7 @@ const quickLinks = [
   { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace#browse-by-category" },
   { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace/products" },
   { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
+  { name: "Custom Orders", slug: "custom-orders", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/custom-orders" },
   { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?featured=true", badge: "New" },
   { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace/products?sort=newest" },
   { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: `/marketplace/products?season=${currentSeason()}` },

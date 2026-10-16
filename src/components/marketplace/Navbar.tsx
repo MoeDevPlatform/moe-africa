@@ -267,10 +267,13 @@ const MarketplaceNavbar = () => {
 
           {/* Navigation */}
           <nav className="flex items-center gap-1 sm:gap-2">
-            <Button asChild variant="ghost" className="hidden lg:inline-flex">
+            <Button asChild variant="ghost" className="nav-link hidden lg:inline-flex">
               <Link to="/marketplace/artisans">
                 Explore
               </Link>
+            </Button>
+            <Button asChild variant="ghost" className="nav-link hidden xl:inline-flex">
+              <Link to="/marketplace/custom-orders">Custom Orders</Link>
             </Button>
             
             <IconTooltip label="Notifications">

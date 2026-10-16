@@ -68,6 +68,7 @@ export interface Provider {
   keywords?: { term: string }[];
   description?: string | null;
   businessName?: string | null;
+  productPreviews?: { imageUrl: string; name: string }[];
 }
 
 export const providers: Provider[] = [

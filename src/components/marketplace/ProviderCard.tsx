@@ -8,6 +8,7 @@ import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
 import { artisanReviewsService, productsService } from "@/lib/apiServices";
 import { toCategoryLabel } from "@/lib/categories";
+import ArtisanProductPreviews from "./ArtisanProductPreviews";
 // Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
 // back to the mock dataset count only when the field is missing — this prevents a freshly
 // created artisan from showing "0 products" after they actually added one.
@@ -69,7 +70,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
   
   return (
     <Card 
-      className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-border cursor-pointer ${provider.featured ? 'ring-2 ring-accent/50' : ''}`}
+      className={`artisan-card overflow-hidden border-border cursor-pointer ${provider.featured ? 'ring-2 ring-accent/50' : ''}`}
       onClick={handleCardClick}
     >
       <div className="relative h-48 bg-gradient-hero">
@@ -116,12 +117,13 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           )}
         </div>
         {provider.category && (
-          <p className="text-sm text-muted-foreground mb-2 capitalize">
+          <p className="text-sm text-muted-foreground capitalize">
             {toCategoryLabel(provider.category)}
           </p>
         )}
+        <ArtisanProductPreviews artisan={provider} />
         
-        <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 mt-2 mb-3 text-sm text-muted-foreground">
           {displayReviewCount > 0 ? (
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
@@ -153,12 +155,12 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           ))}
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Package className="h-4 w-4" />
             <span>{productCount} products</span>
           </div>
-          
+          <div className="flex flex-col items-end gap-2">
           <Button 
             variant="outline" 
             size="sm" 
@@ -174,6 +176,12 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           >
             View Profile
           </Button>
+          {provider.isCustomOrderEligible === true && (
+            <Button variant="outline" size="sm" className="h-8 rounded-full border-primary px-3 text-xs text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }} aria-label={`Request a custom order from ${provider.brandName}`}>
+              Request Custom Order
+            </Button>
+          )}
+          </div>
         </div>
       </CardContent>
     </Card>
