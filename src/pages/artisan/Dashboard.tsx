@@ -946,7 +946,7 @@ const ArtisanDashboard = () => {
                   <div className="space-y-6">
                     {/* Storefront preview: cover + store image + identity */}
                     <div className="overflow-hidden rounded-xl border bg-muted/40">
-                      <div className="relative aspect-[16/5] min-h-[120px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
+                      <div className="relative aspect-[16/5] min-h-[120px] max-h-[200px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
                         {artisanProfile?.coverImageUrl && (
                           <img loading="lazy" decoding="async"
                             src={artisanProfile.coverImageUrl}
@@ -956,7 +956,7 @@ const ArtisanDashboard = () => {
                           />
                         )}
                       </div>
-                      <div className="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-end sm:gap-4 sm:px-6">
+                      <div className="flex flex-col gap-3 px-4 pb-3 sm:flex-row sm:items-start sm:gap-4 sm:px-6">
                         <div className="-mt-10 h-20 w-20 shrink-0 overflow-hidden rounded-xl border-4 border-card bg-card shadow-md sm:-mt-12 sm:h-24 sm:w-24">
                           {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) ? (
                             <img loading="lazy" decoding="async"
@@ -971,7 +971,7 @@ const ArtisanDashboard = () => {
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 pb-1">
+                        <div className="min-w-0">
                           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Business Name</p>
                           <h3 className="truncate font-display text-xl font-bold sm:text-2xl">{artisanProfile?.businessName || "Not set"}</h3>
                         </div>
