@@ -68,10 +68,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
+      className="product-card overflow-hidden cursor-pointer"
       onClick={handleCardClick}
     >
-      <div className="relative h-64 bg-muted">
+      <div className="product-card__image relative h-64 bg-muted">
         <img 
           src={product.images?.[0] || FALLBACK_IMAGE} 
           alt={product.name}

@@ -5,10 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, CheckCircle, Award } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import Skeleton from "@/components/common/Skeleton";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { sectionsService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
+import ArtisanProductPreviews from "./ArtisanProductPreviews";
 
 interface FeaturedArtisansProps {
   /** Legacy prop — ignored when section API succeeds; kept for call-site compatibility. */
@@ -28,6 +29,9 @@ type SectionArtisan = {
   verified: boolean;
   styleTags: string[];
   category: string;
+  productPreviews?: unknown;
+  products?: unknown;
+  isCustomOrderEligible: boolean;
 };
 
 const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps) => {
@@ -55,6 +59,9 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
             verified: Boolean(raw.verified),
             styleTags: Array.isArray(raw.styleTags) ? (raw.styleTags as string[]) : [],
             category: String(raw.category || ""),
+            productPreviews: raw.productPreviews,
+            products: raw.products,
+            isCustomOrderEligible: raw.isCustomOrderEligible === true,
           };
         }).filter((a) => Number.isFinite(a.id) && a.id > 0);
         setItems(mapped);
@@ -78,6 +85,8 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -107,7 +116,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
         {items.map((provider) => (
           <Card
             key={provider.id}
-            className="overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer hover:shadow-lg transition-shadow min-w-[85%] sm:min-w-[70%] snap-start shrink-0 md:min-w-0 md:shrink"
+            className="artisan-card overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer min-w-[85%] sm:min-w-[70%] snap-start shrink-0 md:min-w-0 md:shrink"
             onClick={() => navigate(`/marketplace/provider/${provider.id}`)}
           >
             <div className="relative">
@@ -140,6 +149,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
                   <p className="text-sm text-muted-foreground">
                     {[provider.city, provider.state].filter(Boolean).join(", ")}
                   </p>
+                  <ArtisanProductPreviews artisan={provider} />
                 </div>
                 {provider.reviewCount > 0 ? (
                   <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
@@ -175,6 +185,11 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
               >
                 View Store
               </Button>
+              {provider.isCustomOrderEligible && (
+                <Button variant="outline" size="sm" className="mt-2 w-full rounded-full border-primary text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }} aria-label={`Request a custom order from ${provider.brandName}`}>
+                  Request Custom Order
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

@@ -1,3 +1,6 @@
+import AnimatedSection from "@/components/common/AnimatedSection";
+import { SkeletonGrid } from "@/components/common/Skeleton";
+import RecommendedArtisanCarousel from "@/components/marketplace/RecommendedArtisanCarousel";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -398,7 +401,7 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Categories Section */}
-        <section id="browse-by-category" className="mb-8 md:mb-12">
+        <AnimatedSection><section id="browse-by-category" className="mb-8 md:mb-12">
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Category</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {
@@ -407,7 +410,7 @@ const MarketplaceHome = () => {
                 <button
                   key={category.id}
                   onClick={() => navigate(`/marketplace/artisans?category=${category.id}`)}
-                  className="p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
+                  className="category-card p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
                   aria-label={`Browse ${category.name} category`}
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
@@ -425,6 +428,8 @@ const MarketplaceHome = () => {
             })}
           </div>
         </section>
+
+        </AnimatedSection>
 
         {/* Filters & Style Tags */}
         <section className="mb-6 md:mb-8">
@@ -469,14 +474,14 @@ const MarketplaceHome = () => {
         </section>
 
         {/* Featured Artisans — curated via GET /sections/featured_artisans */}
-        <FeaturedArtisans />
+        <AnimatedSection><FeaturedArtisans /></AnimatedSection>
 
         {/* Featured Products (includes Recently Viewed below Seasonal Picks) */}
         <FeaturedProducts />
 
         {/* Picked for you — only when preferences are set. */}
         {hasPreferences && (preferenceProviders.length > 0 || preferenceProducts.length > 0) && (
-          <section className="mb-12 md:mb-16">
+          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Picked For You</h2>
@@ -517,11 +522,11 @@ const MarketplaceHome = () => {
                 ))}
               </div>
             )}
-          </section>
+          </section></AnimatedSection>
         )}
 
         {/* Recommended Providers */}
-        <section className="mb-12 md:mb-16">
+        <AnimatedSection delay={200}><section className="mb-12 md:mb-16">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4">
             <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
               {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
@@ -539,30 +544,15 @@ const MarketplaceHome = () => {
           </div>
 
           {recommendedProviders.length > 0 ? (
-            // Single horizontal row — same Embla carousel + arrow style as Seasonal Picks.
-            // Cards have a fixed width; scrollbar is hidden and swipe/drag scroll stays on.
-            <Carousel opts={{ align: "start", loop: true }} className="w-full">
-              <CarouselContent className="-ml-2 md:-ml-4">
-                {recommendedProviders.map((provider) => (
-                  <CarouselItem
-                    key={provider.id}
-                    className="pl-2 md:pl-4 basis-[85%] sm:basis-[340px] lg:basis-[380px]"
-                  >
-                    <ProviderCard provider={provider} />
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex -left-4" />
-              <CarouselNext className="hidden sm:flex -right-4" />
-            </Carousel>
+            <RecommendedArtisanCarousel artisans={recommendedProviders} />
           ) : !isLoading ? (
             <EmptySection title="No artisans to recommend yet" description="Artisans will show up here once they join the platform." />
-          ) : null}
-        </section>
+          ) : <SkeletonGrid count={4} />}
+        </section></AnimatedSection>
 
         {/* Services For You */}
         {filteredProviders.length > 0 && (
-          <section className="mb-12 md:mb-16">
+          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
@@ -572,12 +562,12 @@ const MarketplaceHome = () => {
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
             </div>
-          </section>
+          </section></AnimatedSection>
         )}
 
         {/* Deals For You */}
         {dealProducts.length > 0 && (
-          <section className="mb-12 md:mb-16">
+          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Tag className="h-5 w-5 md:h-6 md:w-6 text-accent" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Deals For You</h2>
@@ -604,12 +594,12 @@ const MarketplaceHome = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </section></AnimatedSection>
         )}
 
         {/* Styles For You */}
         {styleProducts.length > 0 && (
-          <section className="mb-12 md:mb-16">
+          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Palette className="h-5 w-5 md:h-6 md:w-6 text-secondary" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Styles For You</h2>
@@ -633,12 +623,12 @@ const MarketplaceHome = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </section></AnimatedSection>
         )}
 
         {/* Recently Viewed */}
         {recentlyViewed.length > 0 && filteredProviders.filter((p) => recentlyViewed.includes(p.id)).length > 0 && (
-          <section className="mb-12 md:mb-16">
+          <AnimatedSection delay={400}><section className="mb-12 md:mb-16">
             <div className="flex items-center gap-2 mb-4 md:mb-6">
               <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" aria-hidden="true" />
               <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed</h2>
@@ -651,7 +641,7 @@ const MarketplaceHome = () => {
                   <ProviderCard key={provider.id} provider={provider} />
                 ))}
             </div>
-          </section>
+          </section></AnimatedSection>
         )}
       </main>
 

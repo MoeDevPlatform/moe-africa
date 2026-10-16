@@ -8,6 +8,7 @@
 
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete, MoeApiError } from "./moeApi";
 import { FALLBACK_IMAGE } from "./imageFallback";
+import { normalizeProductPreviews } from "./productPreviews";
 import { normalizeVariationTypes, type ProductVariationTypeDef } from "./productVariations";
 import {
   Product,
@@ -148,6 +149,8 @@ export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthRespon
 // ─── Artisan Profile ──────────────────────────────────────
 
 export interface ArtisanProfile {
+  profileViews?: number;
+  totalOrders?: number;
   id: number;
   userId: number;
   businessName: string;
@@ -572,6 +575,7 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     images,
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
+    isCustomOrderEligible: raw.isCustomOrderEligible === true || raw.artisan?.isCustomOrderEligible === true || raw.provider?.isCustomOrderEligible === true,
     // Item 10 — preserve approval status for artisan dashboard / admin UI.
     ...(raw.status ? { status: raw.status } : {}),
     ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),
@@ -687,6 +691,7 @@ export interface ProviderFilters {
   styleTags?: string;
   featured?: boolean;
   minRating?: number;
+  isCustomOrderEligible?: boolean;
   sort?: string;
   page?: number;
   pageSize?: number;
@@ -798,13 +803,12 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     ...(typeof raw.createdAt === "string" ? { createdAt: raw.createdAt } : {}),
     ...({ averageRating: ratingValue } as Record<string, unknown>),
     ...(productCount !== undefined ? { productCount } : {}),
+    productPreviews: normalizeProductPreviews(raw),
     ...(raw.userId != null ? { userId: raw.userId } : {}),
     customOrdersEnabled: Boolean(
       raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
     ),
-    isCustomOrderEligible: Boolean(
-      raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
-    ),
+    isCustomOrderEligible: raw.isCustomOrderEligible === true,
     ...(raw.customOrderApprovedAt != null
       ? { customOrderApprovedAt: raw.customOrderApprovedAt }
       : {}),
@@ -812,6 +816,12 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
 };
 
 export const providersService = {
+  /** Custom Orders discovery only; never use this ranking for homepage curation. */
+  listCustomOrderRanked: async (): Promise<Provider[]> => {
+    const res = await apiGet<{ data?: Record<string, any>[] } | Record<string, any>[]>("/artisans", { isCustomOrderEligible: true, sort: "customOrderRank" });
+    const rows = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    return rows.map(normalizeProvider).filter((provider) => provider.isCustomOrderEligible === true);
+  },
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
       const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination }>(
@@ -1253,7 +1263,12 @@ export interface CustomOrderCommissionRequest {
   description: string;
   referenceImages?: string[];
   budget?: number;
+  budgetMin?: number;
+  budgetMax?: number;
   deadline?: string;
+  specialInstructions?: string;
+  category?: string;
+  categoryDetails?: Record<string, string>;
 }
 
 export interface CustomOrderRecord {
@@ -1287,13 +1302,18 @@ export const customOrderService = {
       return await apiPost<CustomOrderRecord>("/custom-orders", data);
     } catch (err) {
       // Soft fallback to legacy endpoint shape while BE rolls out.
+      // Structured requests must not silently lose fields on the legacy endpoint.
+      if (data.categoryDetails || data.budgetMin != null || data.budgetMax != null || data.specialInstructions) throw err;
       if (err instanceof MoeApiError && (err.status === 404 || err.status === 405)) {
         return customOrderService.create({
           providerId: Number(data.artisanId),
           description: data.description,
           additionalNotes: [
             data.budget != null ? `Budget: ₦${data.budget}` : null,
+            data.budgetMin != null || data.budgetMax != null ? `Budget: ₦${data.budgetMin ?? "?"} – ₦${data.budgetMax ?? "?"}` : null,
             data.deadline ? `Deadline: ${data.deadline}` : null,
+            data.specialInstructions ? `Instructions: ${data.specialInstructions}` : null,
+            data.categoryDetails && Object.keys(data.categoryDetails).length ? `Details: ${JSON.stringify(data.categoryDetails)}` : null,
           ]
             .filter(Boolean)
             .join("\n"),

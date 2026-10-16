@@ -19,10 +19,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 import { getProductById } from "@/data/mockData";
+import Skeleton from "@/components/common/Skeleton";
 
 const Cart = () => {
   const { toast } = useToast();
-  const { items, removeItem, getTotalPrice } = useCart();
+  const { items, removeItem, getTotalPrice, isSyncing } = useCart();
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ const Cart = () => {
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-4xl font-display font-bold mb-8">Shopping Cart</h1>
 
-        {items.length === 0 ? (
+        {isSyncing && items.length === 0 ? <div role="status" aria-label="Loading cart" className="space-y-4">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div> : items.length === 0 ? (
           <Card className="p-12 text-center">
             <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-display font-semibold mb-2">Your cart is empty</h2>
