@@ -15,7 +15,12 @@ import {
   type AdminSectionItem,
 } from "@/lib/apiServices";
 import { toast } from "sonner";
-import { ArrowLeft, GripVertical, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  mergeKeywords,
+  parseKeywordInput,
+  removeKeywordFrom,
+} from "@/lib/sectionKeywords";
 
 const SectionDetail = () => {
   const { sectionKey = "" } = useParams();
@@ -29,6 +34,7 @@ const SectionDetail = () => {
   const [keywordsText, setKeywordsText] = useState("");
   const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
   const [removingKeyword, setRemovingKeyword] = useState<string | null>(null);
+  const [savingKeywords, setSavingKeywords] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const load = useCallback(() => {
