@@ -272,6 +272,36 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
     onClose();
   };
 
+  // Autocomplete suggestions built from the latest results + categories/tags.
+  const typed = searchQuery.toLowerCase().trim();
+  const suggestions = (() => {
+    if (!typed) return [] as string[];
+    const pool = new Map<string, string>();
+    const add = (s?: string) => {
+      const v = (s || "").trim();
+      if (v && v.toLowerCase().includes(typed) && v.toLowerCase() !== typed) {
+        if (!pool.has(v.toLowerCase())) pool.set(v.toLowerCase(), v);
+      }
+    };
+    products.forEach((p) => { add(p.name); p.tags.forEach(add); });
+    providers.forEach((p: any) => add(p.name ?? p.brandName));
+    searchableCategories.forEach((c) => add(c.name));
+    return [...pool.values()]
+      .sort((a, b) => {
+        const as = a.toLowerCase().startsWith(typed) ? 0 : 1;
+        const bs = b.toLowerCase().startsWith(typed) ? 0 : 1;
+        return as - bs || a.length - b.length;
+      })
+      .slice(0, 8);
+  })();
+  const [showSuggest, setShowSuggest] = useState(true);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const pickSuggestion = (s: string) => {
+    onSearchChange(s);
+    setShowSuggest(false);
+    setActiveIdx(-1);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       <div ref={containerRef} className="container mx-auto px-4 py-6 max-w-4xl bg-background">
@@ -285,10 +315,21 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
               data-testid="search-input"
               placeholder="Search for artisans, products, or services..."
               value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => { onSearchChange(e.target.value); setShowSuggest(true); setActiveIdx(-1); }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+              onKeyDown={(e) => {
+                if (!showSuggest || suggestions.length === 0) return;
+                if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % suggestions.length); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
+                else if (e.key === "Enter" && activeIdx >= 0) { e.preventDefault(); pickSuggestion(suggestions[activeIdx]); }
+              }}
               className="pl-10 pr-10 border-border focus:ring-primary"
               autoFocus
               aria-label="Search input"
+              aria-autocomplete="list"
+              aria-expanded={showSuggest && suggestions.length > 0}
+              aria-controls="search-suggestions"
             />
             {searchQuery && (
               <button
@@ -299,6 +340,30 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                 <X className="h-4 w-4" />
               </button>
             )}
+            {showSuggest && suggestions.length > 0 && (
+              <ul
+                id="search-suggestions"
+                role="listbox"
+                data-testid="search-suggestions"
+                className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 overflow-hidden"
+              >
+                {suggestions.map((s, i) => (
+                  <li key={s} role="option" aria-selected={i === activeIdx}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pickSuggestion(s)}
+                      onMouseEnter={() => setActiveIdx(i)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm ${i === activeIdx ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
+                      aria-label={`Search for ${s}`}
+                    >
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                      <span className="truncate">{highlight(s, searchQuery)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -307,7 +372,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
 
         {/* Results */}
         <div
-          className="space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto"
+          className="space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto pr-6 -mr-6 [scrollbar-gutter:stable]"
           data-testid="search-results"
         >
           {!debouncedQuery ? (
