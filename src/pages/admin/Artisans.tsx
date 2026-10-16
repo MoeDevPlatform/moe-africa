@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadArtisanDirectory, searchArtisanDirectory } from "@/lib/adminArtisanDirectory";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,6 @@ import {
   adminService,
   type AdminArtisanRow,
   type ApprovalStatus,
-  type Pagination,
 } from "@/lib/apiServices";
 
 const statusVariant = (s: ApprovalStatus) =>
@@ -65,12 +65,8 @@ const Artisans = () => {
   const initialStatus = (params.get("status") as ApprovalStatus | null) ?? "all";
 
   const [rows, setRows] = useState<AdminArtisanRow[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    pageSize: 20,
-    totalPages: 1,
-    totalItems: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const loadSequence = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">(initialStatus);
   const [search, setSearch] = useState("");
@@ -164,22 +160,27 @@ const Artisans = () => {
   };
 
   const load = (page = 1, status: ApprovalStatus | "all" = statusFilter) => {
+    const sequence = ++loadSequence.current;
     setIsLoading(true);
-    adminService
-      .listArtisans({
-        page,
+    loadArtisanDirectory((serverPage) => adminService.listArtisans({
+        page: serverPage,
         pageSize: 20,
         status: status === "all" ? undefined : status,
-      })
-      .then((res) => {
-        setRows(res.data ?? []);
-        setPagination(
-          res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 },
-        );
+      }))
+      .then((directory) => {
+        if (sequence !== loadSequence.current) return;
+        setRows(directory);
+        setCurrentPage(page);
         setSelected(new Set());
       })
-      .catch((e) => toast.error(e?.message || "Failed to load artisans"))
-      .finally(() => setIsLoading(false));
+      .catch((e) => {
+        if (sequence !== loadSequence.current) return;
+        setRows([]);
+        toast.error(e?.message || "Failed to load artisans");
+      })
+      .finally(() => {
+        if (sequence === loadSequence.current) setIsLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -190,20 +191,17 @@ const Artisans = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return (
-          r.name?.toLowerCase().includes(q) ||
-          r.email?.toLowerCase().includes(q) ||
-          r.brandName?.toLowerCase().includes(q) ||
-          r.businessName?.toLowerCase().includes(q)
-        );
-      }),
+  const matches = useMemo(
+    () => searchArtisanDirectory(rows, search),
     [rows, search],
   );
+  const pagination = {
+    page: Math.min(currentPage, Math.max(1, Math.ceil(matches.length / 20))),
+    pageSize: 20,
+    totalPages: Math.max(1, Math.ceil(matches.length / 20)),
+    totalItems: matches.length,
+  };
+  const filtered = matches.slice((pagination.page - 1) * 20, pagination.page * 20);
 
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((r) => selected.has(r.id));
@@ -326,7 +324,11 @@ const Artisans = () => {
             <Input
               placeholder="Search name, email or brand…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+                setSelected(new Set());
+              }}
               className="pl-10 border-input bg-card"
             />
           </div>
@@ -488,7 +490,7 @@ const Artisans = () => {
         </Card>
 
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <span className="text-muted-foreground">
               Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} total
             </span>
@@ -497,7 +499,7 @@ const Artisans = () => {
                 variant="outline"
                 size="sm"
                 disabled={pagination.page <= 1}
-                onClick={() => load(pagination.page - 1)}
+                onClick={() => { setCurrentPage(pagination.page - 1); setSelected(new Set()); }}
               >
                 Previous
               </Button>
@@ -505,7 +507,7 @@ const Artisans = () => {
                 variant="outline"
                 size="sm"
                 disabled={pagination.page >= pagination.totalPages}
-                onClick={() => load(pagination.page + 1)}
+                onClick={() => { setCurrentPage(pagination.page + 1); setSelected(new Set()); }}
               >
                 Next
               </Button>
