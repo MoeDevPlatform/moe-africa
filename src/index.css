@@ -187,10 +187,8 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
 .profile-form-section__hint { font-size: 0.8rem; color: hsl(var(--muted-foreground)); margin-top: 0.125rem; }
 
 /* Marketplace homepage hierarchy */
-.marketplace-home main section > div > h2.font-display,
-.marketplace-home main section > h2.font-display { position: relative; padding-bottom: 0.5rem; letter-spacing: -0.01em; }
-.marketplace-home main section > div > h2.font-display::after,
-.marketplace-home main section > h2.font-display::after { content: ""; position: absolute; left: 0; bottom: 0; width: 2.5rem; height: 3px; border-radius: 9999px; background: linear-gradient(90deg, hsl(var(--secondary)), hsl(var(--accent))); }
+.marketplace-home main h2.font-display:not(.drop-shadow-lg) { position: relative; padding-bottom: 0.5rem; letter-spacing: -0.01em; }
+.marketplace-home main h2.font-display:not(.drop-shadow-lg)::after { content: ""; position: absolute; left: 0; bottom: 0; width: 2.5rem; height: 3px; border-radius: 9999px; background: linear-gradient(90deg, hsl(var(--secondary)), hsl(var(--accent))); }
 .marketplace-home .home-band { position: relative; padding: 1.5rem 1rem; border-radius: 1.25rem; background: hsl(var(--primary) / 0.05); border: 1px solid hsl(var(--primary) / 0.08); }
 @media (min-width: 768px) { .marketplace-home .home-band { padding: 2rem 1.75rem; } }
 .marketplace-home .category-card { background: hsl(var(--card)); box-shadow: var(--shadow-sm); }
