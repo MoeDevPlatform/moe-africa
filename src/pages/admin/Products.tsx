@@ -49,10 +49,13 @@ import {
 import { toast } from "sonner";
 import {
   adminService,
+  artisanService,
   type AdminProductRow,
   type ProductStatus,
   type Pagination,
 } from "@/lib/apiServices";
+import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
+import type { ProductVariationTypeDef } from "@/lib/productVariations";
 
 const statusVariant = (s: ProductStatus) =>
   s === "approved"
@@ -102,6 +105,7 @@ const Products = () => {
     estimatedDelivery: "",
     artisanId: "",
   });
+  const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
 
   useEffect(() => {
     if (!addOpen) return;
