@@ -38,7 +38,7 @@ const SectionDetail = () => {
         setSection(s);
         const sorted = [...(s.items ?? [])].sort((a, b) => a.position - b.position);
         setItems(sorted);
-        const kws = (s.keywords ?? []).map((k) => k.term ?? k).filter(Boolean) as string[];
+        const kws = s.keywords ?? [];
         setSavedKeywords(kws);
         setKeywordsText(kws.join(", "));
       })
