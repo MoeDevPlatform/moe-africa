@@ -207,7 +207,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
       </SheetTrigger>
       <SheetContent side="left" className="w-[320px] sm:w-[400px] flex flex-col">
         <SheetHeader>
-          <SheetTitle className="flex items-center justify-between">
+          <SheetTitle className="flex items-center justify-between pr-9">
             Filter Results
             {activeFilterCount > 0 && (
               <Button variant="ghost" size="sm" onClick={handleClear} className="h-8 text-xs">
@@ -217,8 +217,8 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             )}
           </SheetTitle>
         </SheetHeader>
-        
-        <div className="overflow-y-auto py-4 pb-6 space-y-6">
+
+        <div className="overflow-y-auto py-4 pb-6 pr-5 space-y-6">
           {/* Location */}
           <div>
             <Label className="text-sm font-semibold mb-3 block">Location</Label>
