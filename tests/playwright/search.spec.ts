@@ -38,20 +38,18 @@ test.describe('Search', () => {
     await expect(overlay).toBeVisible({ timeout: 15_000 });
 
     const overlayInput = page.locator('input[aria-label="Search input"]');
-    await overlayInput.fill('a');
-    // Prefer a query likely to return >6 products on the live catalog.
-    await overlayInput.fill('dress');
-    await expect(overlay.getByText(/Searching/i)).toHaveCount(0, { timeout: 20_000 });
-
+    // Live /search caps preview size; "leather" reliably returns >6 products.
+    await overlayInput.fill('leather');
+    await expect(overlay.getByText(/Products \(\d+\)/i)).toBeVisible({
+      timeout: 20_000,
+    });
     const viewAll = overlay.getByRole('button', { name: /View all \d+ products/i });
-    if (!(await viewAll.isVisible().catch(() => false))) {
-      test.skip(true, 'Fewer than 7 product matches — View all not shown');
-    }
+    await expect(viewAll).toBeVisible({ timeout: 10_000 });
     await viewAll.click();
-    await expect(page).toHaveURL(/\/marketplace\/products\?.*q=dress/i, {
+    await expect(page).toHaveURL(/\/marketplace\/products\?.*q=leather/i, {
       timeout: 15_000,
     });
-    await expect(page.getByRole('heading', { level: 1 })).toContainText(/dress/i);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/leather/i);
   });
 
   test('location filter returns artisans from correct country', async ({ page }) => {
