@@ -687,6 +687,7 @@ export interface ProviderFilters {
   styleTags?: string;
   featured?: boolean;
   minRating?: number;
+  isCustomOrderEligible?: boolean;
   sort?: string;
   page?: number;
   pageSize?: number;
@@ -798,6 +799,7 @@ const normalizeProvider = (raw: Record<string, any>): Provider => {
     ...(typeof raw.createdAt === "string" ? { createdAt: raw.createdAt } : {}),
     ...({ averageRating: ratingValue } as Record<string, unknown>),
     ...(productCount !== undefined ? { productCount } : {}),
+    productPreviews: normalizeProductPreviews(raw),
     ...(raw.userId != null ? { userId: raw.userId } : {}),
     customOrdersEnabled: Boolean(
       raw.isCustomOrderEligible ?? raw.customOrdersEnabled ?? false,
