@@ -176,6 +176,23 @@ const SectionDetail = () => {
     }
   };
 
+  const removeKeyword = async (keyword: string) => {
+    setRemovingKeyword(keyword);
+    const next = savedKeywords.filter((k) => k !== keyword);
+    setSavedKeywords(next);
+    setKeywordsText(next.join(", "));
+    try {
+      await adminService.setSeasonalKeywords(next);
+      toast.success(`Removed "${keyword}"`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove keyword");
+      setSavedKeywords(savedKeywords);
+      setKeywordsText(savedKeywords.join(", "));
+    } finally {
+      setRemovingKeyword(null);
+    }
+  };
+
   const onDrop = (toIndex: number) => {
     if (dragIndex == null || dragIndex === toIndex) return;
     setItems((prev) => {
