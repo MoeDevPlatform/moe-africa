@@ -69,6 +69,7 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
           size="icon"
           className="absolute top-3 right-3 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleWishlistClick}
+          aria-label={inWishlist ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
         >
           <Heart className={`h-4 w-4 ${inWishlist ? "fill-primary text-primary" : ""}`} />
         </Button>
