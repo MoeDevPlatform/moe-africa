@@ -297,13 +297,40 @@ const AdminMessages = () => {
           </p>
         </div>
 
+        {!isLoading && conversations.length > 0 && (
+          <div role="tablist" aria-label="Message types" className="flex flex-wrap gap-2 border-b border-border">
+            {CATEGORY_TABS.map((t) => {
+              const count = conversations.filter(t.match).length;
+              const active = category === t.key;
+              return (
+                <button
+                  key={t.key}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => { setCategory(t.key); setVisibleCount(PAGE_SIZE); }}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : conversations.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No conversations yet</Card>
+        ) : filtered.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No messages in this category</Card>
         ) : (
           <div className="space-y-2">
-            {conversations.map((c) => (
+            {filtered.slice(0, visibleCount).map((c) => (
               <Card
                 key={c.id}
                 className="p-4 hover:border-primary transition-colors"
