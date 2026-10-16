@@ -1,4 +1,6 @@
 # Architecture rules
+- Admin artisan search loads the complete paginated directory through its shared loader before filtering and paginating locally, because the listing endpoint does not support search.
+- Admin content reserves a right-side and bottom lane for global floating controls so table actions and pagination cannot be covered.
 
 - Use the shared ImageThumbnail control for product gallery thumbnails; its overlay keeps selection and keyboard focus visible inside scroll-clipped bounds.
 - Keep custom-order ranking in its dedicated discovery service; homepage curated sections must retain their own data sources.

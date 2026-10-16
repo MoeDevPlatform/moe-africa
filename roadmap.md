@@ -1,4 +1,5 @@
 # Commerce frontend sprint
+- [x] Search the complete admin artisan list and keep pagination clear of floating controls (three tests and desktop/mobile fixture checks passed; live admin data unverified without account access).
 - [x] Custom-order card/product CTAs and ranked discovery.
 - [x] Structured category-specific request form and validation.
 - [x] Dashboard visual refresh preserving all existing behavior.

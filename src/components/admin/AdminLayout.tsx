@@ -167,7 +167,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </Button>
         </header>
 
-        <main className="min-h-[calc(100vh-5rem)] p-6 lg:p-8">{children}</main>
+        <main className="min-h-[calc(100vh-5rem)] p-6 pr-24 pb-40 lg:p-8 lg:pr-24 lg:pb-40">{children}</main>
       </div>
     </div>
   );
