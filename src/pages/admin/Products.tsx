@@ -49,10 +49,13 @@ import {
 import { toast } from "sonner";
 import {
   adminService,
+  artisanService,
   type AdminProductRow,
   type ProductStatus,
   type Pagination,
 } from "@/lib/apiServices";
+import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
+import type { ProductVariationTypeDef } from "@/lib/productVariations";
 
 const statusVariant = (s: ProductStatus) =>
   s === "approved"
@@ -102,6 +105,7 @@ const Products = () => {
     estimatedDelivery: "",
     artisanId: "",
   });
+  const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
 
   useEffect(() => {
     if (!addOpen) return;
@@ -118,7 +122,7 @@ const Products = () => {
     }
     setAdding(true);
     try {
-      await adminService.createProduct({
+      const created = await adminService.createProduct({
         name: productForm.name.trim(),
         description: productForm.description.trim(),
         category: productForm.category,
@@ -126,7 +130,19 @@ const Products = () => {
         priceMax: productForm.priceMax ? Number(productForm.priceMax) : undefined,
         estimatedDelivery: productForm.estimatedDelivery.trim(),
         artisanId: Number(productForm.artisanId),
+        variationTypes,
       });
+      const newId =
+        created && typeof (created as AdminProductRow).id === "number"
+          ? (created as AdminProductRow).id
+          : null;
+      if (newId && variationTypes.length > 0) {
+        try {
+          await artisanService.replaceProductVariations(newId, variationTypes);
+        } catch {
+          // Product POST may already persist variationTypes; dedicated route is optional until BE deploys.
+        }
+      }
       toast.success(<span data-testid="success-toast">Product created</span>);
       setAddOpen(false);
       setProductForm({
@@ -138,6 +154,7 @@ const Products = () => {
         estimatedDelivery: "",
         artisanId: "",
       });
+      setVariationTypes([]);
       load(pagination.page, statusFilter);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to create product");
@@ -754,6 +771,11 @@ const Products = () => {
                 onChange={(e) => setProductForm({ ...productForm, estimatedDelivery: e.target.value })}
               />
             </div>
+            <ProductVariationsEditor
+              category={productForm.category}
+              value={variationTypes}
+              onChange={setVariationTypes}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>
