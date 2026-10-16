@@ -1,3 +1,4 @@
+import Skeleton from "@/components/common/Skeleton";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
   Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare, ClipboardList,
-  Sparkles,
+  Sparkles, ShoppingBag, Eye, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
@@ -412,7 +413,7 @@ const ArtisanDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="artisan-dashboard min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1 container mx-auto px-4 py-8">
@@ -458,19 +459,19 @@ const ArtisanDashboard = () => {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Products", value: products.length, icon: Package },
-            { label: "Rating", value: artisanProfile?.rating?.toFixed(1) || "—", icon: Star },
-            { label: "Category", value: resolveServiceCategories(artisanProfile ?? { category: "" }).join(", ") || "—", icon: Store },
-            { label: "Status", value: artisanProfile?.featured ? "Featured" : "Active", icon: BarChart3 },
+            { label: "Total Products", value: products.length, icon: Package },
+            { label: "Average Rating", value: artisanProfile?.rating?.toFixed(1) || "—", icon: Star },
+            { label: "Total Orders", value: artisanProfile?.totalOrders ?? "—", icon: ShoppingBag },
+            { label: "Profile Views", value: artisanProfile?.profileViews ?? "—", icon: Eye },
           ].map(({ label, value, icon: Icon }) => (
-            <Card key={label}>
-              <CardContent className="flex items-center gap-3 p-4">
+            <Card key={label} className="border-0 rounded-xl shadow-sm">
+              <CardContent className="flex flex-col items-start gap-3 p-4">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="text-lg font-semibold">{value}</p>
+                  {isLoadingProfile || isLoadingProducts ? <Skeleton className="h-8 w-16 mt-1" /> : <p className="text-3xl font-semibold mt-1">{value}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -478,7 +479,12 @@ const ArtisanDashboard = () => {
         </div>
 
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="w-full flex flex-wrap h-auto gap-1 mb-6 bg-muted/50 p-1 rounded-lg">
+          <div className="flex flex-wrap gap-3 mb-6">
+            <Button onClick={() => setShowAddProduct(true)}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
+            <Button variant="outline" onClick={() => { document.querySelector<HTMLButtonElement>('[role="tab"][data-state][id$="trigger-profile"]')?.click(); setEditingProfile(true); }}><Pencil className="h-4 w-4 mr-2" />Edit Business Profile</Button>
+            <Button variant="outline" disabled={!artisanProfile?.id} onClick={() => { if (artisanProfile?.id) navigate(`/marketplace/provider/${artisanProfile.id}`); }}><ExternalLink className="h-4 w-4 mr-2" />View Public Profile</Button>
+          </div>
+          <TabsList className="dashboard-tabs w-full justify-start overflow-x-auto h-auto gap-4 mb-6 bg-transparent p-0 rounded-none border-b">
             <TabsTrigger value="products" className="flex items-center gap-2 flex-1">
               <Package className="h-4 w-4" /> My Products
             </TabsTrigger>
@@ -525,9 +531,7 @@ const ArtisanDashboard = () => {
               </CardHeader>
               <CardContent>
                 {isLoadingProducts ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                  </div>
+                  <div role="status" aria-label="Loading" className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div>
                 ) : products.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -538,53 +542,20 @@ const ArtisanDashboard = () => {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div role="table" aria-label="My products" className="dashboard-products">
+                    <div role="row" className="hidden md:grid dashboard-product-row px-3 py-3 text-xs font-medium text-muted-foreground border-b">
+                      {["Image", "Product Name", "Category", "Price Range", "Status", "Actions"].map((label) => <span role="columnheader" key={label}>{label}</span>)}
+                    </div>
                     {products.map((product) => (
-                      <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                        <img loading="lazy" decoding="async"
-                          src={product.images?.[0] || FALLBACK_IMAGE}
-                          alt={product.name}
-                          className="h-16 w-16 object-cover rounded-lg"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium truncate">{product.name}</p>
-                            {(() => {
-                              const status = (product as unknown as { status?: "pending" | "approved" | "rejected" }).status;
-                              if (!status) return null;
-                              const cls =
-                                status === "approved" ? "bg-green-100 text-green-800 border-green-200"
-                                : status === "rejected" ? "bg-red-100 text-red-800 border-red-200"
-                                : "bg-yellow-100 text-yellow-800 border-yellow-200";
-                              return (
-                                <Badge variant="outline" className={`capitalize text-xs ${cls}`}>{status}</Badge>
-                              );
-                            })()}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {product.priceRange?.min != null ? (
-                              <>₦{product.priceRange.min.toLocaleString()} – ₦{(product.priceRange.max ?? product.priceRange.min).toLocaleString()}</>
-                            ) : (
-                              <span className="italic">Price on request</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost" size="icon" title="Edit"
-                            data-testid="edit-product-btn"
-                            onClick={() => setEditingProduct(product)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost" size="icon" title="Delete"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteProduct(product.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                      <div role="row" key={product.id} className="dashboard-product-row grid gap-3 p-4 border-b last:border-0 hover:bg-primary/5 transition-colors">
+                        <div role="cell"><img loading="lazy" decoding="async" src={product.images?.[0] || FALLBACK_IMAGE} alt={product.name} className="h-16 w-16 object-cover rounded-lg" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }} /></div>
+                        <div role="cell" className="font-medium break-words">{product.name}</div>
+                        <div role="cell" className="text-sm text-muted-foreground capitalize break-words">{product.category.replace(/_/g, " ")}</div>
+                        <div role="cell" className="text-sm">{product.priceRange?.min != null ? <>₦{product.priceRange.min.toLocaleString()} – ₦{(product.priceRange.max ?? product.priceRange.min).toLocaleString()}</> : <span className="italic">Price on request</span>}</div>
+                        <div role="cell">{product.status ? <Badge variant="outline" className={`capitalize text-xs ${product.status === "approved" ? "bg-primary/10 text-primary border-primary/20" : product.status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-accent/20 text-accent-foreground border-accent/40"}`}>{product.status}</Badge> : <span className="text-muted-foreground">—</span>}</div>
+                        <div role="cell" className="flex gap-1">
+                          <Button variant="ghost" size="icon" title="Edit" aria-label={`Edit ${product.name}`} data-testid="edit-product-btn" onClick={() => setEditingProduct(product)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" title="Delete" aria-label={`Delete ${product.name}`} className="text-destructive hover:text-destructive" onClick={() => handleDeleteProduct(product.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </div>
                     ))}
@@ -693,9 +664,7 @@ const ArtisanDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {isLoadingProfile ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                  </div>
+                  <div role="status" aria-label="Loading" className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div>
                 ) : editingProfile ? (
                   <>
                     <div className="space-y-2">
