@@ -142,6 +142,15 @@ All colors MUST be HSL.
   animation: product-price-pulse 0.35s ease-out;
 }
 
+/* Hide scrollbars while keeping swipe / trackpad / arrow scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE / old Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome / Safari / new Edge */
+}
+
 @keyframes sectionEntry { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .section-hidden { opacity: 0; transform: translateY(24px); }
 .section-animated { animation: sectionEntry 0.5s ease-out both; }

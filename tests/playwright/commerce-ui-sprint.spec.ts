@@ -144,19 +144,9 @@ test.describe('Commerce UI sprint', () => {
       .or(dialog.getByRole('button', { name: /Submit request/i }))
       .click();
 
-    const success = page.getByText(/Your custom order request has been sent/i);
-    const whitelistError = dialog.getByRole('alert').filter({
-      hasText: /property category(Details)? should not exist/i,
-    });
-    await expect(success.or(whitelistError)).toBeVisible({ timeout: 30_000 });
-    // Local FE fix maps categoryDetails → categoryFields; live Vercel needs redeploy.
-    if (await whitelistError.isVisible().catch(() => false)) {
-      test.skip(
-        true,
-        'POST body still sends category/categoryDetails — redeploy FE (apiServices.createCommission fix)',
-      );
-    }
-    await expect(success).toBeVisible();
+    await expect(
+      page.getByText(/Your custom order request has been sent/i),
+    ).toBeVisible({ timeout: 30_000 });
   });
 
   test('artisan dashboard shows redesigned stats and preserved tabs', async ({
