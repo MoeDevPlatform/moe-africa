@@ -284,7 +284,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
       }
     };
     products.forEach((p) => { add(p.name); p.tags.forEach(add); });
-    providers.forEach((p: any) => add(p.name ?? p.brandName));
+    providers.forEach((p) => add(p.brandName));
     searchableCategories.forEach((c) => add(c.name));
     return [...pool.values()]
       .sort((a, b) => {
@@ -358,7 +358,7 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                       aria-label={`Search for ${s}`}
                     >
                       <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-                      <span className="truncate">{highlight(s, searchQuery)}</span>
+                      <span className="truncate"><HighlightMatch text={s} query={searchQuery} /></span>
                     </button>
                   </li>
                 ))}
