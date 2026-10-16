@@ -68,7 +68,7 @@ Status key: **Implemented** · **Partial** · **Inaccessible/unclear** · **Bug*
 | ID | Requirement | Initial | Resulting | Evidence / action |
 |----|-------------|---------|-----------|-------------------|
 | 9.1 | Refunds / disputes | Partial | Partial | `disputes` module + `/admin/disputes` exist. Full payment-provider refund confirmation path needs verification. |
-| 9.2 | Verified badges / social proof | Implemented | Implemented | `verified` on ProviderCard / ProductCard / FeaturedArtisans; tied to profile flag. |
+| 9.2 | Verified badges / social proof | Implemented but no live data / unclear admin control | Improved | Badges on cards/profiles; admin **Verified artisan** toggle on Artisan Detail (`PATCH /admin/artisans/:id/verified`). |
 
 ### 10. Product variations
 

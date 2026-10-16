@@ -60,6 +60,7 @@ const ArtisanDetailPage = () => {
   const [docNotes, setDocNotes] = useState<Record<number, string>>({});
   const [pendingEligibility, setPendingEligibility] = useState<boolean | null>(null);
   const [eligibilityBusy, setEligibilityBusy] = useState(false);
+  const [verifiedBusy, setVerifiedBusy] = useState(false);
 
   const avgReview = useMemo(() => {
     if (!reviews.length) return null;
@@ -113,6 +114,34 @@ const ArtisanDetailPage = () => {
     } finally {
       setEligibilityBusy(false);
       setPendingEligibility(null);
+    }
+  };
+
+  const handleVerifiedToggle = async (verified: boolean) => {
+    if (!id) return;
+    setVerifiedBusy(true);
+    try {
+      const res = await adminService.setArtisanVerified(Number(id), verified);
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              artisanProfile: {
+                ...prev.artisanProfile,
+                verified: res.verified,
+              },
+            }
+          : prev,
+      );
+      toast.success(
+        verified
+          ? "Verified badge enabled on marketplace"
+          : "Verified badge removed",
+      );
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to update verified status");
+    } finally {
+      setVerifiedBusy(false);
     }
   };
 
@@ -292,6 +321,34 @@ const ArtisanDetailPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Marketplace trust badge</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Shows the Verified badge on artisan cards, profiles, and their product
+                  listings. Separate from account approval and document review — turn this
+                  on when you are satisfied the artisan is trustworthy.
+                </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="verified-toggle">Verified artisan</Label>
+                    <p className="text-sm mt-1" data-testid="verified-status">
+                      {detail.artisanProfile?.verified ? "Verified" : "Not verified"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="verified-toggle"
+                    data-testid="verified-toggle"
+                    checked={Boolean(detail.artisanProfile?.verified)}
+                    disabled={verifiedBusy}
+                    onCheckedChange={(v) => void handleVerifiedToggle(v)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

@@ -2263,6 +2263,9 @@ export interface AdminArtisanDetail {
     category: string | null;
     rating: number | null;
     reviewCount: number | null;
+    /** Marketplace verified badge (admin-controlled). */
+    verified?: boolean;
+    featured?: boolean;
     createdAt: string;
     updatedAt: string;
   };
@@ -2364,6 +2367,12 @@ export const adminService = {
       customOrderApprovedAt: string | null;
       customOrderApprovedBy: string | null;
     }>(`/admin/artisans/${id}/custom-order-eligibility`, { isEligible }),
+
+  setArtisanVerified: (id: number, verified: boolean) =>
+    apiPatch<{ id: number; verified: boolean; brandName: string | null }>(
+      `/admin/artisans/${id}/verified`,
+      { verified },
+    ),
 
   /**
    * Permanently remove an artisan. Prefers DELETE /admin/artisans/:id.
