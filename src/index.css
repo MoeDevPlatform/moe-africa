@@ -179,3 +179,18 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
 .dashboard-product-row > :nth-child(n+3) { grid-column: 2; }
 @media (min-width: 768px) { .dashboard-product-row { grid-template-columns: 64px minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(80px, 0.7fr) 80px; column-gap: 1rem; } .dashboard-product-row > :nth-child(n+3) { grid-column: auto; } }
 @media (prefers-reduced-motion: reduce) { .section-hidden, .section-animated, .route-entry { opacity: 1; transform: none; animation: none; } .product-card:hover, .artisan-card:hover, .category-card:hover { transform: none; } }
+
+/* Artisan business profile form grouping */
+.profile-form-section { padding-top: 1.25rem; margin-top: 0.5rem; border-top: 1px solid hsl(var(--border)); }
+.profile-form-section--first { padding-top: 0; margin-top: 0; border-top: 0; }
+.profile-form-section__title { font-family: theme('fontFamily.display'); font-size: 1.05rem; font-weight: 700; color: hsl(var(--foreground)); }
+.profile-form-section__hint { font-size: 0.8rem; color: hsl(var(--muted-foreground)); margin-top: 0.125rem; }
+
+/* Marketplace homepage hierarchy */
+.marketplace-home main h2.font-display:not(.drop-shadow-lg) { position: relative; padding-bottom: 0.5rem; letter-spacing: -0.01em; }
+.marketplace-home main h2.font-display:not(.drop-shadow-lg)::after { content: ""; position: absolute; left: 0; bottom: 0; width: 2.5rem; height: 3px; border-radius: 9999px; background: linear-gradient(90deg, hsl(var(--secondary)), hsl(var(--accent))); }
+.marketplace-home .home-band { position: relative; padding: 1.5rem 1rem; border-radius: 1.25rem; background: hsl(var(--primary) / 0.05); border: 1px solid hsl(var(--primary) / 0.08); }
+@media (min-width: 768px) { .marketplace-home .home-band { padding: 2rem 1.75rem; } }
+.marketplace-home .category-card { background: hsl(var(--card)); box-shadow: var(--shadow-sm); }
+.marketplace-home .category-card svg { padding: 0.4rem; box-sizing: content-box; border-radius: 9999px; background: hsl(var(--primary) / 0.08); }
+.marketplace-home .product-card h3 { letter-spacing: -0.005em; }

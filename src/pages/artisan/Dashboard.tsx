@@ -676,6 +676,10 @@ const ArtisanDashboard = () => {
                   <div role="status" aria-label="Loading" className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div>
                 ) : editingProfile ? (
                   <>
+                    <div className="profile-form-section profile-form-section--first">
+                      <h4 className="profile-form-section__title">Business details</h4>
+                      <p className="profile-form-section__hint">Your store name, story and the crafts you offer.</p>
+                    </div>
                     <div className="space-y-2">
                       <Label>Business Name *</Label>
                       <Input
@@ -725,6 +729,10 @@ const ArtisanDashboard = () => {
                       )}
                     </div>
 
+                    <div className="profile-form-section">
+                      <h4 className="profile-form-section__title">Location</h4>
+                      <p className="profile-form-section__hint">Where your workshop is based.</p>
+                    </div>
                     {/* Structured location: Country → State → City → Address */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -785,6 +793,10 @@ const ArtisanDashboard = () => {
                       </div>
                     </div>
 
+                    <div className="profile-form-section">
+                      <h4 className="profile-form-section__title">Storefront images</h4>
+                      <p className="profile-form-section__hint">How your store looks to customers on your public page.</p>
+                    </div>
                     {/* Store Image upload */}
                     <div className="space-y-2">
                       <Label>Store Image</Label>
@@ -919,61 +931,76 @@ const ArtisanDashboard = () => {
                       </div>
                     )}
 
-                    <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
-                      {isSavingProfile ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+                    <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-muted-foreground">Fields marked * are required.</p>
+                      <Button onClick={handleSaveProfile} disabled={isSavingProfile} size="lg" className="w-full sm:w-auto">
+                        {isSavingProfile ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
                   </>
                 ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Business Name</p>
-                      <p className="font-medium">{artisanProfile?.businessName || "Not set"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Description</p>
-                      <p>{artisanProfile?.description || "No description"}</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-medium">
-                          {resolveServiceCategories(artisanProfile ?? { category: "" }).join(", ") || "—"}
-                        </p>
+                  <div className="space-y-6">
+                    {/* Storefront preview: cover + store image + identity */}
+                    <div className="overflow-hidden rounded-xl border bg-muted/40">
+                      <div className="relative aspect-[16/5] min-h-[120px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
+                        {artisanProfile?.coverImageUrl && (
+                          <img loading="lazy" decoding="async"
+                            src={artisanProfile.coverImageUrl}
+                            alt="Cover"
+                            className="absolute inset-0 h-full w-full object-cover"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                          />
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Location</p>
-                        <p className="font-medium">
+                      <div className="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-end sm:gap-4 sm:px-6">
+                        <div className="-mt-10 h-20 w-20 shrink-0 overflow-hidden rounded-xl border-4 border-card bg-card shadow-md sm:-mt-12 sm:h-24 sm:w-24">
+                          {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) ? (
+                            <img loading="lazy" decoding="async"
+                              src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
+                              alt="Store"
+                              className="h-full w-full object-cover"
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-primary/10" aria-hidden="true">
+                              <Store className="h-8 w-8 text-primary" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 pb-1">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Business Name</p>
+                          <h3 className="truncate font-display text-xl font-bold sm:text-2xl">{artisanProfile?.businessName || "Not set"}</h3>
+                        </div>
+                      </div>
+                    </div>
+
+                    <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="rounded-lg border bg-card p-4">
+                        <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Category</dt>
+                        <dd className="flex flex-wrap gap-1.5">
+                          {resolveServiceCategories(artisanProfile ?? { category: "" }).length > 0
+                            ? resolveServiceCategories(artisanProfile ?? { category: "" }).map((c) => (
+                                <Badge key={c} variant="outline" className="font-medium">{c}</Badge>
+                              ))
+                            : <span className="font-medium">—</span>}
+                        </dd>
+                      </div>
+                      <div className="rounded-lg border bg-card p-4">
+                        <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Location</dt>
+                        <dd className="font-medium">
                           {[artisanProfile?.address, artisanProfile?.city, artisanProfile?.state, artisanProfile?.country]
                             .filter(Boolean).join(", ") || artisanProfile?.location || "—"}
-                        </p>
+                        </dd>
                       </div>
-                    </div>
-                    {(artisanProfile?.storeImageUrl || (artisanProfile?.images && artisanProfile.images.length > 0)) && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Store Image</p>
-                        <img loading="lazy" decoding="async"
-                          src={artisanProfile.storeImageUrl || artisanProfile.images[0]}
-                          alt="Store"
-                          className="h-24 w-24 object-cover rounded-lg border"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                        />
+                      <div className="rounded-lg border bg-card p-4 md:col-span-2">
+                        <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</dt>
+                        <dd className="max-w-prose leading-relaxed text-foreground/90">{artisanProfile?.description || "No description"}</dd>
                       </div>
-                    )}
-                    {artisanProfile?.coverImageUrl && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Cover / Banner Image</p>
-                        <img loading="lazy" decoding="async"
-                          src={artisanProfile.coverImageUrl}
-                          alt="Cover"
-                          className="w-full max-w-2xl aspect-[16/5] object-cover rounded-lg border"
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                        />
-                      </div>
-                    )}
+                    </dl>
                   </div>
                 )}
               </CardContent>
