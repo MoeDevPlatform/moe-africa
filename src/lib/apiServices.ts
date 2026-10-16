@@ -8,6 +8,7 @@
 
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete, MoeApiError } from "./moeApi";
 import { FALLBACK_IMAGE } from "./imageFallback";
+import { normalizeProductPreviews } from "./productPreviews";
 import { normalizeVariationTypes, type ProductVariationTypeDef } from "./productVariations";
 import {
   Product,
@@ -574,6 +575,7 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     images,
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
+    isCustomOrderEligible: raw.isCustomOrderEligible === true || raw.artisan?.isCustomOrderEligible === true || raw.provider?.isCustomOrderEligible === true,
     // Item 10 — preserve approval status for artisan dashboard / admin UI.
     ...(raw.status ? { status: raw.status } : {}),
     ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),

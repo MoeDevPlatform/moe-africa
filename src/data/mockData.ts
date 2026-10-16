@@ -24,6 +24,7 @@ export interface Product {
   images: string[];
   category: string;
   providerId: number;
+  isCustomOrderEligible?: boolean;
   /** Admin approval status (item 10) — only present on backend-sourced products. */
   status?: "pending" | "approved" | "rejected" | "draft";
   /** When true, cart requires a customisation payload (item 7). Defaults to false. */

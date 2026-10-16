@@ -9,12 +9,14 @@ import { productsService } from "@/lib/apiServices";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/contexts/CategoriesContext";
 import type { Product } from "@/data/mockData";
+import { SkeletonGrid } from "@/components/common/Skeleton";
 
 const AllProducts = () => {
   const navigate = useNavigate();
   const { categories } = useCategories();
   const [searchParams] = useSearchParams();
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [title, setTitle] = useState("All Products");
   const [description, setDescription] = useState("Explore our complete collection of handcrafted African products");
 
@@ -26,6 +28,7 @@ const AllProducts = () => {
 
   useEffect(() => {
     const loadProducts = async () => {
+      setIsLoading(true);
       try {
         const filters: Record<string, unknown> = {};
         let newTitle = "All Products";
@@ -102,6 +105,8 @@ const AllProducts = () => {
           );
         }
         setDisplayProducts(fallback);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -128,7 +133,7 @@ const AllProducts = () => {
           <p className="text-sm text-muted-foreground mt-2">{displayProducts.length} products found</p>
         </div>
 
-        {displayProducts.length > 0 ? (
+        {isLoading ? <SkeletonGrid count={6} /> : displayProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {displayProducts.map((product) => (
               <ProductCard key={product.id} product={product} />

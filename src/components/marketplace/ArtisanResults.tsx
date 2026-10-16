@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import type { Provider } from "@/data/mockData";
+import { SkeletonGrid } from "@/components/common/Skeleton";
 
 interface Props {
   results: Provider[];
@@ -18,11 +19,7 @@ interface Props {
 /** Shared filtered-artisan grid with loading, error, empty and pagination states. */
 const ArtisanResults = ({ results, loading, error, page, totalPages, setPage, onClear, filtered }: Props) => {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground" role="status">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading artisans…
-      </div>
-    );
+    return <SkeletonGrid count={4} />;
   }
   if (error) {
     return (

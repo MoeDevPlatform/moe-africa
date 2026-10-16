@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/carousel";
 import EmptySection from "@/components/marketplace/EmptySection";
 import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
-import { Skeleton } from "@/components/ui/skeleton";
+import Skeleton from "@/components/common/Skeleton";
+import AnimatedSection from "@/components/common/AnimatedSection";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { productsService, sectionsService } from "@/lib/apiServices";
@@ -54,8 +55,8 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
   };
 
   return (
-    <div className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
-      <div className="relative rounded-xl overflow-hidden mb-3 bg-muted aspect-square">
+    <div className="product-card group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
+      <div className="product-card__image relative rounded-xl overflow-hidden mb-3 bg-muted aspect-square">
         <img
           src={product.imageUrl}
           alt={product.name}
@@ -95,7 +96,7 @@ const ProductSection = ({ title, icon, products, loading }: ProductSectionProps)
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
         </div>
         <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-40 w-40 rounded-xl shrink-0" />
           ))}
         </div>
@@ -245,31 +246,39 @@ const FeaturedProducts = () => {
 
   return (
     <section className="mb-12 md:mb-16">
+      <AnimatedSection>
       <ProductSection
         title="Best Sellers"
         icon={<TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
         products={bestSellers}
         loading={isLoading}
       />
+      </AnimatedSection>
+      <AnimatedSection delay={100}>
       <ProductSection
         title="Seasonal Picks"
         icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-accent" />}
         products={seasonalPicks}
         loading={isLoading}
       />
-      <RecentlyViewed />
+      </AnimatedSection>
+      <AnimatedSection delay={400}><RecentlyViewed /></AnimatedSection>
+      <AnimatedSection delay={300}>
       <ProductSection
         title="Editor's Recommendations"
         icon={<Award className="h-5 w-5 md:h-6 md:w-6 text-secondary" />}
         products={editorPicks}
         loading={isLoading}
       />
+      </AnimatedSection>
+      <AnimatedSection delay={500}>
       <ProductSection
         title="Trending Right Now"
         icon={<Star className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
         products={trending}
         loading={isLoading}
       />
+      </AnimatedSection>
     </section>
   );
 };

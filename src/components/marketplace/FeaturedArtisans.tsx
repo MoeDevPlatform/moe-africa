@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, CheckCircle, Award } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import Skeleton from "@/components/common/Skeleton";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { sectionsService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
@@ -85,6 +85,8 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
