@@ -946,7 +946,7 @@ const ArtisanDashboard = () => {
                   <div className="space-y-6">
                     {/* Storefront preview: cover + store image + identity */}
                     <div className="overflow-hidden rounded-xl border bg-muted/40">
-                      <div className="relative aspect-[16/5] min-h-[120px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
+                      <div className="relative aspect-[16/5] min-h-[120px] max-h-[200px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
                         {artisanProfile?.coverImageUrl && (
                           <img loading="lazy" decoding="async"
                             src={artisanProfile.coverImageUrl}
