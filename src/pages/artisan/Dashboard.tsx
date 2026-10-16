@@ -971,7 +971,7 @@ const ArtisanDashboard = () => {
                             </div>
                           )}
                         </div>
-                        <div className="-mt-8 min-w-0 sm:mt-0">
+                        <div className="min-w-0">
                           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Business Name</p>
                           <h3 className="truncate font-display text-xl font-bold sm:text-2xl">{artisanProfile?.businessName || "Not set"}</h3>
                         </div>
