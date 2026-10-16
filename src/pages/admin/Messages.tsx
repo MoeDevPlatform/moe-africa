@@ -66,6 +66,16 @@ const STATUS_LABELS: Record<string, string> = {
   needs_follow_up: "Needs Follow-Up",
 };
 
+const PAGE_SIZE = 10;
+type CategoryKey = "all" | "contact_us" | "artisan" | "new" | "resolved";
+const CATEGORY_TABS: { key: CategoryKey; label: string; match: (c: InboxRow) => boolean }[] = [
+  { key: "all", label: "All", match: () => true },
+  { key: "contact_us", label: "Contact Us", match: (c) => c.source === "contact_us" },
+  { key: "artisan", label: "Artisan conversations", match: (c) => c.source !== "contact_us" },
+  { key: "new", label: "New", match: (c) => c.unreadCount > 0 },
+  { key: "resolved", label: "Resolved", match: (c) => c.status === "resolved" || c.status === "closed" },
+];
+
 const AdminMessages = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams();
@@ -79,6 +89,10 @@ const AdminMessages = () => {
   const [sending, setSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [category, setCategory] = useState<CategoryKey>("all");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const activeTab = CATEGORY_TABS.find((t) => t.key === category) ?? CATEGORY_TABS[0];
+  const filtered = conversations.filter(activeTab.match);
 
   const loadList = () => {
     setIsLoading(true);
@@ -297,13 +311,40 @@ const AdminMessages = () => {
           </p>
         </div>
 
+        {!isLoading && conversations.length > 0 && (
+          <div role="tablist" aria-label="Message types" className="flex flex-wrap gap-2 border-b border-border">
+            {CATEGORY_TABS.map((t) => {
+              const count = conversations.filter(t.match).length;
+              const active = category === t.key;
+              return (
+                <button
+                  key={t.key}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => { setCategory(t.key); setVisibleCount(PAGE_SIZE); }}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : conversations.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No conversations yet</Card>
+        ) : filtered.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No messages in this category</Card>
         ) : (
           <div className="space-y-2">
-            {conversations.map((c) => (
+            {filtered.slice(0, visibleCount).map((c) => (
               <Card
                 key={c.id}
                 className="p-4 hover:border-primary transition-colors"
@@ -363,6 +404,13 @@ const AdminMessages = () => {
                 </div>
               </Card>
             ))}
+            {filtered.length > visibleCount && (
+              <div className="flex justify-center pt-2">
+                <Button variant="outline" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+                  Show more ({filtered.length - visibleCount} remaining)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
