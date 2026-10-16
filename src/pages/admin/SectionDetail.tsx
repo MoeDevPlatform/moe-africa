@@ -77,7 +77,7 @@ const SectionDetail = () => {
               id: p.id,
               label: p.name || `Product #${p.id}`,
               image: p.images?.[0],
-              sub: typeof p.price === "number" ? `₦${p.price.toLocaleString()}` : undefined,
+              sub: p.priceRange?.min != null ? `₦${p.priceRange.min.toLocaleString()}` : undefined,
             })),
           );
     task
