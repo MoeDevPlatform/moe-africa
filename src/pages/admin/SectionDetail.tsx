@@ -25,6 +25,8 @@ const SectionDetail = () => {
   const [results, setResults] = useState<Array<{ id: number; label: string; score?: number }>>([]);
   const [searching, setSearching] = useState(false);
   const [keywordsText, setKeywordsText] = useState("");
+  const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
+  const [removingKeyword, setRemovingKeyword] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const load = useCallback(() => {
