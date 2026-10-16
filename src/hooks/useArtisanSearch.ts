@@ -84,7 +84,7 @@ export function useArtisanSearch(
             p.category,
             p.city,
             p.state,
-            p.country,
+            (p as { country?: string }).country,
             ...(p.styleTags ?? []),
           ]
             .filter(Boolean)
