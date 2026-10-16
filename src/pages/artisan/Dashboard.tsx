@@ -676,6 +676,10 @@ const ArtisanDashboard = () => {
                   <div role="status" aria-label="Loading" className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div>
                 ) : editingProfile ? (
                   <>
+                    <div className="profile-form-section profile-form-section--first">
+                      <h4 className="profile-form-section__title">Business details</h4>
+                      <p className="profile-form-section__hint">Your store name, story and the crafts you offer.</p>
+                    </div>
                     <div className="space-y-2">
                       <Label>Business Name *</Label>
                       <Input
@@ -725,6 +729,10 @@ const ArtisanDashboard = () => {
                       )}
                     </div>
 
+                    <div className="profile-form-section">
+                      <h4 className="profile-form-section__title">Location</h4>
+                      <p className="profile-form-section__hint">Where your workshop is based.</p>
+                    </div>
                     {/* Structured location: Country → State → City → Address */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -785,6 +793,10 @@ const ArtisanDashboard = () => {
                       </div>
                     </div>
 
+                    <div className="profile-form-section">
+                      <h4 className="profile-form-section__title">Storefront images</h4>
+                      <p className="profile-form-section__hint">How your store looks to customers on your public page.</p>
+                    </div>
                     {/* Store Image upload */}
                     <div className="space-y-2">
                       <Label>Store Image</Label>
@@ -919,13 +931,16 @@ const ArtisanDashboard = () => {
                       </div>
                     )}
 
-                    <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
-                      {isSavingProfile ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+                    <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-muted-foreground">Fields marked * are required.</p>
+                      <Button onClick={handleSaveProfile} disabled={isSavingProfile} size="lg" className="w-full sm:w-auto">
+                        {isSavingProfile ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <div className="space-y-6">
