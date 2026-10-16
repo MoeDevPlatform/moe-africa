@@ -25,6 +25,8 @@ const SectionDetail = () => {
   const [results, setResults] = useState<Array<{ id: number; label: string; score?: number }>>([]);
   const [searching, setSearching] = useState(false);
   const [keywordsText, setKeywordsText] = useState("");
+  const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
+  const [removingKeyword, setRemovingKeyword] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -36,7 +38,9 @@ const SectionDetail = () => {
         setSection(s);
         const sorted = [...(s.items ?? [])].sort((a, b) => a.position - b.position);
         setItems(sorted);
-        setKeywordsText((s.keywords ?? []).join(", "));
+        const kws = s.keywords ?? [];
+        setSavedKeywords(kws);
+        setKeywordsText(kws.join(", "));
       })
       .catch((err) => toast.error(err?.message || "Failed to load section"))
       .finally(() => setLoading(false));
@@ -172,6 +176,23 @@ const SectionDetail = () => {
     }
   };
 
+  const removeKeyword = async (keyword: string) => {
+    setRemovingKeyword(keyword);
+    const next = savedKeywords.filter((k) => k !== keyword);
+    setSavedKeywords(next);
+    setKeywordsText(next.join(", "));
+    try {
+      await adminService.setSeasonalKeywords(next);
+      toast.success(`Removed "${keyword}"`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove keyword");
+      setSavedKeywords(savedKeywords);
+      setKeywordsText(savedKeywords.join(", "));
+    } finally {
+      setRemovingKeyword(null);
+    }
+  };
+
   const onDrop = (toIndex: number) => {
     if (dragIndex == null || dragIndex === toIndex) return;
     setItems((prev) => {
@@ -214,13 +235,46 @@ const SectionDetail = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">Seasonal keywords</CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-3">
-                  <Input
-                    value={keywordsText}
-                    onChange={(e) => setKeywordsText(e.target.value)}
-                    placeholder="eid, graduation, harmattan"
-                  />
-                  <Button onClick={saveKeywords}>Save keywords</Button>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Input
+                      value={keywordsText}
+                      onChange={(e) => setKeywordsText(e.target.value)}
+                      placeholder="eid, graduation, harmattan"
+                      aria-label="Seasonal keywords, comma separated"
+                    />
+                    <Button onClick={saveKeywords}>Save keywords</Button>
+                  </div>
+                  {savedKeywords.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        Saved keywords
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {savedKeywords.map((keyword) => (
+                          <span
+                            key={keyword}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background pl-3 pr-1.5 py-1 text-sm"
+                          >
+                            {keyword}
+                            <button
+                              type="button"
+                              onClick={() => removeKeyword(keyword)}
+                              disabled={removingKeyword !== null}
+                              aria-label={`Delete saved keyword ${keyword}`}
+                              className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50"
+                            >
+                              {removingKeyword === keyword ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
