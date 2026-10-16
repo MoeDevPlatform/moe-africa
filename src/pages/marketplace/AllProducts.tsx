@@ -91,7 +91,16 @@ const AllProducts = () => {
         }
 
         const res = await productsService.list(filters);
-        setDisplayProducts(res.data);
+        // Drop repeated listings (same id, or same name from the same artisan).
+        const seen = new Set<string>();
+        setDisplayProducts(
+          (res.data ?? []).filter((p) => {
+            const keys = [`id:${p.id}`, `n:${p.providerId}:${(p.name || "").trim().toLowerCase()}`];
+            if (keys.some((k) => seen.has(k))) return false;
+            keys.forEach((k) => seen.add(k));
+            return true;
+          }),
+        );
         setTitle(newTitle);
         setDescription(newDescription);
       } catch {
