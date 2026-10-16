@@ -87,8 +87,8 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden sm:flex -left-4" />
-        <CarouselNext className="hidden sm:flex -right-4" />
+        <CarouselPrevious className="hidden sm:flex left-2 z-30" />
+        <CarouselNext className="hidden sm:flex right-2 z-30" />
       </Carousel>
     </section>
   );

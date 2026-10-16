@@ -5,6 +5,7 @@ export const publicRoutes = [
   '/auth',
   '/marketplace/products',
   '/marketplace/artisans',
+  '/marketplace/custom-orders',
   '/help/payments',
   '/help/shipping',
   '/help/contact-artisans',

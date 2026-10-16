@@ -1267,8 +1267,11 @@ export interface CustomOrderCommissionRequest {
   budgetMax?: number;
   deadline?: string;
   specialInstructions?: string;
+  /** UI-only: used to pick field sets; not sent to POST /custom-orders. */
   category?: string;
+  /** UI alias — mapped to `categoryFields` on the wire. */
   categoryDetails?: Record<string, string>;
+  categoryFields?: Record<string, unknown>;
 }
 
 export interface CustomOrderRecord {
@@ -1298,22 +1301,53 @@ export const customOrderService = {
     apiPost<{ id: number; status: string }>("/orders/custom-requests", data),
   /** New commission flow — requires artisan isCustomOrderEligible. */
   createCommission: async (data: CustomOrderCommissionRequest) => {
+    const categoryFields =
+      data.categoryFields ??
+      (data.categoryDetails && Object.keys(data.categoryDetails).length
+        ? data.categoryDetails
+        : undefined);
+    // Nest ValidationPipe forbids unknown props — never send `category` / `categoryDetails`.
+    const payload: Record<string, unknown> = {
+      artisanId: Number(data.artisanId),
+      description: data.description,
+      ...(data.referenceImages?.length
+        ? { referenceImages: data.referenceImages }
+        : {}),
+      ...(data.budget != null ? { budget: data.budget } : {}),
+      ...(data.budgetMin != null ? { budgetMin: data.budgetMin } : {}),
+      ...(data.budgetMax != null ? { budgetMax: data.budgetMax } : {}),
+      ...(data.deadline ? { deadline: data.deadline } : {}),
+      ...(data.specialInstructions
+        ? { specialInstructions: data.specialInstructions }
+        : {}),
+      ...(categoryFields ? { categoryFields } : {}),
+    };
     try {
-      return await apiPost<CustomOrderRecord>("/custom-orders", data);
+      return await apiPost<CustomOrderRecord>("/custom-orders", payload);
     } catch (err) {
       // Soft fallback to legacy endpoint shape while BE rolls out.
       // Structured requests must not silently lose fields on the legacy endpoint.
-      if (data.categoryDetails || data.budgetMin != null || data.budgetMax != null || data.specialInstructions) throw err;
+      if (
+        categoryFields ||
+        data.budgetMin != null ||
+        data.budgetMax != null ||
+        data.specialInstructions
+      ) {
+        throw err;
+      }
       if (err instanceof MoeApiError && (err.status === 404 || err.status === 405)) {
         return customOrderService.create({
           providerId: Number(data.artisanId),
           description: data.description,
           additionalNotes: [
             data.budget != null ? `Budget: ₦${data.budget}` : null,
-            data.budgetMin != null || data.budgetMax != null ? `Budget: ₦${data.budgetMin ?? "?"} – ₦${data.budgetMax ?? "?"}` : null,
+            data.budgetMin != null || data.budgetMax != null
+              ? `Budget: ₦${data.budgetMin ?? "?"} – ₦${data.budgetMax ?? "?"}`
+              : null,
             data.deadline ? `Deadline: ${data.deadline}` : null,
-            data.specialInstructions ? `Instructions: ${data.specialInstructions}` : null,
-            data.categoryDetails && Object.keys(data.categoryDetails).length ? `Details: ${JSON.stringify(data.categoryDetails)}` : null,
+            data.specialInstructions
+              ? `Instructions: ${data.specialInstructions}`
+              : null,
           ]
             .filter(Boolean)
             .join("\n"),

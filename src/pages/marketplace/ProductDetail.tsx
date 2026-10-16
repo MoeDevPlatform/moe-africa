@@ -450,9 +450,25 @@ const ProductDetail = () => {
             )}
 
             {(provider.isCustomOrderEligible === true || (product as Product & { isCustomOrderEligible?: boolean }).isCustomOrderEligible === true) && (
-              <div className="rounded-xl bg-primary/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                <div className="flex gap-3"><PencilLine className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden="true" /><div><p className="font-semibold">Want something different?</p><p className="text-sm text-muted-foreground">This artisan accepts custom orders.</p></div></div>
-                <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary/10 shrink-0" onClick={() => navigate(`/marketplace/artisan/${provider.id}#custom-order`)}>Request a Custom Order</Button>
+              <div
+                data-testid="product-custom-order-banner"
+                className="rounded-xl bg-primary/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+              >
+                <div className="flex gap-3">
+                  <PencilLine className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold">Want something different?</p>
+                    <p className="text-sm text-muted-foreground">This artisan accepts custom orders.</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  data-testid="product-request-custom-order-btn"
+                  className="rounded-full border-primary text-primary hover:bg-primary/10 shrink-0"
+                  onClick={() => navigate(`/marketplace/artisan/${provider.id}#custom-order`)}
+                >
+                  Request a Custom Order
+                </Button>
               </div>
             )}
 

@@ -111,7 +111,7 @@ const ProductSection = ({ title, icon, products, loading }: ProductSectionProps)
         {icon}
         <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
       </div>
-      <Carousel opts={{ align: "start", loop: true, dragFree: true }} className="w-full overflow-x-auto snap-x snap-mandatory">
+      <Carousel opts={{ align: "start", loop: true, dragFree: true }} className="w-full">
         <CarouselContent className="-ml-2 md:-ml-4">
           {products.map((product) => (
             <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
@@ -119,8 +119,8 @@ const ProductSection = ({ title, icon, products, loading }: ProductSectionProps)
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden sm:flex -left-4" />
-        <CarouselNext className="hidden sm:flex -right-4" />
+        <CarouselPrevious className="hidden sm:flex left-2 z-30" />
+        <CarouselNext className="hidden sm:flex right-2 z-30" />
       </Carousel>
     </div>
   );

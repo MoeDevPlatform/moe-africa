@@ -457,7 +457,10 @@ const ArtisanDashboard = () => {
         )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+          data-testid="dashboard-stats"
+        >
           {[
             { label: "Total Products", value: products.length, icon: Package },
             { label: "Average Rating", value: artisanProfile?.rating?.toFixed(1) || "—", icon: Star },
@@ -542,7 +545,12 @@ const ArtisanDashboard = () => {
                     </Button>
                   </div>
                 ) : (
-                  <div role="table" aria-label="My products" className="dashboard-products">
+                  <div
+                    role="table"
+                    aria-label="My products"
+                    className="dashboard-products"
+                    data-testid="dashboard-products-table"
+                  >
                     <div role="row" className="hidden md:grid dashboard-product-row px-3 py-3 text-xs font-medium text-muted-foreground border-b">
                       {["Image", "Product Name", "Category", "Price Range", "Status", "Actions"].map((label) => <span role="columnheader" key={label}>{label}</span>)}
                     </div>

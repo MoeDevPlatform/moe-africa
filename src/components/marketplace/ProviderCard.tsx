@@ -177,7 +177,17 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
             View Profile
           </Button>
           {provider.isCustomOrderEligible === true && (
-            <Button variant="outline" size="sm" className="h-8 rounded-full border-primary px-3 text-xs text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }} aria-label={`Request a custom order from ${provider.brandName}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="request-custom-order-card-btn"
+              className="h-8 rounded-full border-primary px-3 text-xs text-primary hover:bg-primary/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/marketplace/artisan/${provider.id}#custom-order`);
+              }}
+              aria-label={`Request a custom order from ${provider.brandName}`}
+            >
               Request Custom Order
             </Button>
           )}
