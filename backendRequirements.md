@@ -808,7 +808,8 @@ See also root `security-audit.md`.
 - 🟢 Composite: `0.35*completion + 0.30*review + 0.20*activity + 0.15*(100/(avgHrs+1))` (neutral 50 when no response data)
 - 🟢 `GET /sections/:sectionKey` with algorithmic fill when &lt; 4 curated items
 - 🟢 `GET /sections/seasonal_picks/matched` — curated + keyword OR match
-- 🟢 Admin section CRUD / reorder / seasonal keywords
+- 🟢 Admin section CRUD / reorder
+- 🔴 `PATCH /admin/sections/seasonal_picks/keywords` body `{ keywords: string[] }` — must accept and persist an array of **any length** (multiple keywords, not just one), replacing the stored list exactly as sent. Trim each term, drop empties, reject case-insensitive duplicates (400 or dedupe silently — never silently keep only the first). `GET /admin/sections/seasonal_picks` must return the full stored array in `keywords`, in save order. The admin UI adds keywords one at a time (or comma-separated in one go) and merges them with what is already saved before PATCHing, so a saved list of `["cold","eid","harmattan"]` must survive a reload.
 
 ### Preferences
 
