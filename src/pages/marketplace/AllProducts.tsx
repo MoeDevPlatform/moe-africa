@@ -25,6 +25,7 @@ const AllProducts = () => {
   const season = searchParams.get("season");
   const category = searchParams.get("category");
   const type = searchParams.get("type");
+  const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -33,6 +34,12 @@ const AllProducts = () => {
         const filters: Record<string, unknown> = {};
         let newTitle = "All Products";
         let newDescription = "Explore our complete collection of handcrafted African products";
+
+        if (searchQuery) {
+          filters.q = searchQuery;
+          newTitle = `Results for “${searchQuery}”`;
+          newDescription = "Products matching your search";
+        }
 
         if (category) {
           filters.category = category;
@@ -78,14 +85,28 @@ const AllProducts = () => {
           newDescription = "Cozy layers and home pieces for the rains";
         }
 
+        if (searchQuery && (category || featured || sort || season || type)) {
+          newTitle = `Results for “${searchQuery}”`;
+          newDescription = "Products matching your search and filters";
+        }
+
         const res = await productsService.list(filters);
         setDisplayProducts(res.data);
         setTitle(newTitle);
         setDescription(newDescription);
       } catch {
         let fallback = [...mockProducts];
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          fallback = fallback.filter(
+            (p) =>
+              p.name.toLowerCase().includes(q) ||
+              (p.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
+              (p.description ?? "").toLowerCase().includes(q),
+          );
+        }
         if (featured === "true") {
-          fallback = mockProducts.filter(p => {
+          fallback = fallback.filter(p => {
             const provider = getProviderById(p.providerId);
             return provider?.featured;
           });
@@ -111,7 +132,7 @@ const AllProducts = () => {
     };
 
     loadProducts();
-  }, [featured, sort, season, category, type, categories]);
+  }, [featured, sort, season, category, type, searchQuery, categories]);
 
   return (
     <div className="min-h-screen bg-background">

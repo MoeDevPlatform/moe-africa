@@ -24,38 +24,61 @@ const AllArtisans = () => {
   
   const featured = searchParams.get("featured");
   const category = searchParams.get("category");
-  const search = useArtisanSearch({ category, featured: featured === "true" }, filters);
-  const isFiltered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS);
+  const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
+  const search = useArtisanSearch(
+    { category, featured: featured === "true", q: searchQuery || undefined },
+    filters,
+  );
+  const isFiltered =
+    JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS) || !!searchQuery;
 
   useEffect(() => {
     const loadProviders = async () => {
       try {
-        const filters: Record<string, unknown> = {};
+        const listFilters: Record<string, unknown> = {};
         let newTitle = "All Artisans";
         let newDescription = "Discover talented artisans from across Africa";
 
+        if (searchQuery) {
+          listFilters.q = searchQuery;
+          newTitle = `Artisans for “${searchQuery}”`;
+          newDescription = "Artisans matching your search";
+        }
         if (featured === "true") {
-          filters.featured = true;
+          listFilters.featured = true;
           newTitle = "Featured Artisans";
           newDescription = "Our most acclaimed artisans with exceptional craftsmanship";
         }
         if (category) {
-          filters.category = category;
+          listFilters.category = category;
           const cat = getCategory(category, categories);
           if (cat) {
             newTitle = `Artisans in ${cat.label}`;
             newDescription = `Browse artisans specialising in ${cat.label.toLowerCase()}`;
           }
         }
+        if (searchQuery && (category || featured)) {
+          newTitle = `Artisans for “${searchQuery}”`;
+          newDescription = "Artisans matching your search and filters";
+        }
 
-        const res = await providersService.list(filters);
+        const res = await providersService.list(listFilters);
         setDisplayProviders(res.data);
         setTitle(newTitle);
         setDescription(newDescription);
       } catch {
         let fallback = [...mockProviders];
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          fallback = fallback.filter(
+            (p) =>
+              p.brandName.toLowerCase().includes(q) ||
+              (p.category || "").toLowerCase().includes(q) ||
+              (p.city || "").toLowerCase().includes(q),
+          );
+        }
         if (featured === "true") {
-          fallback = mockProviders.filter(p => p.featured);
+          fallback = fallback.filter(p => p.featured);
         }
         if (category) {
           fallback = fallback.filter(p => (p.category || "").toLowerCase() === category.toLowerCase());
@@ -65,7 +88,7 @@ const AllArtisans = () => {
     };
 
     loadProviders();
-  }, [featured, category, categories]);
+  }, [featured, category, searchQuery, categories]);
 
   return (
     <div className="min-h-screen bg-background">

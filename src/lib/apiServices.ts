@@ -227,6 +227,25 @@ export function validateUploadFile(file: File): void {
   }
 }
 
+/** Verification docs: images + PDF (matches BE multer `verification` folder). */
+export const VERIFICATION_ACCEPTED_TYPES = [
+  ...UPLOAD_ACCEPTED_TYPES,
+  "application/pdf",
+];
+export const VERIFICATION_ACCEPT_ATTR = VERIFICATION_ACCEPTED_TYPES.join(",");
+
+export function validateVerificationUploadFile(file: File): void {
+  if (!VERIFICATION_ACCEPTED_TYPES.includes(file.type)) {
+    throw new MoeApiError(
+      "Only JPEG, PNG, WebP, or PDF files are allowed for verification",
+      400,
+    );
+  }
+  if (file.size > UPLOAD_MAX_BYTES) {
+    throw new MoeApiError("File must be 5MB or smaller", 400);
+  }
+}
+
 export const artisanService = {
   getMyProfile: async (): Promise<ArtisanProfile> => {
     const p = await apiGet<ArtisanProfile>("/artisans/me");
@@ -695,6 +714,8 @@ export interface ProviderFilters {
   sort?: string;
   page?: number;
   pageSize?: number;
+  q?: string;
+  search?: string;
 }
 
 export interface ProvidersResponse {
@@ -1360,7 +1381,76 @@ export const customOrderService = {
   listForArtisan: () => apiGet<CustomOrderRecord[]>("/artisans/me/custom-orders"),
   respond: (id: string, body: { status: "accepted" | "declined"; artisanResponse?: string }) =>
     apiPatch<CustomOrderRecord>(`/artisans/me/custom-orders/${id}`, body),
-  listAdmin: () => apiGet<CustomOrderRecord[]>("/admin/custom-orders"),
+  listAdmin: async (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+  }): Promise<CustomOrderRecord[]> => {
+    const res = await apiGet<
+      | CustomOrderRecord[]
+      | {
+          items?: Array<Record<string, unknown>>;
+          data?: Array<Record<string, unknown>>;
+        }
+    >("/admin/custom-orders", params as Record<string, unknown>);
+    const rows = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+    return rows.map((raw) => {
+      const r = raw as Record<string, unknown>;
+      const summary =
+        typeof r.categoryFieldsSummary === "string"
+          ? r.categoryFieldsSummary
+          : r.categoryFieldsSummary
+            ? JSON.stringify(r.categoryFieldsSummary)
+            : "";
+      return {
+        id: String(r.id),
+        artisanId: (r.artisanId as string | number) ?? "",
+        customerId: (r.customerId as string | number) ?? "",
+        description: String(r.description || summary || ""),
+        referenceImages: Array.isArray(r.referenceImages)
+          ? (r.referenceImages as string[])
+          : [],
+        budget:
+          typeof r.budget === "number"
+            ? r.budget
+            : typeof r.budgetMax === "number"
+              ? r.budgetMax
+              : null,
+        deadline: typeof r.deadline === "string" ? r.deadline : null,
+        status: (r.status as CustomOrderRecord["status"]) || "pending",
+        createdAt: typeof r.createdAt === "string" ? r.createdAt : undefined,
+        artisanName:
+          typeof r.artisanName === "string" ? r.artisanName : undefined,
+        customerName:
+          typeof r.customerName === "string" ? r.customerName : undefined,
+      };
+    });
+  },
+  listAdminRanks: (params?: { page?: number; pageSize?: number }) =>
+    apiGet<{
+      items: Array<{
+        artisanId: number;
+        brandName?: string | null;
+        compositeRank: number;
+        completedCount?: number;
+        acceptanceRate?: number;
+        avgRating?: number | null;
+      }>;
+      total?: number;
+      page?: number;
+      pageSize?: number;
+    }>("/admin/custom-orders/ranks", params as Record<string, unknown>),
+  recalculateAdminRanks: () =>
+    apiPost<{ ok: boolean; status: string; processed?: number }>(
+      "/admin/custom-orders/ranks/recalculate",
+      {},
+    ),
 };
 
 // ─── Payments ─────────────────────────────────────────────
@@ -2055,7 +2145,7 @@ export const verificationService = {
     }
   },
   upload: async (type: VerificationDocumentType, file: File): Promise<VerificationDocument> => {
-    validateUploadFile(file);
+    validateVerificationUploadFile(file);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("fileType", type);

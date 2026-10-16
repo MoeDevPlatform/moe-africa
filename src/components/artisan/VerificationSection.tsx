@@ -14,6 +14,7 @@ import { Loader2, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   verificationService,
+  VERIFICATION_ACCEPT_ATTR,
   type VerificationDocument,
   type VerificationDocumentType,
 } from "@/lib/apiServices";
@@ -96,7 +97,7 @@ const VerificationSection = () => {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept={VERIFICATION_ACCEPT_ATTR}
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];

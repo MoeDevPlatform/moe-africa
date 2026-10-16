@@ -39,7 +39,10 @@ async function providersInPriceRange(min: number, max: number | null): Promise<S
  * - rating: averaged from real reviews
  * - hasProducts: server-computed productCount
  */
-export function useArtisanSearch(base: { category?: string | null; featured?: boolean }, filters: FilterState) {
+export function useArtisanSearch(
+  base: { category?: string | null; featured?: boolean; q?: string },
+  filters: FilterState,
+) {
   const [all, setAll] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +52,7 @@ export function useArtisanSearch(base: { category?: string | null; featured?: bo
   const key = JSON.stringify([
     base.category ?? null,
     !!base.featured,
+    base.q ?? null,
     filters.country,
     filters.state,
     filters.city,
@@ -67,10 +71,28 @@ export function useArtisanSearch(base: { category?: string | null; featured?: bo
       const q: Record<string, unknown> = {};
       if (base.category) q.category = base.category;
       if (base.featured) q.featured = true;
+      if (base.q?.trim()) q.q = base.q.trim();
       if (filters.country) q.country = filters.country;
       if (filters.state) q.state = filters.state;
       if (filters.city) q.city = filters.city;
       let list = await providersService.searchAll(q);
+      if (base.q?.trim()) {
+        const needle = base.q.trim().toLowerCase();
+        list = list.filter((p) => {
+          const blob = [
+            p.brandName,
+            p.category,
+            p.city,
+            p.state,
+            p.country,
+            ...(p.styleTags ?? []),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return blob.includes(needle);
+        });
+      }
 
       if (filters.availableOnly) list = list.filter((p) => Number((p as Provider & { productCount?: number }).productCount ?? 0) > 0);
 

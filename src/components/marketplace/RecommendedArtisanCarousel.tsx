@@ -1,19 +1,31 @@
 import { useEffect, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { Button } from "@/components/ui/button";
 import ProviderCard from "./ProviderCard";
 import type { Provider } from "@/data/mockData";
 
 export default function RecommendedArtisanCarousel({ artisans }: { artisans: Provider[] }) {
   const [api, setApi] = useState<CarouselApi>();
   const [selected, setSelected] = useState(0);
-  const [snaps, setSnaps] = useState<number[]>([]);
+  const [snapCount, setSnapCount] = useState(0);
+
   useEffect(() => {
     if (!api) return;
-    const update = () => { setSnaps(api.scrollSnapList()); setSelected(api.selectedScrollSnap()); };
-    update(); api.on("select", update); api.on("reInit", update);
-    return () => { api.off("select", update); api.off("reInit", update); };
+    const update = () => {
+      setSnapCount(api.scrollSnapList().length);
+      setSelected(api.selectedScrollSnap());
+    };
+    update();
+    api.on("select", update);
+    api.on("reInit", update);
+    return () => {
+      api.off("select", update);
+      api.off("reInit", update);
+    };
   }, [api]);
+
+  const progress =
+    snapCount > 1 ? ((selected + 1) / snapCount) * 100 : 100;
+
   return (
     <div>
       <Carousel
@@ -26,36 +38,38 @@ export default function RecommendedArtisanCarousel({ artisans }: { artisans: Pro
           {artisans.map((artisan) => (
             <CarouselItem
               key={artisan.id}
-              className="pl-4 basis-[296px] md:basis-[336px]"
+              className="pl-4 basis-[296px] md:basis-[336px] h-auto"
             >
-              <ProviderCard provider={artisan} />
+              <div className="h-full min-h-[420px] [&>*]:h-full">
+                <ProviderCard provider={artisan} />
+              </div>
             </CarouselItem>
           ))}
         </CarouselContent>
         <CarouselPrevious className="hidden md:flex left-2 z-30 h-10 w-10" />
         <CarouselNext className="hidden md:flex right-2 z-30 h-10 w-10" />
       </Carousel>
-      <div className="flex justify-center gap-1 mt-3" aria-label="Carousel positions">
-        {snaps.map((_, index) => (
-          <Button
-            key={index}
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 rounded-full"
-            aria-label={`Go to artisan group ${index + 1}`}
-            aria-current={index === selected ? "true" : undefined}
-            onClick={() => api?.scrollTo(index)}
+
+      {snapCount > 1 && (
+        <div className="mt-4 flex items-center gap-3 px-1">
+          <div
+            className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={snapCount}
+            aria-valuenow={selected + 1}
+            aria-label={`Carousel position ${selected + 1} of ${snapCount}`}
           >
-            <span
-              className={`h-2 w-2 rounded-full border ${
-                index === selected
-                  ? "bg-primary border-primary"
-                  : "border-muted-foreground bg-transparent"
-              }`}
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${progress}%` }}
             />
-          </Button>
-        ))}
-      </div>
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {selected + 1}/{snapCount}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

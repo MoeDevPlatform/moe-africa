@@ -351,9 +351,41 @@ const ArtisanDetailPage = () => {
                         <Badge variant="outline" className="capitalize">{doc.status}</Badge>
                       </div>
                       {doc.fileUrl && (
-                        <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
-                          View file
-                        </a>
+                        <div className="space-y-2">
+                          {/\.(jpe?g|png|webp|gif)(\?|$)/i.test(doc.fileUrl) ||
+                          /\/image\//i.test(doc.fileUrl) ? (
+                            <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="block">
+                              <img
+                                src={doc.fileUrl}
+                                alt={`${doc.type} verification`}
+                                className="max-h-48 rounded-md border object-contain bg-muted/30"
+                              />
+                            </a>
+                          ) : /\.pdf(\?|$)/i.test(doc.fileUrl) ? (
+                            <iframe
+                              title={`${doc.type} PDF preview`}
+                              src={doc.fileUrl}
+                              className="h-56 w-full rounded-md border bg-muted/20"
+                            />
+                          ) : null}
+                          <div className="flex flex-wrap gap-3 text-sm">
+                            <a
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary underline"
+                            >
+                              Open file
+                            </a>
+                            <a
+                              href={doc.fileUrl}
+                              download
+                              className="text-primary underline"
+                            >
+                              Download
+                            </a>
+                          </div>
+                        </div>
                       )}
                       <Textarea
                         placeholder="Admin notes (optional)"

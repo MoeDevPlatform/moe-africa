@@ -126,7 +126,6 @@ const Products = () => {
         priceMax: productForm.priceMax ? Number(productForm.priceMax) : undefined,
         estimatedDelivery: productForm.estimatedDelivery.trim(),
         artisanId: Number(productForm.artisanId),
-        providerId: Number(productForm.artisanId),
       });
       toast.success(<span data-testid="success-toast">Product created</span>);
       setAddOpen(false);

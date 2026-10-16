@@ -114,6 +114,19 @@ const Artisans = () => {
       toast.error("Fill in all required fields");
       return;
     }
+    const pw = createForm.password;
+    if (
+      pw.length < 8 ||
+      !/[a-z]/.test(pw) ||
+      !/[A-Z]/.test(pw) ||
+      !/\d/.test(pw) ||
+      !/[^A-Za-z0-9]/.test(pw)
+    ) {
+      toast.error(
+        "Password needs 8+ characters with upper, lower, number, and special character",
+      );
+      return;
+    }
     setCreating(true);
     try {
       await adminService.createArtisan({
@@ -657,6 +670,9 @@ const Artisans = () => {
                 value={createForm.password}
                 onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">
+                Same rules as registration: 8+ chars, upper, lower, number, special character.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="businessName">Business name</Label>

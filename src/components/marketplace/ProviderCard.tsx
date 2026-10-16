@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, CheckCircle, Package } from "lucide-react";
 import { Provider, getProductsByProviderId } from "@/data/mockData";
-import { artisanReviewsService, productsService } from "@/lib/apiServices";
+import { artisanReviewsService } from "@/lib/apiServices";
 import { toCategoryLabel } from "@/lib/categories";
 import ArtisanProductPreviews from "./ArtisanProductPreviews";
 // Provider may carry a backend-supplied productCount (added by normalizeProvider). Fall
@@ -21,19 +21,18 @@ interface ProviderCardProps {
 const ProviderCard = ({ provider }: ProviderCardProps) => {
   const navigate = useNavigate();
   const liveCount = (provider as Provider & { productCount?: number }).productCount;
-  // Source of truth: the same products list the profile page renders.
-  const [fetchedCount, setFetchedCount] = useState<number | null>(null);
-  useEffect(() => {
-    if (!provider.id) return;
-    let cancelled = false;
-    productsService
-      .getByProvider(provider.id)
-      .then((list) => { if (!cancelled) setFetchedCount(Array.isArray(list) ? list.length : 0); })
-      .catch(() => { /* keep fallback */ });
-    return () => { cancelled = true; };
-  }, [provider.id]);
+  // Prefer server-supplied productCount / previews — avoid N+1 catalogue fetches per card.
+  const previewCount = Array.isArray(
+    (provider as Provider & { productPreviews?: unknown[] }).productPreviews,
+  )
+    ? (provider as Provider & { productPreviews: unknown[] }).productPreviews.length
+    : 0;
   const productCount =
-    fetchedCount ?? (typeof liveCount === "number" ? liveCount : getProductsByProviderId(provider.id).length);
+    typeof liveCount === "number"
+      ? liveCount
+      : previewCount > 0
+        ? previewCount
+        : getProductsByProviderId(provider.id).length;
 
   // Issue: backend `/service-providers/public-info` does not always include
   // aggregate rating/reviewCount. If we have none, hydrate from the

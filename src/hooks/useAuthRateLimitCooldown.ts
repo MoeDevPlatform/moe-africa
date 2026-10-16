@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isRateLimitError } from "@/lib/authErrors";
-
-const COOLDOWN_SECONDS = 60;
+import { isRateLimitError, rateLimitCooldownSeconds } from "@/lib/authErrors";
 
 export function useAuthRateLimitCooldown() {
   const [cooldown, setCooldown] = useState(0);
@@ -16,12 +14,16 @@ export function useAuthRateLimitCooldown() {
 
   const applyRateLimit = useCallback((err: unknown): boolean => {
     if (!isRateLimitError(err)) return false;
-    setCooldown(COOLDOWN_SECONDS);
+    setCooldown(rateLimitCooldownSeconds(err));
     return true;
   }, []);
 
   const cooldownLabel =
-    cooldown > 0 ? `Try again in ${cooldown}s...` : undefined;
+    cooldown > 0
+      ? cooldown >= 60
+        ? `Try again in ${Math.ceil(cooldown / 60)} min...`
+        : `Try again in ${cooldown}s...`
+      : undefined;
 
   return {
     cooldown,

@@ -373,28 +373,6 @@ const MarketplaceHome = () => {
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">
-        {/* Preference Banner — only when filters match something (never zero-result prompt). */}
-        {hasPreferences &&
-          (preferenceProducts.length > 0 || preferenceProviders.length > 0) && (
-          <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border bg-primary/5 px-4 py-3 text-sm">
-            <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
-              <span className="text-foreground">
-                Showing picks matched to your preferences
-                {preferences.categories.length ? ` (${preferences.categories.join(", ")})` : ""}.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate("/marketplace/settings?section=preferences")}
-              className="text-primary font-medium hover:underline shrink-0"
-              aria-label="Update your marketplace preferences"
-            >
-              Update preferences
-            </button>
-          </div>
-        )}
-
         {/* Hero Banner */}
         <section className="mb-8 md:mb-12">
           <HeroBanner />

@@ -3,22 +3,95 @@ import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Package, ShoppingBag, AlertCircle, UserCircle, LayoutList, Gauge } from "lucide-react";
-import { adminService, type AdminDashboardStats } from "@/lib/apiServices";
+import {
+  Users,
+  Package,
+  ShoppingBag,
+  AlertCircle,
+  UserCircle,
+  LayoutList,
+  Gauge,
+  MessageSquare,
+} from "lucide-react";
+import {
+  adminService,
+  adminMessagingService,
+  type AdminDashboardStats,
+} from "@/lib/apiServices";
+import { apiGet } from "@/lib/moeApi";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
+type ActivityItem = {
+  id: string;
+  kind: "message" | "contact_us";
+  title: string;
+  subtitle: string;
+  createdAt: string;
+  href: string;
+  unread?: boolean;
+};
+
 const Dashboard = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadActivity = async () => {
+    const items: ActivityItem[] = [];
+    try {
+      const [messagesRes, unread] = await Promise.all([
+        apiGet<{ data?: Array<Record<string, unknown>> }>("/admin/messages", {
+          pageSize: 8,
+        }),
+        adminMessagingService.unreadCount().catch(() => 0),
+      ]);
+      setUnreadMessages(unread);
+      for (const row of messagesRes.data ?? []) {
+        const createdAt = String(row.createdAt ?? "");
+        if (row.kind === "contact_us" || row.source === "contact_us") {
+          items.push({
+            id: String(row.id),
+            kind: "contact_us",
+            title: String(row.subject || "Contact Us message"),
+            subtitle: `${row.senderName || "Visitor"} · ${row.senderEmail || ""}`.trim(),
+            createdAt,
+            href: "/admin/messages?tab=contact",
+            unread: row.isRead === false,
+          });
+        } else {
+          items.push({
+            id: String(row.id),
+            kind: "message",
+            title: String(row.lastMessage || "Customer conversation"),
+            subtitle: `${row.customerName || "Customer"} → ${row.providerName || "Artisan"}`,
+            createdAt,
+            href: row.conversationId
+              ? `/admin/messages?conversation=${row.conversationId}`
+              : "/admin/messages",
+          });
+        }
+      }
+    } catch {
+      /* messages optional on dashboard */
+    }
+    // Reviews appear on artisan/product detail pages; no dedicated /admin/reviews feed yet.
+    items.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    setActivity(items.slice(0, 10));
+  };
 
   const load = () => {
     setIsLoading(true);
     setError(null);
-    adminService
-      .getDashboard()
-      .then(setStats)
+    Promise.all([
+      adminService.getDashboard().then(setStats),
+      loadActivity(),
+    ])
       .catch((err) => {
         const msg = err?.message || "Failed to load dashboard";
         setError(msg);
@@ -158,6 +231,62 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl font-display flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-accent" /> Recent activity
+              </CardTitle>
+              <CardDescription>
+                Customer messages and Contact Us submissions from the admin inbox
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {unreadMessages > 0 && (
+                <Badge variant="destructive">{unreadMessages} unread</Badge>
+              )}
+              <Link to="/admin/messages" className="text-sm font-medium underline">
+                All messages
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {isLoading ? (
+              <Skeleton className="h-28 w-full" />
+            ) : activity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No recent messages or reviews yet. Contact Us and inbox items appear here when
+                submitted.
+              </p>
+            ) : (
+              activity.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.href}
+                  className="flex items-start justify-between gap-3 rounded-md border border-border p-3 hover:bg-muted transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {item.kind === "contact_us" ? "Contact Us" : "Message"}
+                      </span>
+                      {item.unread && <Badge variant="secondary">New</Badge>}
+                    </div>
+                    <p className="text-sm font-medium truncate mt-1">{item.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+                  </div>
+                  {item.createdAt && (
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {new Date(item.createdAt).toLocaleString()}
+                    </span>
+                  )}
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="border-border bg-card">

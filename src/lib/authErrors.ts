@@ -47,3 +47,14 @@ export function rateLimitMessage(err: unknown): string {
   if (err instanceof MoeApiError) return err.message;
   return "Too many requests. Please try again later.";
 }
+
+/** Seconds to wait after a 429 — prefers minutes/seconds mentioned in the API message. */
+export function rateLimitCooldownSeconds(err: unknown): number {
+  if (!(err instanceof MoeApiError)) return 60;
+  const msg = err.message || "";
+  const mins = /(\d+)\s*minute/i.exec(msg);
+  if (mins) return Math.max(60, Number(mins[1]) * 60);
+  const secs = /(\d+)\s*second/i.exec(msg);
+  if (secs) return Math.max(1, Number(secs[1]));
+  return 60;
+}

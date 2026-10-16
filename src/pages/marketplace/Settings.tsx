@@ -586,12 +586,14 @@ const SecurityTabContent = () => {
         </div>
       )}
       <Separator />
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-dashed border-border p-3">
         <div>
           <p className="font-medium">Two-Factor Authentication</p>
-          <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+          <p className="text-sm text-muted-foreground">
+            Not available yet. Password change and session logout are the active account security controls.
+          </p>
         </div>
-        <Switch />
+        <Switch disabled checked={false} aria-label="Two-factor authentication unavailable" />
       </div>
       <Button className="w-full sm:w-auto" onClick={handleChangePassword} disabled={isSubmitting}>
         {isSubmitting ? "Updating…" : "Update Password"}

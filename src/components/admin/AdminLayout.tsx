@@ -93,7 +93,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1 px-4 py-6">
+          <nav className="flex-1 min-h-0 overflow-y-auto space-y-1 px-4 py-6">
             {navigation.map((item) => {
               const isActive =
                 item.href === "/admin/artisans"
@@ -106,6 +106,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onClick={() => setSidebarOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200",
                     isActive
@@ -113,7 +114,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-5 w-5 shrink-0" />
                   <span className="flex-1">{item.name}</span>
                   {item.badge != null && item.badge > 0 && (
                     <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
@@ -125,7 +126,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             })}
           </nav>
 
-          <div className="border-t border-border p-4">
+          <div className="border-t border-border p-4 shrink-0">
             {user && (
               <p className="mb-2 text-xs text-muted-foreground truncate" title={user.email}>
                 {user.name} · {user.email}
@@ -144,16 +145,26 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-border bg-card px-6 lg:hidden">
+        <header className="sticky top-0 z-30 flex h-16 sm:h-20 items-center justify-between gap-2 border-b border-border bg-card px-4 sm:px-6 lg:hidden">
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
+            aria-label="Open menu"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </Button>
-          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-10 w-auto" />
-          <div className="w-10" />
+          <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-9 sm:h-10 w-auto" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Log out"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
         </header>
 
         <main className="min-h-[calc(100vh-5rem)] p-6 lg:p-8">{children}</main>

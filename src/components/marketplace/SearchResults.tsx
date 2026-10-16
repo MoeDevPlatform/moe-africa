@@ -485,7 +485,9 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                     {providers.length > 5 && (
                       <button
                         onClick={() => {
-                          navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}&view=artisans`);
+                          navigate(
+                            `/marketplace/artisans?q=${encodeURIComponent(searchQuery.trim())}`,
+                          );
                           onClose();
                         }}
                         className="w-full text-center py-2 text-sm text-primary hover:underline"
@@ -560,7 +562,9 @@ const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsPr
                   {products.length > 6 && (
                     <button
                       onClick={() => {
-                        navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}&view=products`);
+                        navigate(
+                          `/marketplace/products?q=${encodeURIComponent(searchQuery.trim())}`,
+                        );
                         onClose();
                       }}
                       className="w-full text-center py-3 text-sm text-primary hover:underline"
