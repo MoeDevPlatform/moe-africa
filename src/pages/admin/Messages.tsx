@@ -66,6 +66,16 @@ const STATUS_LABELS: Record<string, string> = {
   needs_follow_up: "Needs Follow-Up",
 };
 
+const PAGE_SIZE = 10;
+type CategoryKey = "all" | "contact_us" | "artisan" | "new" | "resolved";
+const CATEGORY_TABS: { key: CategoryKey; label: string; match: (c: InboxRow) => boolean }[] = [
+  { key: "all", label: "All", match: () => true },
+  { key: "contact_us", label: "Contact Us", match: (c) => c.source === "contact_us" },
+  { key: "artisan", label: "Artisan conversations", match: (c) => c.source !== "contact_us" },
+  { key: "new", label: "New", match: (c) => c.unreadCount > 0 },
+  { key: "resolved", label: "Resolved", match: (c) => c.status === "resolved" || c.status === "closed" },
+];
+
 const AdminMessages = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams();
@@ -79,6 +89,10 @@ const AdminMessages = () => {
   const [sending, setSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [category, setCategory] = useState<CategoryKey>("all");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const activeTab = CATEGORY_TABS.find((t) => t.key === category) ?? CATEGORY_TABS[0];
+  const filtered = conversations.filter(activeTab.match);
 
   const loadList = () => {
     setIsLoading(true);
@@ -390,6 +404,13 @@ const AdminMessages = () => {
                 </div>
               </Card>
             ))}
+            {filtered.length > visibleCount && (
+              <div className="flex justify-center pt-2">
+                <Button variant="outline" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+                  Show more ({filtered.length - visibleCount} remaining)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
