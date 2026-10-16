@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   adminService,
   searchService,
+  productsService,
+  providersService,
   type AdminSection,
   type AdminSectionItem,
 } from "@/lib/apiServices";
@@ -52,6 +54,48 @@ const SectionDetail = () => {
 
   const itemType =
     sectionKey === "featured_artisans" ? "artisan" : "product";
+
+  // Browse list shown before typing; filtered live as the admin types.
+  const [catalogue, setCatalogue] = useState<Array<{ id: number; label: string; image?: string; sub?: string }>>([]);
+  const [catalogueLoading, setCatalogueLoading] = useState(true);
+  useEffect(() => {
+    if (!sectionKey) return;
+    let cancelled = false;
+    setCatalogueLoading(true);
+    const task =
+      itemType === "artisan"
+        ? providersService.list({ pageSize: 100 } as never).then((r) =>
+            (r.data ?? []).map((p) => ({
+              id: p.id,
+              label: p.brandName || p.businessName || `Artisan #${p.id}`,
+              image: p.heroImage || p.productPreviews?.[0]?.imageUrl,
+              sub: [p.city, p.category].filter(Boolean).join(" · "),
+            })),
+          )
+        : productsService.list({ pageSize: 100 } as never).then((r) =>
+            (r.data ?? []).map((p) => ({
+              id: p.id,
+              label: p.name || `Product #${p.id}`,
+              image: p.images?.[0],
+              sub: p.priceRange?.min != null ? `₦${p.priceRange.min.toLocaleString()}` : undefined,
+            })),
+          );
+    task
+      .then((rows) => !cancelled && setCatalogue(rows))
+      .catch(() => !cancelled && setCatalogue([]))
+      .finally(() => !cancelled && setCatalogueLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [sectionKey, itemType]);
+
+  const imageById = new Map(catalogue.map((c) => [c.id, c]));
+  const q = query.trim().toLowerCase();
+  const visibleResults: Array<{ id: number; label: string; score?: number; image?: string; sub?: string }> =
+    results.length > 0
+      ? results.map((r) => ({ ...r, image: imageById.get(r.id)?.image, sub: imageById.get(r.id)?.sub }))
+      : catalogue.filter((c) => !q || c.label.toLowerCase().includes(q));
+  const curatedIds = new Set(items.map((i) => Number(i.itemId)));
 
   const runSearch = async () => {
     if (query.trim().length < 2) return;
@@ -343,7 +387,10 @@ const SectionDetail = () => {
                   <Input
                     data-testid={itemType === "artisan" ? "artisan-search" : "product-search"}
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setResults([]);
+                    }}
                     placeholder={`Search ${itemType}s…`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -360,30 +407,55 @@ const SectionDetail = () => {
                     {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
                   </Button>
                 </div>
-                <div className="space-y-2">
-                  {results.map((r) => (
-                    <div
-                      key={r.id}
-                      data-testid="search-result"
-                      className="flex items-center justify-between rounded-md border p-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{r.label}</p>
-                        {r.score != null && (
-                          <p className="text-xs text-muted-foreground">
-                            Composite score: {Math.round(r.score)}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        data-testid="add-to-section"
-                        onClick={() => addItem(r.id)}
+                <div className="max-h-[480px] space-y-2 overflow-y-auto pr-3">
+                  {catalogueLoading && results.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Loading {itemType}s…</p>
+                  )}
+                  {!catalogueLoading && visibleResults.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No {itemType}s match. Press Search to look further.
+                    </p>
+                  )}
+                  {visibleResults.map((r) => {
+                    const already = curatedIds.has(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        data-testid="search-result"
+                        className="flex items-center gap-3 rounded-md border p-3"
                       >
-                        Add
-                      </Button>
-                    </div>
-                  ))}
+                        <img
+                          src={r.image || "/placeholder.svg"}
+                          alt={r.label}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg";
+                          }}
+                          className={`h-12 w-12 shrink-0 bg-muted object-cover ${
+                            itemType === "artisan" ? "rounded-full" : "rounded-md"
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{r.label}</p>
+                          {r.sub && <p className="truncate text-xs text-muted-foreground">{r.sub}</p>}
+                          {r.score != null && (
+                            <p className="text-xs text-muted-foreground">
+                              Composite score: {Math.round(r.score)}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          data-testid="add-to-section"
+                          disabled={already}
+                          aria-label={already ? `${r.label} already added` : `Add ${r.label}`}
+                          onClick={() => addItem(r.id)}
+                        >
+                          {already ? "Added" : "Add"}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
