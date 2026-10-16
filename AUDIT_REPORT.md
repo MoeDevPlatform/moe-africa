@@ -111,7 +111,7 @@ Status key: **Implemented** · **Partial** · **Inaccessible/unclear** · **Bug*
 
 | ID | Requirement | Initial | Resulting | Evidence / action |
 |----|-------------|---------|-----------|-------------------|
-| 15 | Behaviour capture + admin visibility | Partial | Partial | `UserBehaviourEvent` + `trackBehaviour` exist; dedicated admin analytics UI still thin. |
+| 15 | Behaviour capture + admin visibility | Partial | Improved | Capture via `trackBehaviour` → `/events`. Admin **Behaviour** nav + `/admin/behaviour` page + dashboard teaser; BE summary adds totals / byEventType. |
 
 ---
 

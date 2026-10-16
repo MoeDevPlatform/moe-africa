@@ -12,11 +12,13 @@ import {
   LayoutList,
   Gauge,
   MessageSquare,
+  Activity,
 } from "lucide-react";
 import {
   adminService,
   adminMessagingService,
   type AdminDashboardStats,
+  type AdminEventsSummary,
 } from "@/lib/apiServices";
 import { apiGet } from "@/lib/moeApi";
 import { toast } from "sonner";
@@ -36,6 +38,11 @@ const Dashboard = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [eventsTeaser, setEventsTeaser] = useState<{
+    last24h: number;
+    productViews: number;
+    searches: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,12 +92,36 @@ const Dashboard = () => {
     setActivity(items.slice(0, 10));
   };
 
+  const loadEventsTeaser = async () => {
+    try {
+      const summary: AdminEventsSummary = await adminService.eventsSummary();
+      const byType = summary.byEventType?.last24h ?? [];
+      const fromTypes = (type: string) =>
+        byType.find((r) => r.eventType === type)?.count ??
+        (summary.last24h ?? [])
+          .filter((r) => r.eventType === type)
+          .reduce((s, r) => s + r.count, 0);
+      const total =
+        summary.totals?.last24h ??
+        byType.reduce((s, r) => s + r.count, 0) ??
+        (summary.last24h ?? []).reduce((s, r) => s + r.count, 0);
+      setEventsTeaser({
+        last24h: total,
+        productViews: fromTypes("product_view"),
+        searches: fromTypes("search"),
+      });
+    } catch {
+      setEventsTeaser(null);
+    }
+  };
+
   const load = () => {
     setIsLoading(true);
     setError(null);
     Promise.all([
       adminService.getDashboard().then(setStats),
       loadActivity(),
+      loadEventsTeaser(),
     ])
       .catch((err) => {
         const msg = err?.message || "Failed to load dashboard";
@@ -231,6 +262,56 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl font-display flex items-center gap-2">
+                <Activity className="h-5 w-5 text-accent" /> Behaviour signals
+              </CardTitle>
+              <CardDescription>
+                Marketplace events used for demand badges and recommendations
+              </CardDescription>
+            </div>
+            <Link to="/admin/behaviour" className="text-sm font-medium underline shrink-0">
+              Open Behaviour
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {isLoading && !eventsTeaser ? (
+              <Skeleton className="h-16 w-full" />
+            ) : eventsTeaser ? (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Events (24h)</p>
+                  <p className="text-2xl font-display font-semibold tabular-nums">
+                    {eventsTeaser.last24h.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Product views</p>
+                  <p className="text-2xl font-display font-semibold tabular-nums">
+                    {eventsTeaser.productViews.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Searches</p>
+                  <p className="text-2xl font-display font-semibold tabular-nums">
+                    {eventsTeaser.searches.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Behaviour summary unavailable. Open{" "}
+                <Link to="/admin/behaviour" className="underline text-primary">
+                  Behaviour
+                </Link>{" "}
+                after deploy, or browse the marketplace to generate events.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-start justify-between gap-3">

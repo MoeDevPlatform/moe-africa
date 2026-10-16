@@ -2654,19 +2654,28 @@ export interface ArtisanScoresResponse {
   items: ArtisanScoreRow[];
 }
 
+export interface AdminEventsSummaryRow {
+  entityType: string | null;
+  entityId: string | null;
+  eventType: string;
+  count: number;
+}
+
 export interface AdminEventsSummary {
-  last24h: Array<{
-    entityType: string | null;
-    entityId: string | null;
-    eventType: string;
-    count: number;
-  }>;
-  last7d: Array<{
-    entityType: string | null;
-    entityId: string | null;
-    eventType: string;
-    count: number;
-  }>;
+  last24h: AdminEventsSummaryRow[];
+  last7d: AdminEventsSummaryRow[];
+  /** Present after BE enrich — total persisted events in each window. */
+  totals?: { last24h: number; last7d: number };
+  byEventType?: {
+    last24h: Array<{ eventType: string; count: number }>;
+    last7d: Array<{ eventType: string; count: number }>;
+  };
+  trackedEventTypes?: string[];
+  demandThresholds?: {
+    viewsTodayHigh: number;
+    viewsWeekHigh: number;
+    viewsTodayShowBadge: number;
+  };
 }
 
 // ─── Admin Orders ─────────────────────────────────────────

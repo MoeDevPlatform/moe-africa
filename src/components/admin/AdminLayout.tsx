@@ -16,6 +16,7 @@ import {
   Gauge,
   AlertTriangle,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
     { name: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
     { name: "Custom Orders", href: "/admin/custom-orders", icon: Sparkles },
+    { name: "Behaviour", href: "/admin/behaviour", icon: Activity },
     { name: "Settings", href: "/admin/settings", icon: SettingsIcon },
   ];
 
