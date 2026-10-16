@@ -5,7 +5,7 @@ export function customCategory(category: string): CustomCategory {
   if (/shoe|footwear/.test(value)) return "shoemaking";
   if (/jewel|jewell/.test(value)) return "jewellery";
   if (/leather/.test(value)) return "leatherwork";
-  if (/home|decor|arts|craft|canvas|furniture|painting/.test(value)) return "home";
+  if (/home|decor|arts|craft|canvas|furniture|painting/.test(value) || value === "art") return "home";
   return "other";
 }
 export function minimumDeadline(today = new Date()): string {
