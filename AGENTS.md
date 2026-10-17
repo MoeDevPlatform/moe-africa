@@ -1,4 +1,5 @@
 # Architecture rules
+- Deduplicate public artisan listings centrally before filtering, sorting or pagination; match repeated IDs or complete public-profile fingerprints, never business names alone.
 - Admin artisan search loads the complete paginated directory through its shared loader before filtering and paginating locally, because the listing endpoint does not support search.
 - Admin content reserves a right-side and bottom lane for global floating controls so table actions and pagination cannot be covered.
 
