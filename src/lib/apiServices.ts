@@ -9,6 +9,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete, MoeApiError } from "./moeApi";
 import { FALLBACK_IMAGE } from "./imageFallback";
 import { normalizeProductPreviews } from "./productPreviews";
+import { uniqueArtisanListings } from "./artisanListings";
 import { normalizeVariationTypes, type ProductVariationTypeDef } from "./productVariations";
 import {
   Product,
@@ -841,7 +842,7 @@ export const providersService = {
   listCustomOrderRanked: async (): Promise<Provider[]> => {
     const res = await apiGet<{ data?: Record<string, any>[] } | Record<string, any>[]>("/artisans", { isCustomOrderEligible: true, sort: "customOrderRank" });
     const rows = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
-    return rows.map(normalizeProvider).filter((provider) => provider.isCustomOrderEligible === true);
+    return uniqueArtisanListings(rows.map(normalizeProvider).filter((provider) => provider.isCustomOrderEligible === true));
   },
   list: async (filters?: ProviderFilters): Promise<ProvidersResponse> => {
     try {
@@ -850,7 +851,7 @@ export const providersService = {
         filters as Record<string, unknown>,
       );
       return {
-        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        data: Array.isArray(res?.data) ? uniqueArtisanListings(res.data.map(normalizeProvider)) : [],
         pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
       };
     } catch {
@@ -877,7 +878,7 @@ export const providersService = {
       if (page >= totalPages || rows.length === 0) break;
       page += 1;
     }
-    return out;
+    return uniqueArtisanListings(out);
   },
 
   getById: async (id: number): Promise<Provider | undefined> => {
@@ -896,7 +897,7 @@ export const providersService = {
         "/service-providers/public-info",
         { category },
       );
-      return Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [];
+      return Array.isArray(res?.data) ? uniqueArtisanListings(res.data.map(normalizeProvider)) : [];
     } catch {
       return mockGetProvidersByCategory(category);
     }
@@ -913,7 +914,7 @@ export const providersService = {
         params as Record<string, unknown>,
       );
       return {
-        data: Array.isArray(res?.data) ? res.data.map(normalizeProvider) : [],
+        data: Array.isArray(res?.data) ? uniqueArtisanListings(res.data.map(normalizeProvider)) : [],
         pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
       };
     } catch {
