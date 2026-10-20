@@ -10,6 +10,7 @@ import EmptySection from "@/components/marketplace/EmptySection";
 import { sectionsService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
 import ArtisanProductPreviews from "./ArtisanProductPreviews";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 
 interface FeaturedArtisansProps {
   /** Legacy prop — ignored when section API succeeds; kept for call-site compatibility. */
@@ -38,6 +39,20 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
   const navigate = useNavigate();
   const [items, setItems] = useState<SectionArtisan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [api, setApi] = useState<CarouselApi>();
+  const [selected, setSelected] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const update = () => setSelected(api.selectedScrollSnap());
+    update();
+    api.on("select", update);
+    api.on("reInit", update);
+    return () => {
+      api.off("select", update);
+      api.off("reInit", update);
+    };
+  }, [api]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,12 +127,28 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
         <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scrollbar-hide md:grid md:grid-cols-2 md:overflow-visible md:snap-none md:pb-0">
-        {items.map((provider) => (
+      <Carousel
+        setApi={setApi}
+        opts={{ align: "center", loop: items.length > 2 }}
+        className="w-full"
+        aria-label="Featured artisans"
+      >
+        <CarouselContent className="-ml-4 py-6">
+        {items.map((provider, index) => {
+          const active = index === selected;
+          return (
+          <CarouselItem key={provider.id} className="pl-4 basis-[85%] sm:basis-[60%] md:basis-[45%] lg:basis-[36%]">
           <Card
-            key={provider.id}
-            className="artisan-card overflow-hidden border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent cursor-pointer min-w-[85%] sm:min-w-[70%] snap-start shrink-0 md:min-w-0 md:shrink"
-            onClick={() => navigate(`/marketplace/provider/${provider.id}`)}
+            aria-current={active ? "true" : undefined}
+            className={`artisan-card h-full overflow-hidden border-2 cursor-pointer transition-all duration-500 ease-out motion-reduce:transition-none ${
+              active
+                ? "scale-100 opacity-100 border-accent shadow-xl bg-gradient-to-br from-accent/10 to-transparent"
+                : "scale-[0.88] opacity-60 border-accent/20"
+            }`}
+            onClick={() => {
+              if (!active) { api?.scrollTo(index); return; }
+              navigate(`/marketplace/provider/${provider.id}`);
+            }}
           >
             <div className="relative">
               <div className="absolute top-4 -left-8 z-10 bg-accent text-accent-foreground px-10 py-1 text-xs font-semibold transform -rotate-45 shadow-md">
@@ -192,8 +223,26 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
               )}
             </CardContent>
           </Card>
-        ))}
-      </div>
+          </CarouselItem>
+          );
+        })}
+        </CarouselContent>
+        <CarouselPrevious className="hidden md:flex left-2 z-30 h-10 w-10" aria-label="Previous artisan" />
+        <CarouselNext className="hidden md:flex right-2 z-30 h-10 w-10" aria-label="Next artisan" />
+      </Carousel>
+      {items.length > 1 && (
+        <div className="mt-2 flex justify-center gap-2">
+          {items.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => api?.scrollTo(i)}
+              aria-label={`Show ${p.brandName}`}
+              className={`h-2 rounded-full transition-all ${i === selected ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };
