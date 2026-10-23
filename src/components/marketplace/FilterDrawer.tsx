@@ -21,6 +21,7 @@ export interface FilterState {
   city?: string | null;
   minRating?: number | null;
   availableOnly?: boolean;
+  customOrderOnly?: boolean;
 }
 
 /** Client-side location match against an artisan's country/state/city. */
@@ -57,7 +58,20 @@ export const DEFAULT_ARTISAN_FILTERS: FilterState = {
   city: null,
   minRating: null,
   availableOnly: false,
+  customOrderOnly: false,
 };
+
+export const DELIVERY_FILTER_OPTIONS = [
+  { id: "fastest", label: "Fastest delivery", days: 3 },
+  { id: "3-5", label: "Ready in 3–5 days", days: 5 },
+  { id: "1-week", label: "Ready in 1 week", days: 7 },
+  { id: "2-weeks", label: "Under 2 weeks", days: 14 },
+];
+
+export function deliveryMaxDays(id: string | null | undefined): number | null {
+  if (!id) return null;
+  return DELIVERY_FILTER_OPTIONS.find((option) => option.id === id)?.days ?? null;
+}
 
 /** Applies location / rating / availability filters to an artisan list. */
 export const applyArtisanFilters = <
@@ -108,12 +122,7 @@ const FALLBACK_STYLE_TAGS = [
   { id: "formal", label: "Formal" },
 ];
 
-const DELIVERY_OPTIONS = [
-  { id: "fastest", label: "Fastest delivery", days: 3 },
-  { id: "3-5", label: "Ready in 3–5 days", days: 5 },
-  { id: "1-week", label: "Ready in 1 week", days: 7 },
-  { id: "2-weeks", label: "Under 2 weeks", days: 14 },
-];
+const DELIVERY_OPTIONS = DELIVERY_FILTER_OPTIONS;
 
 const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false }: FilterDrawerProps) => {
   const [open, setOpen] = useState(false);
@@ -172,6 +181,7 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
       city: null,
       minRating: null,
       availableOnly: false,
+      customOrderOnly: false,
     };
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
@@ -186,7 +196,8 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
     (localFilters.state ? 1 : 0) +
     (localFilters.city ? 1 : 0) +
     (localFilters.minRating ? 1 : 0) +
-    (localFilters.availableOnly ? 1 : 0);
+    (localFilters.availableOnly ? 1 : 0) +
+    (localFilters.customOrderOnly ? 1 : 0);
 
   const selectedCountry = countries.find((c) => c.name === localFilters.country);
 
@@ -321,83 +332,96 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
             <p className="-mt-4 text-sm text-destructive" role="alert">Min price can't be higher than max price.</p>
           )}
 
-          {/* Rating */}
-          <div>
-            <Label className="text-sm font-semibold mb-3 block">Artisan Rating</Label>
-            <div className="flex flex-wrap gap-2">
-              {[null, 3, 4].map((r) => {
-                const selected = (localFilters.minRating ?? null) === r;
-                return (
-                  <Badge
-                    key={String(r)}
-                    variant={selected ? "default" : "outline"}
-                    className={
-                      selected
-                        ? "cursor-pointer px-3 py-1"
-                        : "cursor-pointer px-3 py-1 border border-border bg-transparent text-foreground"
-                    }
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setLocalFilters({ ...localFilters, minRating: r })}
-                  >
-                    {r ? `${r}★ & above` : "Any"}
-                  </Badge>
-                );
-              })}
-            </div>
-          </div>
+          {artisansOnly && (
+            <>
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">Artisan Rating</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[null, 3, 4].map((r) => {
+                    const selected = (localFilters.minRating ?? null) === r;
+                    return (
+                      <Badge
+                        key={String(r)}
+                        variant={selected ? "default" : "outline"}
+                        className={
+                          selected
+                            ? "cursor-pointer px-3 py-1"
+                            : "cursor-pointer px-3 py-1 border border-border bg-transparent text-foreground"
+                        }
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setLocalFilters({ ...localFilters, minRating: r })}
+                      >
+                        {r ? `${r}★ & above` : "Any"}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {/* Availability */}
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="available-only" className="text-sm font-semibold">Only artisans with products</Label>
-            <Switch
-              id="available-only"
-              className="shrink-0"
-              checked={!!localFilters.availableOnly}
-              onCheckedChange={(v) => setLocalFilters({ ...localFilters, availableOnly: v })}
-            />
-          </div>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="available-only" className="text-sm font-semibold">Only artisans with products</Label>
+                <Switch
+                  id="available-only"
+                  className="shrink-0"
+                  checked={!!localFilters.availableOnly}
+                  onCheckedChange={(v) => setLocalFilters({ ...localFilters, availableOnly: v })}
+                />
+              </div>
 
-          {!artisansOnly && <>
-          {/* Materials */}
-          <div>
-            <Label className="text-sm font-semibold mb-3 block">Materials</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {materialOptions.map((material) => (
-                <label
-                  key={material.id}
-                  className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-muted transition-colors"
-                >
-                  <Checkbox
-                    checked={localFilters.materials.includes(material.id)}
-                    onCheckedChange={() => handleMaterialToggle(material.id)}
-                  />
-                  <span className="text-sm">{material.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="custom-order-only" className="text-sm font-semibold">Custom orders available</Label>
+                <Switch
+                  id="custom-order-only"
+                  data-testid="custom-order-filter"
+                  className="shrink-0"
+                  checked={!!localFilters.customOrderOnly}
+                  onCheckedChange={(v) => setLocalFilters({ ...localFilters, customOrderOnly: v })}
+                />
+              </div>
+            </>
+          )}
 
-          {/* Style Tags */}
-          <div>
-            <Label className="text-sm font-semibold mb-3 block">Style Tags</Label>
-            <div className="flex flex-wrap gap-2">
-              {styleTagOptions.map((style) => (
-                <Badge
-                  key={style.id}
-                  variant={localFilters.styleTags.includes(style.id) ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                  onClick={() => handleStyleToggle(style.id)}
-                >
-                  {style.label}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          {!artisansOnly && (
+            <>
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">Materials</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {materialOptions.map((material) => (
+                    <label
+                      key={material.id}
+                      className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-muted transition-colors"
+                    >
+                      <Checkbox
+                        checked={localFilters.materials.includes(material.id)}
+                        onCheckedChange={() => handleMaterialToggle(material.id)}
+                      />
+                      <span className="text-sm">{material.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          {/* Delivery Estimates */}
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">Style Tags</Label>
+                <div className="flex flex-wrap gap-2">
+                  {styleTagOptions.map((style) => (
+                    <Badge
+                      key={style.id}
+                      variant={localFilters.styleTags.includes(style.id) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => handleStyleToggle(style.id)}
+                    >
+                      {style.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Delivery Estimates</Label>
+            <Label className="text-sm font-semibold mb-3 block">Average delivery period</Label>
             <div className="space-y-2">
               {DELIVERY_OPTIONS.map((option) => (
                 <label
@@ -406,10 +430,10 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
                 >
                   <Checkbox
                     checked={localFilters.deliveryEstimate === option.id}
-                    onCheckedChange={(checked) => 
-                      setLocalFilters({ 
-                        ...localFilters, 
-                        deliveryEstimate: checked ? option.id : null 
+                    onCheckedChange={(checked) =>
+                      setLocalFilters({
+                        ...localFilters,
+                        deliveryEstimate: checked ? option.id : null,
                       })
                     }
                   />
@@ -418,7 +442,6 @@ const FilterDrawer = ({ filters, onFiltersChange, children, artisansOnly = false
               ))}
             </div>
           </div>
-          </>}
 
           <div className="flex gap-2 border-t pt-4">
             <Button variant="outline" onClick={() => { setLocalFilters(filters); setOpen(false); }} className="flex-1">

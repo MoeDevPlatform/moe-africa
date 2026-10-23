@@ -430,9 +430,12 @@ export interface ProductFilters {
   subcategory?: string;
   priceMin?: number;
   priceMax?: number;
+  minPrice?: number;
+  maxPrice?: number;
   materials?: string;
   styleTags?: string;
   maxDeliveryDays?: number;
+  country?: string;
   state?: string;
   featured?: boolean;
   isBestSeller?: boolean;
@@ -2266,6 +2269,12 @@ export interface AdminArtisanRow {
   email: string;
   brandName: string;
   businessName: string;
+  category?: string | null;
+  serviceCategories?: string[];
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  location?: string | null;
   createdAt: string;
 }
 
@@ -2407,7 +2416,14 @@ export const adminService = {
     }
   },
 
-  listProducts: (params?: { page?: number; pageSize?: number; status?: ProductStatus }) =>
+  listProducts: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: ProductStatus;
+    q?: string;
+    category?: string;
+    sort?: string;
+  }) =>
     apiGet<PaginatedResponse<AdminProductRow>>(
       "/admin/products",
       params as Record<string, unknown>,

@@ -2,10 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { apiGet } from "@/lib/moeApi";
 import { providersService, artisanReviewsService } from "@/lib/apiServices";
 import type { Provider } from "@/data/mockData";
-import { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
+import {
+  DEFAULT_ARTISAN_FILTERS,
+  deliveryMaxDays,
+  type FilterState,
+} from "@/components/marketplace/FilterDrawer";
 
 export const ARTISAN_PAGE_SIZE = 12;
 const DEFAULT_MAX = DEFAULT_ARTISAN_FILTERS.priceRange[1];
+
+export type ArtisanDiscoveryView =
+  | "all"
+  | "featured"
+  | "top-rated"
+  | "custom-orders"
+  | "best-sellers";
+
+function compareBrandName(a: Provider, b: Provider) {
+  return (a.brandName || "").localeCompare(b.brandName || "", undefined, { sensitivity: "base" });
+}
 
 /** Real average from the artisan's reviews (server aggregate is not maintained). */
 async function realAverage(id: number): Promise<number | null> {
@@ -34,13 +49,19 @@ async function providersInPriceRange(min: number, max: number | null): Promise<S
 
 /**
  * Filters the FULL artisan dataset before paginating.
- * - country/state/category/featured: sent to the server
+ * - country/state/category/featured/custom orders/delivery: sent to the server
  * - price: server-filtered products → artisans owning a matching product
  * - rating: averaged from real reviews
  * - hasProducts: server-computed productCount
+ * Default ranking is A–Z by brand name unless Top Rated is selected.
  */
 export function useArtisanSearch(
-  base: { category?: string | null; featured?: boolean; q?: string },
+  base: {
+    category?: string | null;
+    featured?: boolean;
+    q?: string;
+    view?: ArtisanDiscoveryView;
+  },
   filters: FilterState,
 ) {
   const [all, setAll] = useState<Provider[]>([]);
@@ -49,16 +70,20 @@ export function useArtisanSearch(
   const [page, setPage] = useState(1);
   const reqId = useRef(0);
 
+  const view = base.view ?? "all";
   const key = JSON.stringify([
     base.category ?? null,
     !!base.featured,
     base.q ?? null,
+    view,
     filters.country,
     filters.state,
     filters.city,
     filters.priceRange,
     filters.minRating,
     filters.availableOnly,
+    filters.customOrderOnly,
+    filters.deliveryEstimate,
   ]);
 
   useEffect(() => {
@@ -66,15 +91,22 @@ export function useArtisanSearch(
     setLoading(true);
     setError(null);
     setPage(1);
-    setAll([]); // never show stale results while a new request is pending
+    setAll([]);
     (async () => {
       const q: Record<string, unknown> = {};
       if (base.category) q.category = base.category;
-      if (base.featured) q.featured = true;
+      if (base.featured || view === "featured") q.featured = true;
       if (base.q?.trim()) q.q = base.q.trim();
       if (filters.country) q.country = filters.country;
       if (filters.state) q.state = filters.state;
       if (filters.city) q.city = filters.city;
+      if (filters.customOrderOnly || view === "custom-orders") q.customOrderEligible = true;
+      const deliveryDays = deliveryMaxDays(filters.deliveryEstimate);
+      if (deliveryDays) q.maxDeliveryDays = deliveryDays;
+      if (view === "best-sellers") q.hasBestSeller = true;
+      if (view === "top-rated") q.sort = "rating";
+      else q.sort = "name";
+
       let list = await providersService.searchAll(q);
       if (base.q?.trim()) {
         const needle = base.q.trim().toLowerCase();
@@ -94,7 +126,15 @@ export function useArtisanSearch(
         });
       }
 
-      if (filters.availableOnly) list = list.filter((p) => Number((p as Provider & { productCount?: number }).productCount ?? 0) > 0);
+      if (filters.availableOnly) {
+        list = list.filter((p) => Number((p as Provider & { productCount?: number }).productCount ?? 0) > 0);
+      }
+      if (filters.customOrderOnly || view === "custom-orders") {
+        list = list.filter((p) => p.isCustomOrderEligible === true);
+      }
+      if (deliveryDays) {
+        list = list.filter((p) => Number(p.estimatedDeliveryDays ?? 999) <= deliveryDays);
+      }
 
       const min = Number(filters.priceRange[0]) || 0;
       const maxRaw = Number(filters.priceRange[1]);
@@ -104,10 +144,22 @@ export function useArtisanSearch(
         list = list.filter((p) => ids.has(Number(p.id)));
       }
 
-      if (filters.minRating) {
-        const threshold = Number(filters.minRating);
-        const avgs = await Promise.all(list.map((p) => realAverage(Number(p.id)).catch(() => null)));
-        list = list.filter((_, i) => avgs[i] !== null && (avgs[i] as number) >= threshold);
+      const ratingThreshold =
+        view === "top-rated" ? Math.max(Number(filters.minRating) || 0, 0.01) : Number(filters.minRating);
+      if (ratingThreshold) {
+        const scored = await Promise.all(
+          list.map(async (p) => ({
+            p,
+            avg: await realAverage(Number(p.id)).catch(() => null),
+          })),
+        );
+        const kept = scored.filter((row) => row.avg !== null && (row.avg as number) >= ratingThreshold);
+        if (view === "top-rated") {
+          kept.sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0) || compareBrandName(a.p, b.p));
+        }
+        list = kept.map((row) => row.p);
+      } else {
+        list = [...list].sort(compareBrandName);
       }
       return list;
     })()
