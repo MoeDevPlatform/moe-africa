@@ -459,7 +459,8 @@ export interface ProductsResponse {
   filterMeta?: FilterMetadata;
 }
 
-async function fallbackProducts(
+/** Retained for Req 20 cleanup approval — not used by `productsService.list`. */
+export async function fallbackProducts(
   filters?: ProductFilters,
 ): Promise<ProductsResponse> {
   let filtered = [...mockProducts];
@@ -624,20 +625,21 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
 };
 
 export const productsService = {
+  /**
+   * Lists products from the API only. Does not silently substitute mock catalogue
+   * data on failure (Req 11 / Phase 2). Callers must handle errors / empty states.
+   * `fallbackProducts` remains in-module for Req 20 cleanup approval — unused here.
+   */
   list: async (filters?: ProductFilters): Promise<ProductsResponse> => {
-    try {
-      const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination; filterMeta?: FilterMetadata }>(
-        "/products",
-        filters as Record<string, unknown>,
-      );
-      return {
-        data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
-        pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
-        filterMeta: res?.filterMeta,
-      };
-    } catch {
-      return fallbackProducts(filters);
-    }
+    const res = await apiGet<{ data: Record<string, any>[]; pagination: Pagination; filterMeta?: FilterMetadata }>(
+      "/products",
+      filters as Record<string, unknown>,
+    );
+    return {
+      data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+      pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
+      filterMeta: res?.filterMeta,
+    };
   },
 
   getById: async (id: number): Promise<Product | undefined> => {
@@ -2400,6 +2402,15 @@ export const adminService = {
   getProduct: (id: number) => apiGet<Record<string, any>>(`/admin/products/${id}`),
   createProduct: (body: Record<string, unknown>) =>
     apiPost<AdminProductRow>("/admin/products", body),
+  /** Admin product image upload (Cloudinary `moe/products`). Field name: `file`. */
+  uploadProductImage: async (file: File): Promise<{ url: string }> => {
+    const res = await uploadFileWithAuth("/admin/products/upload-image", file);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new MoeApiError(body.message || "Image upload failed", res.status);
+    }
+    return { url: await parseUploadUrl(res) };
+  },
   setProductStatus: (id: number, status: ProductStatus, reason?: string) =>
     apiPatch<{ id: number; status: ProductStatus; rejectionReason: string | null; name: string }>(
       `/admin/products/${id}/status`,

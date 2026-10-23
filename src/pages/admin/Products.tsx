@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Check, X, Loader2, Eye, FileText, Trash2, Plus } from "lucide-react";
+import { Search, Check, X, Loader2, Eye, FileText, Trash2, Plus, ImagePlus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
@@ -49,13 +49,19 @@ import {
 import { toast } from "sonner";
 import {
   adminService,
-  artisanService,
+  UPLOAD_ACCEPT_ATTR,
+  UPLOAD_MAX_BYTES,
   type AdminProductRow,
   type ProductStatus,
   type Pagination,
 } from "@/lib/apiServices";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
+
+const MAX_ADMIN_IMAGES = 5;
+const ADMIN_UPLOAD_MAX = 2 * 1024 * 1024; // matches BE multer product limit
+
+type UploadedImage = { url: string; name: string; previewUrl: string };
 
 const statusVariant = (s: ProductStatus) =>
   s === "approved"
@@ -106,6 +112,9 @@ const Products = () => {
     artisanId: "",
   });
   const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [imageError, setImageError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!addOpen) return;
@@ -115,6 +124,68 @@ const Products = () => {
       .catch(() => setArtisanOptions([]));
   }, [addOpen]);
 
+  const resetAddForm = () => {
+    setProductForm({
+      name: "",
+      description: "",
+      category: "",
+      priceMin: "",
+      priceMax: "",
+      estimatedDelivery: "",
+      artisanId: "",
+    });
+    setVariationTypes([]);
+    images.forEach((i) => {
+      if (i.previewUrl.startsWith("blob:")) URL.revokeObjectURL(i.previewUrl);
+    });
+    setImages([]);
+    setImageError("");
+  };
+
+  const handleImageSelect = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setImageError("");
+    const remaining = MAX_ADMIN_IMAGES - images.length;
+    if (remaining <= 0) {
+      setImageError(`You can upload up to ${MAX_ADMIN_IMAGES} images.`);
+      return;
+    }
+    const batch = Array.from(files).slice(0, remaining);
+    setIsUploading(true);
+    try {
+      for (const file of batch) {
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          setImageError("Only JPEG, PNG or WebP images are allowed");
+          continue;
+        }
+        if (file.size > ADMIN_UPLOAD_MAX) {
+          setImageError("Image must be 2MB or smaller");
+          continue;
+        }
+        if (file.size > UPLOAD_MAX_BYTES) {
+          setImageError("Image is too large");
+          continue;
+        }
+        const previewUrl = URL.createObjectURL(file);
+        const { url } = await adminService.uploadProductImage(file);
+        setImages((prev) => [...prev, { url, name: file.name, previewUrl }]);
+      }
+    } catch (e: unknown) {
+      setImageError(e instanceof Error ? e.message : "Image upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed?.previewUrl.startsWith("blob:")) URL.revokeObjectURL(removed.previewUrl);
+      return next;
+    });
+  };
+
   const handleAddProduct = async () => {
     if (!productForm.name.trim() || !productForm.artisanId || !productForm.estimatedDelivery.trim()) {
       toast.error("Name, artisan, and estimated delivery are required");
@@ -122,39 +193,29 @@ const Products = () => {
     }
     setAdding(true);
     try {
-      const created = await adminService.createProduct({
+      const imageUrls = images.map((i) => i.url).filter(Boolean);
+      const payload: Record<string, unknown> = {
         name: productForm.name.trim(),
         description: productForm.description.trim(),
-        category: productForm.category,
+        category: productForm.category || undefined,
         priceMin: Number(productForm.priceMin) || 0,
-        priceMax: productForm.priceMax ? Number(productForm.priceMax) : undefined,
         estimatedDelivery: productForm.estimatedDelivery.trim(),
         artisanId: Number(productForm.artisanId),
-        variationTypes,
-      });
-      const newId =
-        created && typeof (created as AdminProductRow).id === "number"
-          ? (created as AdminProductRow).id
-          : null;
-      if (newId && variationTypes.length > 0) {
-        try {
-          await artisanService.replaceProductVariations(newId, variationTypes);
-        } catch {
-          // Product POST may already persist variationTypes; dedicated route is optional until BE deploys.
-        }
+      };
+      if (productForm.priceMax) {
+        payload.priceMax = Number(productForm.priceMax);
       }
+      if (imageUrls.length > 0) {
+        payload.images = imageUrls;
+      }
+      if (variationTypes.length > 0) {
+        payload.variationTypes = variationTypes;
+      }
+
+      await adminService.createProduct(payload);
       toast.success(<span data-testid="success-toast">Product created</span>);
       setAddOpen(false);
-      setProductForm({
-        name: "",
-        description: "",
-        category: "",
-        priceMin: "",
-        priceMax: "",
-        estimatedDelivery: "",
-        artisanId: "",
-      });
-      setVariationTypes([]);
+      resetAddForm();
       load(pagination.page, statusFilter);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to create product");
@@ -688,7 +749,13 @@ const Products = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) resetAddForm();
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add product</DialogTitle>
@@ -701,7 +768,9 @@ const Products = () => {
                 value={productForm.artisanId}
                 onValueChange={(v) => setProductForm({ ...productForm, artisanId: v })}
               >
-                <SelectTrigger><SelectValue placeholder="Select artisan" /></SelectTrigger>
+                <SelectTrigger data-testid="admin-product-artisan">
+                  <SelectValue placeholder="Select artisan" />
+                </SelectTrigger>
                 <SelectContent>
                   {artisanOptions.map((a) => (
                     <SelectItem key={a.id} value={String(a.id)}>
@@ -716,6 +785,7 @@ const Products = () => {
               <Input
                 id="prod-name"
                 name="name"
+                data-testid="admin-product-name"
                 value={productForm.name}
                 onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
               />
@@ -724,6 +794,7 @@ const Products = () => {
               <Label htmlFor="prod-desc">Description</Label>
               <Textarea
                 id="prod-desc"
+                data-testid="admin-product-description"
                 value={productForm.description}
                 onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                 rows={3}
@@ -735,7 +806,9 @@ const Products = () => {
                 value={productForm.category}
                 onValueChange={(v) => setProductForm({ ...productForm, category: v })}
               >
-                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectTrigger data-testid="admin-product-category">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
                 <SelectContent>
                   {PRODUCT_CATEGORIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
@@ -748,6 +821,7 @@ const Products = () => {
                 <Label>Min price (₦)</Label>
                 <Input
                   type="number"
+                  data-testid="admin-product-price-min"
                   value={productForm.priceMin}
                   onChange={(e) => setProductForm({ ...productForm, priceMin: e.target.value })}
                 />
@@ -756,6 +830,7 @@ const Products = () => {
                 <Label>Max price (₦)</Label>
                 <Input
                   type="number"
+                  data-testid="admin-product-price-max"
                   value={productForm.priceMax}
                   onChange={(e) => setProductForm({ ...productForm, priceMax: e.target.value })}
                 />
@@ -766,10 +841,60 @@ const Products = () => {
               <Input
                 id="prod-eta"
                 name="estimatedDelivery"
+                data-testid="admin-product-eta"
                 placeholder="e.g. 7 days"
                 value={productForm.estimatedDelivery}
                 onChange={(e) => setProductForm({ ...productForm, estimatedDelivery: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-product-images">Product images</Label>
+              <label
+                htmlFor="admin-product-images"
+                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground hover:border-primary/50 hover:bg-muted/50"
+              >
+                <ImagePlus className="h-6 w-6" />
+                <input
+                  id="admin-product-images"
+                  data-testid="admin-product-images"
+                  type="file"
+                  accept={UPLOAD_ACCEPT_ATTR}
+                  multiple
+                  className="sr-only"
+                  disabled={isUploading || images.length >= MAX_ADMIN_IMAGES || adding}
+                  onChange={(e) => {
+                    void handleImageSelect(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                {isUploading
+                  ? "Uploading…"
+                  : images.length >= MAX_ADMIN_IMAGES
+                    ? `Maximum of ${MAX_ADMIN_IMAGES} images reached`
+                    : "Click to select images (JPEG/PNG/WebP, max 2MB)"}
+              </label>
+              {imageError ? (
+                <p className="text-sm text-destructive" data-testid="admin-product-image-error">
+                  {imageError}
+                </p>
+              ) : null}
+              {images.length > 0 ? (
+                <div className="flex flex-wrap gap-2" data-testid="admin-product-image-previews">
+                  {images.map((img, idx) => (
+                    <div key={`${img.url}-${idx}`} className="relative h-16 w-16 overflow-hidden rounded border">
+                      <img src={img.previewUrl || img.url} alt={img.name} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute right-0.5 top-0.5 rounded bg-background/90 px-1 text-xs"
+                        aria-label={`Remove ${img.name}`}
+                        onClick={() => removeImage(idx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <ProductVariationsEditor
               category={productForm.category}
@@ -778,10 +903,21 @@ const Products = () => {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddOpen(false);
+                resetAddForm();
+              }}
+              disabled={adding || isUploading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddProduct} disabled={adding}>
+            <Button
+              data-testid="admin-product-create-submit"
+              onClick={() => void handleAddProduct()}
+              disabled={adding || isUploading}
+            >
               {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create product"}
             </Button>
           </DialogFooter>
