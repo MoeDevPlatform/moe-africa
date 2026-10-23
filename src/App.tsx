@@ -80,6 +80,7 @@ import CookiePolicy from "./pages/marketplace/CookiePolicy";
 import ScrollToTopButton from "./components/common/ScrollToTopButton";
 import ScrollToTopOnRouteChange from "./components/common/ScrollToTopOnRouteChange";
 import FloatingRefreshButton from "./components/marketplace/FloatingRefreshButton";
+import FloatingMessagesButton from "./components/marketplace/FloatingMessagesButton";
 import ClerkSessionBridge from "./components/auth/ClerkSessionBridge";
 import { isClerkEnabled } from "./lib/clerk";
 
@@ -100,6 +101,7 @@ const App = () => (
               <FloatingRefreshButton />
               <ScrollToTopButton />
               <BrowserRouter>
+                <FloatingMessagesButton />
                 <ScrollToTopOnRouteChange />
                 <RouteEntry>
                 <Routes>

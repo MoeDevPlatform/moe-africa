@@ -1305,6 +1305,8 @@ export interface CustomOrderRecord {
   description: string;
   referenceImages: string[];
   budget?: number | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
   deadline?: string | null;
   status:
     | "pending"
@@ -1382,6 +1384,15 @@ export const customOrderService = {
     }
   },
   listForArtisan: () => apiGet<CustomOrderRecord[]>("/artisans/me/custom-orders"),
+  listMine: async (): Promise<CustomOrderRecord[]> => {
+    const res = await apiGet<
+      CustomOrderRecord[] | { data?: CustomOrderRecord[]; items?: CustomOrderRecord[] }
+    >("/custom-orders/me");
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.items)) return res.items;
+    return [];
+  },
   respond: (id: string, body: { status: "accepted" | "declined"; artisanResponse?: string }) =>
     apiPatch<CustomOrderRecord>(`/artisans/me/custom-orders/${id}`, body),
   listAdmin: async (params?: {
@@ -1544,6 +1555,8 @@ export const messagingService = {
         (res as { items?: Conversation[] })?.items ?? [];
     return { data };
   },
+  getConversation: (conversationId: number) =>
+    apiGet<Conversation>(`/conversations/${conversationId}`),
   getMessages: async (
     conversationId: number,
     params?: { page?: number; pageSize?: number },

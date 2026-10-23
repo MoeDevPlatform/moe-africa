@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 
 type ActivityItem = {
   id: string;
-  kind: "message" | "contact_us";
+  kind: "message" | "contact_us" | "review";
   title: string;
   subtitle: string;
   createdAt: string;
@@ -76,7 +76,7 @@ const Dashboard = () => {
             subtitle: `${row.customerName || "Customer"} → ${row.providerName || "Artisan"}`,
             createdAt,
             href: row.conversationId
-              ? `/admin/messages?conversation=${row.conversationId}`
+              ? `/admin/messages/${row.conversationId}`
               : "/admin/messages",
           });
         }
@@ -84,7 +84,26 @@ const Dashboard = () => {
     } catch {
       /* messages optional on dashboard */
     }
-    // Reviews appear on artisan/product detail pages; no dedicated /admin/reviews feed yet.
+    try {
+      const reviewsRes = await apiGet<{
+        data?: Array<Record<string, unknown>>;
+      }>("/admin/reviews", { pageSize: 8 });
+      for (const row of reviewsRes.data ?? []) {
+        const rating = Number(row.rating ?? 0);
+        const artisanName = String(row.artisanName || `Artisan #${row.artisanId}`);
+        const comment = String(row.comment || "").trim();
+        items.push({
+          id: `review-${row.id}`,
+          kind: "review",
+          title: `${rating}★ review · ${artisanName}`,
+          subtitle: `${row.customerName || "Customer"}${comment ? ` — ${comment.slice(0, 80)}` : ""}`,
+          createdAt: String(row.createdAt ?? ""),
+          href: String(row.href || `/admin/artisans/${row.artisanId}`),
+        });
+      }
+    } catch {
+      /* reviews optional on dashboard */
+    }
     items.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -320,7 +339,7 @@ const Dashboard = () => {
                 <MessageSquare className="h-5 w-5 text-accent" /> Recent activity
               </CardTitle>
               <CardDescription>
-                Customer messages and Contact Us submissions from the admin inbox
+                Customer messages, Contact Us, and recent artisan reviews
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -351,7 +370,11 @@ const Dashboard = () => {
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {item.kind === "contact_us" ? "Contact Us" : "Message"}
+                        {item.kind === "contact_us"
+                          ? "Contact Us"
+                          : item.kind === "review"
+                            ? "Review"
+                            : "Message"}
                       </span>
                       {item.unread && <Badge variant="secondary">New</Badge>}
                     </div>

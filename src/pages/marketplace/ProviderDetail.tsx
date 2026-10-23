@@ -363,7 +363,7 @@ const ProviderDetail = () => {
                     </Button>
                   )}
                 </div>
-                {(provider.isCustomOrderEligible ?? provider.customOrdersEnabled) && (
+                {provider.isCustomOrderEligible === true && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>

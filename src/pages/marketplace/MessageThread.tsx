@@ -4,12 +4,12 @@ import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ChatThread from "@/components/marketplace/ChatThread";
+import { Button } from "@/components/ui/button";
 import { messagingService } from "@/lib/apiServices";
 
 /**
- * Dedicated chat route — Issue #4.
- * Resolves provider info from the conversation id (server-side) or from
- * `?providerId=&providerName=` query params (fallback for local-only threads).
+ * Dedicated chat route.
+ * Resolves provider via GET /conversations/:id, list fallback, or query params.
  */
 const MessageThread = () => {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -23,23 +23,41 @@ const MessageThread = () => {
   const [providerName, setProviderName] = useState<string>(queryProviderName);
   const [isLoading, setIsLoading] = useState(!queryProviderId);
   const [notFound, setNotFound] = useState(false);
+  const [emptyHint, setEmptyHint] = useState(false);
 
   const numericConversationId = conversationId ? Number(conversationId) : NaN;
 
   useEffect(() => {
     if (queryProviderId) {
       setIsLoading(false);
+      setNotFound(false);
       return;
     }
-    if (!Number.isFinite(numericConversationId)) {
-      setNotFound(true);
+    if (!Number.isFinite(numericConversationId) || numericConversationId <= 0) {
+      // Route used without a real conversation — show empty guidance, not a hard error.
+      setEmptyHint(true);
+      setNotFound(false);
       setIsLoading(false);
       return;
     }
+
     let cancelled = false;
-    messagingService
-      .listConversations()
-      .then((res) => {
+    setIsLoading(true);
+    setNotFound(false);
+    setEmptyHint(false);
+
+    (async () => {
+      try {
+        const one = await messagingService.getConversation(numericConversationId);
+        if (cancelled) return;
+        setProviderId(one.providerId);
+        setProviderName(one.providerName || one.artisanName || "Artisan");
+        return;
+      } catch {
+        /* fall through to list */
+      }
+      try {
+        const res = await messagingService.listConversations();
         if (cancelled) return;
         const match = (res?.data ?? []).find((c) => c.id === numericConversationId);
         if (match) {
@@ -48,10 +66,16 @@ const MessageThread = () => {
         } else {
           setNotFound(true);
         }
-      })
-      .catch(() => !cancelled && setNotFound(true))
-      .finally(() => !cancelled && setIsLoading(false));
-    return () => { cancelled = true; };
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [numericConversationId, queryProviderId]);
 
   return (
@@ -69,21 +93,32 @@ const MessageThread = () => {
 
         {isLoading ? (
           <div className="py-16 text-center text-muted-foreground">Loading conversation…</div>
+        ) : emptyHint ? (
+          <div className="py-16 text-center space-y-4" data-testid="messages-empty-thread">
+            <p className="text-muted-foreground">
+              No conversation selected. Open your inbox to start or continue a chat.
+            </p>
+            <Button onClick={() => navigate("/marketplace/messages")}>Go to Messages</Button>
+          </div>
         ) : notFound || !providerId ? (
-          <div className="py-16 text-center">
-            <p className="text-muted-foreground mb-4">Conversation not found.</p>
-            <button
-              onClick={() => navigate("/marketplace/messages")}
-              className="text-primary hover:underline"
-            >
+          <div className="py-16 text-center space-y-4" data-testid="conversation-not-found">
+            <p className="text-muted-foreground">
+              This conversation isn’t available. It may have been removed, or you may not have
+              access.
+            </p>
+            <Button variant="outline" onClick={() => navigate("/marketplace/messages")}>
               Return to inbox
-            </button>
+            </Button>
           </div>
         ) : (
           <ChatThread
             providerId={providerId}
             providerName={providerName || "Artisan"}
-            initialConversationId={Number.isFinite(numericConversationId) ? numericConversationId : undefined}
+            initialConversationId={
+              Number.isFinite(numericConversationId) && numericConversationId > 0
+                ? numericConversationId
+                : undefined
+            }
           />
         )}
       </main>

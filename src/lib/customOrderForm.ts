@@ -16,9 +16,18 @@ export interface CustomOrderFields {
   description: string; budgetMin: string; budgetMax: string; deadline: string;
   details: Record<string, string>; imageCount: number;
 }
+
+/** Description is required (non-empty) and capped at 200 characters. No 50-char minimum. */
+export const DESCRIPTION_MAX = 200;
+
 export function validateCustomOrder(fields: CustomOrderFields, today = new Date()): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (fields.description.trim().length < 50) errors.description = "Please describe your project in at least 50 characters.";
+  const desc = fields.description.trim();
+  if (!desc) {
+    errors.description = "Please describe your project.";
+  } else if (desc.length > DESCRIPTION_MAX) {
+    errors.description = `Description must be at most ${DESCRIPTION_MAX} characters.`;
+  }
   if (fields.imageCount > 3) errors.images = "Choose no more than 3 reference images.";
   for (const key of ["budgetMin", "budgetMax"] as const) {
     if (fields[key] && (!Number.isFinite(Number(fields[key])) || Number(fields[key]) < 0)) errors[key] = "Enter a valid non-negative budget.";
