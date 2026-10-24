@@ -3,7 +3,7 @@ import { SkeletonGrid } from "@/components/common/Skeleton";
 import RecommendedArtisanCarousel from "@/components/marketplace/RecommendedArtisanCarousel";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
@@ -21,6 +21,7 @@ import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { productsService, providersService, artisanReviewsService } from "@/lib/apiServices";
+import { getRecentArtisanIds } from "@/lib/recentArtisans";
 import { apiGet } from "@/lib/moeApi";
 import type { Product, Provider } from "@/data/mockData";
 
@@ -53,7 +54,7 @@ const MarketplaceHome = () => {
   const { categories: dynamicCategories } = useCategories();
   const { preferences, hasPreferences } = usePreferences();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [recentlyViewed, setRecentlyViewed] = useState<number[]>([]);
+  const [recentArtisans, setRecentArtisans] = useState<Provider[]>([]);
   const [artisanSort, setArtisanSort] = useState("featured");
   /** Ratings hydrated from reviews when public-info omits averageRating (fixes Highest Rated). */
   const [hydratedRatings, setHydratedRatings] = useState<Record<number, number>>({});
@@ -303,8 +304,19 @@ const MarketplaceHome = () => {
   }, [filteredProducts]);
 
   useEffect(() => {
-    const viewed = localStorage.getItem("recentlyViewed");
-    if (viewed) setRecentlyViewed(JSON.parse(viewed));
+    const ids = getRecentArtisanIds().slice(0, 3);
+    if (!ids.length) {
+      setRecentArtisans([]);
+      return;
+    }
+    let cancelled = false;
+    Promise.all(ids.map((id) => providersService.getById(id).catch(() => undefined))).then((rows) => {
+      if (cancelled) return;
+      setRecentArtisans(rows.filter((row): row is Provider => Boolean(row)));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // When sorting by Highest Rated, hydrate missing ratings from the reviews API
@@ -605,19 +617,21 @@ const MarketplaceHome = () => {
         )}
 
         {/* Recently Viewed */}
-        {recentlyViewed.length > 0 && filteredProviders.filter((p) => recentlyViewed.includes(p.id)).length > 0 && (
-          <AnimatedSection delay={400}><section className="mb-12 md:mb-16">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" aria-hidden="true" />
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed</h2>
+        {recentArtisans.length > 0 && (
+          <AnimatedSection delay={400}><section className="mb-12 md:mb-16" data-testid="recent-artisans-section">
+            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" aria-hidden="true" />
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed Artisans</h2>
+              </div>
+              <Link to="/marketplace/artisans?collection=recent" className="text-sm font-medium text-primary hover:underline" data-testid="recent-artisans-view-all">
+                View all
+              </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {filteredProviders
-                .filter((p) => recentlyViewed.includes(p.id))
-                .slice(0, 3)
-                .map((provider) => (
-                  <ProviderCard key={provider.id} provider={provider} />
-                ))}
+              {recentArtisans.map((provider) => (
+                <ProviderCard key={provider.id} provider={provider} />
+              ))}
             </div>
           </section></AnimatedSection>
         )}

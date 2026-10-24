@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
-import { Product, getProviderById, products as mockProducts } from "@/data/mockData";
+import { Product } from "@/data/mockData";
 import { productsService } from "@/lib/apiServices";
 
 interface CompleteYourLookProps {
@@ -14,12 +14,12 @@ interface CompleteYourLookProps {
 
 const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
   const navigate = useNavigate();
-  const [allProducts, setAllProducts] = useState<Product[]>(mockProducts);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    productsService.list().then((res) => {
-      if (res.data.length > 0) setAllProducts(res.data);
-    });
+    productsService.list({ pageSize: 40 }).then((res) => {
+      setAllProducts(res.data ?? []);
+    }).catch(() => setAllProducts([]));
   }, []);
 
   const handleProductClick = (productId: number) => {
@@ -68,7 +68,6 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {suggestions.map((product) => {
-          const provider = getProviderById(product.providerId);
           return (
             <Card 
               key={product.id} 
@@ -89,7 +88,9 @@ const CompleteYourLook = ({ currentProduct }: CompleteYourLookProps) => {
               </div>
               <CardContent className="p-3">
                 <h3 className="font-medium text-sm line-clamp-1 mb-1">{product.name}</h3>
-                <p className="text-xs text-muted-foreground mb-2">{provider?.brandName}</p>
+                {product.artisanName && (
+                  <p className="text-xs text-muted-foreground mb-2">{product.artisanName}</p>
+                )}
                 <div className="flex flex-wrap gap-1 mb-2">
                   {product.tags.slice(0, 2).map((tag) => (
                     <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">

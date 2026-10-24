@@ -14,9 +14,9 @@ const SECTION_GUIDE: Record<
   { purpose: string; manages: string; marketplace: string }
 > = {
   featured_picks: {
-    purpose: "Curate Best Sellers / featured product picks on the homepage.",
-    manages: "Products (order = display order) + optional keywords",
-    marketplace: "Homepage → Best Sellers / Featured Picks",
+    purpose: "Curated Featured Picks. Best Sellers is a separate order-based collection.",
+    manages: "Products (order = display order). Newest products fill only this shelf when fewer than four are curated.",
+    marketplace: "Homepage → Featured Picks",
   },
   featured_artisans: {
     purpose: "Pin specific artisans to the Featured Artisans homepage block.",

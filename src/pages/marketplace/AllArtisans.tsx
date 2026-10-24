@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ArtisanResults from "@/components/marketplace/ArtisanResults";
 import { useArtisanSearch, type ArtisanDiscoveryView } from "@/hooks/useArtisanSearch";
+import { providersService, sectionsService } from "@/lib/apiServices";
+import { getRecentArtisanIds } from "@/lib/recentArtisans";
+import type { Provider } from "@/data/mockData";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/contexts/CategoriesContext";
 import FilterDrawer, { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
@@ -18,6 +21,35 @@ const VIEWS: { id: ArtisanDiscoveryView; label: string }[] = [
   { id: "custom-orders", label: "Custom Orders" },
   { id: "best-sellers", label: "Best Sellers" },
 ];
+
+function sectionArtisanToProvider(raw: Record<string, unknown>): Provider {
+  const id = Number(raw.id);
+  const brand =
+    (typeof raw.brandName === "string" && raw.brandName) ||
+    (typeof raw.businessName === "string" && raw.businessName) ||
+    (typeof raw.name === "string" && raw.name) ||
+    "Artisan";
+  return {
+    id: Number.isFinite(id) ? id : 0,
+    brandName: brand,
+    firstName: "",
+    lastName: "",
+    about: typeof raw.description === "string" ? raw.description : "",
+    city: typeof raw.city === "string" ? raw.city : "",
+    state: typeof raw.state === "string" ? raw.state : "",
+    phone: "",
+    email: "",
+    rating: typeof raw.rating === "number" ? raw.rating : 0,
+    reviewCount: typeof raw.reviewCount === "number" ? raw.reviewCount : 0,
+    verified: raw.verified === true,
+    featured: raw.featured === true,
+    estimatedDeliveryDays: 7,
+    heroImage: typeof raw.heroImage === "string" ? raw.heroImage : "",
+    customOrdersEnabled: false,
+    category: typeof raw.category === "string" ? raw.category : "",
+    styleTags: Array.isArray(raw.styleTags) ? raw.styleTags.filter((tag): tag is string => typeof tag === "string") : [],
+  };
+}
 
 function viewFromParams(params: URLSearchParams): ArtisanDiscoveryView {
   const raw = params.get("view");
@@ -37,6 +69,10 @@ const AllArtisans = () => {
   const category = searchParams.get("category");
   const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
   const view = viewFromParams(searchParams);
+  const collection = searchParams.get("collection");
+  const [collectionArtisans, setCollectionArtisans] = useState<Provider[] | null>(null);
+  const [collectionLoading, setCollectionLoading] = useState(false);
+  const [collectionError, setCollectionError] = useState<string | null>(null);
 
   const search = useArtisanSearch(
     {
@@ -48,7 +84,57 @@ const AllArtisans = () => {
     filters,
   );
 
+  useEffect(() => {
+    if (collection !== "featured_artisans" && collection !== "recent") {
+      setCollectionArtisans(null);
+      setCollectionError(null);
+      return;
+    }
+    let cancelled = false;
+    setCollectionLoading(true);
+    setCollectionError(null);
+    const load = async () => {
+      if (collection === "recent") {
+        const ids = getRecentArtisanIds();
+        if (!ids.length) return [];
+        const list = await providersService.searchAll({});
+        const byId = new Map(list.map((row) => [Number(row.id), row]));
+        return ids.map((id) => byId.get(id)).filter((row): row is Provider => Boolean(row));
+      }
+      const res = await sectionsService.get("featured_artisans");
+      return (res.items ?? []).map((raw) => sectionArtisanToProvider(raw)).filter((row) => row.id > 0);
+    };
+    load()
+      .then((rows) => {
+        if (!cancelled) setCollectionArtisans(rows);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCollectionArtisans([]);
+          setCollectionError(error instanceof Error ? error.message : "Could not load artisans");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCollectionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [collection]);
+
   const copy = useMemo(() => {
+    if (collection === "featured_artisans") {
+      return {
+        title: "Featured Artisans",
+        description: "The homepage Featured Artisans collection, including system-selected artisans when fewer than four are curated",
+      };
+    }
+    if (collection === "recent") {
+      return {
+        title: "Recently Viewed Artisans",
+        description: "Artisan profiles opened in this browser. No other artisans are added.",
+      };
+    }
     if (searchQuery) {
       return {
         title: `Artisans for “${searchQuery}”`,
@@ -92,7 +178,7 @@ const AllArtisans = () => {
       title: "All Artisans",
       description: "Discover talented artisans from across Africa, A–Z",
     };
-  }, [searchQuery, view, category, categories]);
+  }, [searchQuery, view, category, categories, collection]);
 
   const isFiltered =
     JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS) ||
@@ -117,6 +203,7 @@ const AllArtisans = () => {
     const params = new URLSearchParams(searchParams);
     params.delete("view");
     params.delete("featured");
+    params.delete("collection");
     params.delete("q");
     params.delete("search");
     setSearchParams(params);
@@ -141,7 +228,13 @@ const AllArtisans = () => {
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{copy.title}</h1>
               <p className="text-muted-foreground">{copy.description}</p>
               <p className="text-sm text-muted-foreground mt-2" data-testid="artisans-total-count">
-                {search.loading ? "Searching…" : `${search.total} artisans found`}
+                {collection
+                  ? collectionLoading
+                    ? "Searching…"
+                    : `${collectionArtisans?.length ?? 0} artisans found`
+                  : search.loading
+                    ? "Searching…"
+                    : `${search.total} artisans found`}
               </p>
             </div>
             <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
@@ -167,7 +260,20 @@ const AllArtisans = () => {
         </div>
 
         <div data-testid="artisans-grid">
-          <ArtisanResults {...search} filtered={isFiltered} onClear={clearAll} />
+          <ArtisanResults
+            {...(collection
+              ? {
+                  results: collectionArtisans ?? [],
+                  loading: collectionLoading,
+                  error: collectionError,
+                  page: 1,
+                  totalPages: 1,
+                  setPage: () => undefined,
+                }
+              : search)}
+            filtered={isFiltered || Boolean(collection)}
+            onClear={clearAll}
+          />
         </div>
       </main>
 

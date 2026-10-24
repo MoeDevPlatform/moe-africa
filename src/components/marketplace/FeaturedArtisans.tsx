@@ -1,6 +1,6 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,9 +122,18 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
 
   return (
     <section className="mb-12 md:mb-16" data-testid="featured-artisans-section">
-      <div className="flex items-center gap-2 mb-6">
-        <Award className="h-5 w-5 md:h-6 md:w-6 text-accent" />
-        <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <Award className="h-5 w-5 md:h-6 md:w-6 text-accent" />
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
+        </div>
+        <Link
+          to="/marketplace/artisans?collection=featured_artisans"
+          className="text-sm font-medium text-primary hover:underline"
+          data-testid="featured-artisans-view-all"
+        >
+          View all
+        </Link>
       </div>
 
       <Carousel

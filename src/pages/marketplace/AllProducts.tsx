@@ -4,7 +4,8 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
-import { productsService } from "@/lib/apiServices";
+import { productsService, sectionsService } from "@/lib/apiServices";
+import { getRecentlyViewedIds } from "@/lib/recentlyViewed";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/contexts/CategoriesContext";
 import type { Product } from "@/data/mockData";
@@ -70,8 +71,8 @@ function buildFilters(
 
   if (featured === "true") {
     filters.featured = true;
-    title = "Featured Picks";
-    description = "Hand-picked selections from our best artisans";
+    title = "Featured products";
+    description = "Products marked featured in the catalogue";
   }
 
   if (minPrice && Number.isFinite(Number(minPrice))) filters.minPrice = Number(minPrice);
@@ -83,20 +84,20 @@ function buildFilters(
   if (sort === "newest") {
     filters.sort = "newest";
     title = "New Arrivals";
-    description = "Fresh additions to our marketplace";
+    description = "Approved products, newest creation date first";
   } else if (sort === "bestSeller") {
-    filters.sort = "bestSeller";
-    filters.isBestSeller = true;
+    filters.collection = "best-sellers";
     title = "Best Sellers";
-    description = "Products marked as best sellers in the catalogue";
+    description =
+      "Products with genuine orders, plus any product marked as a best seller. Highest order count first. Cancelled and rejected orders are not counted.";
   } else if (sort === "trending") {
     filters.sort = "trending";
     filters.isTrending = true;
     title = "Trending Now";
     description = "Products marked as trending in the catalogue";
-  } else if (sort === "price_asc" || sort === "price_desc" || sort === "name_desc") {
+  } else if (sort === "price_asc" || sort === "price_desc" || sort === "name_desc" || sort === "name_asc") {
     filters.sort = sort;
-  } else {
+  } else if (!searchParams.get("collection")) {
     filters.sort = "name_asc";
   }
 
@@ -110,12 +111,98 @@ function buildFilters(
     description = "Cozy layers and home pieces for the rains";
   }
 
-  if (searchQuery && (category || featured || sort || season || type)) {
+  const collection = searchParams.get("collection");
+  if (collection === "best-sellers" || sort === "bestSeller") {
+    filters.collection = "best-sellers";
+    delete filters.isBestSeller;
+    if (!sort || sort === "bestSeller" || sort === "orders" || sort === "collection") {
+      delete filters.sort;
+    }
+    title = "Best Sellers";
+    description =
+      "Products with genuine orders, plus any product marked as a best seller. Highest order count first. Cancelled and rejected orders are not counted.";
+  } else if (collection === "featured_picks") {
+    title = "Featured Picks";
+    description =
+      "Curated picks. When fewer than four are curated, the system adds the newest approved products. Those fills are labelled in admin.";
+  } else if (collection === "featured_styles") {
+    title = "Editor's Recommendations";
+    description = "Products an admin added to Editor’s Recommendations, in display order.";
+  } else if (collection === "seasonal_picks") {
+    title = "Seasonal Picks";
+    description = "Curated seasonal products, plus keyword matches when seasonal keywords are set.";
+  } else if (collection === "recently-viewed") {
+    title = "You recently viewed";
+    description = "Products opened in this browser. No other products are added.";
+  }
+
+  if (searchQuery && (category || featured || sort || season || type || collection)) {
     title = `Results for “${searchQuery}”`;
     description = "Products matching your search and filters";
   }
 
   return { filters, title, description };
+}
+
+const SECTION_COLLECTIONS = new Set(["featured_picks", "featured_styles", "seasonal_picks", "recently-viewed"]);
+
+async function loadSectionProducts(collection: string): Promise<Product[]> {
+  if (collection === "recently-viewed") {
+    const ids = getRecentlyViewedIds();
+    if (!ids.length) return [];
+    const rows = await productsService.getByIds(ids);
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.map((id) => byId.get(id)).filter((row): row is Product => Boolean(row));
+  }
+
+  let rawItems: Array<Record<string, unknown>> = [];
+  if (collection === "seasonal_picks") {
+    try {
+      const matched = await sectionsService.seasonalMatched();
+      if ((matched.keywords ?? []).length > 0 && (matched.items ?? []).length > 0) {
+        rawItems = matched.items;
+      }
+    } catch {
+      rawItems = [];
+    }
+    if (!rawItems.length) {
+      const res = await sectionsService.get("seasonal_picks");
+      rawItems = res.items ?? [];
+    }
+  } else {
+    const res = await sectionsService.get(collection);
+    rawItems = res.items ?? [];
+  }
+  const ids = rawItems.map((item) => Number(item.id)).filter((id) => Number.isFinite(id) && id > 0);
+  if (!ids.length) return [];
+  const rows = await productsService.getByIds(ids);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.map((id) => byId.get(id)).filter((row): row is Product => Boolean(row));
+}
+
+function applyClientFilters(products: Product[], params: URLSearchParams): Product[] {
+  let rows = [...products];
+  const category = params.get("category");
+  if (category && category !== "all") rows = rows.filter((row) => row.category === category);
+  const minRaw = params.get("minPrice");
+  const maxRaw = params.get("maxPrice");
+  const min = Number(minRaw);
+  const max = Number(maxRaw);
+  if (minRaw && Number.isFinite(min)) rows = rows.filter((row) => (row.priceRange?.min ?? 0) >= min);
+  if (maxRaw && Number.isFinite(max)) rows = rows.filter((row) => (row.priceRange?.min ?? 0) <= max);
+  const delivery = Number(params.get("maxDeliveryDays"));
+  if (Number.isFinite(delivery) && delivery > 0) {
+    rows = rows.filter((row) => row.estimatedDeliveryDays <= delivery);
+  }
+  const q = (params.get("q") || params.get("search") || "").trim().toLowerCase();
+  if (q) rows = rows.filter((row) => row.name.toLowerCase().includes(q) || row.tags.some((tag) => tag.toLowerCase().includes(q)));
+  const sort = params.get("sort");
+  const byName = (a: Product, b: Product) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  if (sort === "name_asc") rows.sort(byName);
+  else if (sort === "name_desc") rows.sort((a, b) => byName(b, a));
+  else if (sort === "price_asc") rows.sort((a, b) => (a.priceRange?.min ?? 0) - (b.priceRange?.min ?? 0));
+  else if (sort === "price_desc") rows.sort((a, b) => (b.priceRange?.min ?? 0) - (a.priceRange?.min ?? 0));
+  return rows;
 }
 
 const AllProducts = () => {
@@ -159,11 +246,22 @@ const AllProducts = () => {
       }
 
       try {
-        const res = await productsService.list({
-          ...filters,
-          page: pageToLoad,
-          pageSize: PAGE_SIZE,
-        });
+        const collection = searchParams.get("collection");
+        const sectionMode = Boolean(collection && SECTION_COLLECTIONS.has(collection));
+        const res = sectionMode
+          ? await (async () => {
+              const all = applyClientFilters(await loadSectionProducts(collection as string), searchParams);
+              const start = (pageToLoad - 1) * PAGE_SIZE;
+              const data = all.slice(start, start + PAGE_SIZE);
+              const totalItems = all.length;
+              const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+              return { data, pagination: { page: pageToLoad, pageSize: PAGE_SIZE, totalPages, totalItems } };
+            })()
+          : await productsService.list({
+              ...filters,
+              page: pageToLoad,
+              pageSize: PAGE_SIZE,
+            });
         if (requestId !== requestIdRef.current) return;
 
         const incoming = res.data ?? [];
@@ -340,7 +438,14 @@ function ProductCatalogueControls({
   searchParams: URLSearchParams;
   onChange: (next: URLSearchParams) => void;
 }) {
-  const sort = searchParams.get("sort") || "name_asc";
+  const collection = searchParams.get("collection");
+  const bestSellers = collection === "best-sellers" || searchParams.get("sort") === "bestSeller";
+  const rawSort = searchParams.get("sort");
+  const sort = bestSellers && (!rawSort || rawSort === "bestSeller" || rawSort === "orders")
+    ? "orders"
+    : collection && !rawSort
+      ? "collection"
+      : rawSort || "name_asc";
   const category = searchParams.get("category") || "all";
   const minPrice = searchParams.get("minPrice") || "";
   const maxPrice = searchParams.get("maxPrice") || "";
@@ -361,7 +466,10 @@ function ProductCatalogueControls({
   };
 
   const hasControls =
-    sort !== "name_asc" ||
+    (Boolean(searchParams.get("sort")) &&
+      searchParams.get("sort") !== "name_asc" &&
+      searchParams.get("sort") !== "orders" &&
+      searchParams.get("sort") !== "collection") ||
     category !== "all" ||
     !!minPrice ||
     !!maxPrice ||
@@ -373,11 +481,33 @@ function ProductCatalogueControls({
     <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end" data-testid="product-filters">
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground" htmlFor="product-sort">Sort</label>
-        <Select value={sort} onValueChange={(value) => update("sort", value)}>
+        <Select
+          value={sort}
+          onValueChange={(value) => {
+            const next = new URLSearchParams(searchParams);
+            if (bestSellers) {
+              next.set("collection", "best-sellers");
+              if (value === "orders") next.delete("sort");
+              else next.set("sort", value);
+              onChange(next);
+              return;
+            }
+            if (collection && value === "collection") {
+              next.delete("sort");
+              onChange(next);
+              return;
+            }
+            update("sort", value);
+          }}
+        >
           <SelectTrigger id="product-sort" className="w-full lg:w-48" data-testid="product-sort">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            {bestSellers && <SelectItem value="orders">Order count</SelectItem>}
+            {collection && !bestSellers && (
+              <SelectItem value="collection">Collection order</SelectItem>
+            )}
             <SelectItem value="name_asc">Name A–Z</SelectItem>
             <SelectItem value="name_desc">Name Z–A</SelectItem>
             <SelectItem value="price_asc">Price: low to high</SelectItem>

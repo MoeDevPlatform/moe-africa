@@ -440,6 +440,7 @@ export interface ProductFilters {
   country?: string;
   state?: string;
   featured?: boolean;
+  collection?: string;
   isBestSeller?: boolean;
   isTrending?: boolean;
   isNewArrival?: boolean;

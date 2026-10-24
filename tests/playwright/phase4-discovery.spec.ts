@@ -44,7 +44,7 @@ test.describe("Phase 4 discovery (local)", () => {
     );
   });
 
-  test("public product filters, sorts, empty rankings, navigation, and error retry", async ({ page }) => {
+  test("public product filters, sorts, rankings, navigation, and error retry", async ({ page }) => {
     let slowed = false;
     await page.route("**/products?**", async (route) => {
       if (!slowed && route.request().method() === "GET") {
@@ -126,13 +126,15 @@ test.describe("Phase 4 discovery (local)", () => {
     expect(newestRes.ok()).toBeTruthy();
     expect(new URL(newestRes.url()).searchParams.get("sort")).toBe("newest");
 
-    const best = productListResponse(page, (url) => url.searchParams.get("isBestSeller") === "true");
+    const best = productListResponse(page, (url) => url.searchParams.get("collection") === "best-sellers");
     await page.goto("/marketplace/products?sort=bestSeller", { waitUntil: "domcontentloaded" });
     const bestRes = await best;
     const bestBody = await bestRes.json();
-    expect(bestBody.pagination.totalItems).toBe(0);
-    for (const row of bestBody.data ?? []) expect(row.isBestSeller).toBe(true);
-    await expect(page.getByText("No products found")).toBeVisible();
+    expect(bestBody.pagination.totalItems).toBeGreaterThan(0);
+    const counts = (bestBody.data ?? []).map((row: { orderCount?: number }) => Number(row.orderCount ?? 0));
+    const countSorted = [...counts].sort((a, b) => b - a);
+    expect(counts).toEqual(countSorted);
+    await expect(page.getByRole("heading", { name: "Best Sellers" })).toBeVisible();
 
     const trending = productListResponse(page, (url) => url.searchParams.get("isTrending") === "true");
     await page.goto("/marketplace/products?sort=trending", { waitUntil: "domcontentloaded" });

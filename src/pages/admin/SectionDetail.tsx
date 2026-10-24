@@ -11,11 +11,12 @@ import {
   searchService,
   productsService,
   providersService,
+  sectionsService,
   type AdminSection,
   type AdminSectionItem,
 } from "@/lib/apiServices";
 import { toast } from "sonner";
-import { ArrowLeft, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronUp, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import {
   mergeKeywords,
   parseKeywordInput,
@@ -38,6 +39,7 @@ const SectionDetail = () => {
   const [removingKeyword, setRemovingKeyword] = useState<string | null>(null);
   const [savingKeywords, setSavingKeywords] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [algorithmItems, setAlgorithmItems] = useState<Array<{ id: string; name: string }>>([]);
 
   const load = useCallback(() => {
     if (!sectionKey) return;
@@ -57,6 +59,40 @@ const SectionDetail = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!sectionKey) return;
+    let cancelled = false;
+    const curated = new Set(items.map((item) => String(item.itemId)));
+    const apply = (rows: Array<Record<string, unknown>>) => {
+      const next = rows
+        .filter((row) => {
+          const id = String(row.id ?? "");
+          return id && (row.selection === "algorithm" || !curated.has(id));
+        })
+        .filter((row) => !curated.has(String(row.id)))
+        .map((row) => ({
+          id: String(row.id),
+          name:
+            (typeof row.name === "string" && row.name) ||
+            (typeof row.brandName === "string" && row.brandName) ||
+            (typeof row.businessName === "string" && row.businessName) ||
+            `#${row.id}`,
+        }));
+      if (!cancelled) setAlgorithmItems(next);
+    };
+    const request =
+      sectionKey === "seasonal_picks"
+        ? sectionsService.seasonalMatched().then((res) => {
+            if ((res.keywords ?? []).length > 0) return res.items ?? [];
+            return sectionsService.get(sectionKey).then((sectionRes) => sectionRes.items ?? []);
+          })
+        : sectionsService.get(sectionKey).then((res) => res.items ?? []);
+    request.catch(() => [] as Array<Record<string, unknown>>).then(apply);
+    return () => {
+      cancelled = true;
+    };
+  }, [sectionKey, items]);
 
   const itemType =
     sectionKey === "featured_artisans" ? "artisan" : "product";
@@ -213,6 +249,26 @@ const SectionDetail = () => {
       load();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to remove");
+    }
+  };
+
+  const moveUp = async (index: number) => {
+    if (index <= 0) return;
+    const next = [...items];
+    const [row] = next.splice(index, 1);
+    next.splice(index - 1, 0, row);
+    setSaving(true);
+    try {
+      await adminService.reorderSectionItems(
+        sectionKey,
+        next.map((item, position) => ({ itemId: item.itemId, position })),
+      );
+      setItems(next.map((item, position) => ({ ...item, position })));
+      toast.success("Order saved");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to reorder");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -422,6 +478,8 @@ const SectionDetail = () => {
                   {items.map((item, index) => (
                     <li
                       key={item.id}
+                      data-testid="curated-item"
+                      data-item-id={item.itemId}
                       draggable
                       onDragStart={() => setDragIndex(index)}
                       onDragOver={(e) => e.preventDefault()}
@@ -450,6 +508,18 @@ const SectionDetail = () => {
                             : ""}
                         </p>
                       </div>
+                      {index > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          data-testid={`move-section-item-up-${item.itemId}`}
+                          disabled={saving}
+                          onClick={() => moveUp(index)}
+                          aria-label={`Move ${item.itemId} up`}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -460,6 +530,31 @@ const SectionDetail = () => {
                       </Button>
                     </li>
                   ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="algorithm-selection">
+              <CardHeader>
+                <CardTitle className="text-base">Selected by the system</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  These records are added by the section’s existing ranking when the curated list
+                  does not cover the public shelf. They are not stored as curated items. Adding a
+                  product appends to the curated list and does not replace this ranking.
+                </p>
+                {algorithmItems.length === 0 ? (
+                  <p data-testid="algorithm-empty">No algorithmic selections for this section.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {algorithmItems.map((item) => (
+                      <li key={item.id} data-testid="algorithm-item" data-item-id={item.id}>
+                        <span className="font-medium text-foreground">{item.name}</span>
+                        <span className="ml-2 text-xs">system · id {item.id}</span>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </CardContent>

@@ -1,6 +1,6 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import AnimatedSection from "@/components/common/AnimatedSection";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { productsService, sectionsService } from "@/lib/apiServices";
-import type { Product } from "@/data/mockData";
 
 interface FeaturedProduct {
   id: number;
@@ -55,7 +54,7 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
   };
 
   return (
-    <div className="product-card group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
+    <div className="product-card group cursor-pointer" data-product-id={product.id} onClick={() => navigate(`/marketplace/product/${product.id}`)}>
       <div className="product-card__image relative rounded-xl overflow-hidden mb-3 bg-muted aspect-square">
         <img
           src={product.imageUrl}
@@ -86,9 +85,11 @@ interface ProductSectionProps {
   icon: React.ReactNode;
   products: FeaturedProduct[];
   loading?: boolean;
+  viewAllHref?: string;
+  testId?: string;
 }
 
-const ProductSection = ({ title, icon, products, loading }: ProductSectionProps) => {
+const ProductSection = ({ title, icon, products, loading, viewAllHref, testId }: ProductSectionProps) => {
   if (loading) {
     return (
       <div className="mb-8 md:mb-12">
@@ -107,10 +108,17 @@ const ProductSection = ({ title, icon, products, loading }: ProductSectionProps)
   if (products.length === 0) return null;
 
   return (
-    <div className="mb-8 md:mb-12">
-      <div className="flex items-center gap-2 mb-4 md:mb-6">
-        {icon}
-        <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
+    <div className="mb-8 md:mb-12" data-testid={testId}>
+      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
+        </div>
+        {viewAllHref && (
+          <Link to={viewAllHref} className="text-sm font-medium text-primary hover:underline" data-testid={`${testId}-view-all`}>
+            View all
+          </Link>
+        )}
       </div>
       <Carousel
         opts={{ align: "start", loop: true, dragFree: true }}
@@ -152,7 +160,12 @@ function mapSectionItem(raw: Record<string, unknown>): FeaturedProduct | null {
     price,
     imageUrl: images[0] || FALLBACK_IMAGE,
     providerId: Number(raw.providerId) || 0,
-    providerName: typeof raw.providerName === "string" ? raw.providerName : "Artisan",
+    providerName:
+      typeof raw.artisanName === "string" && raw.artisanName
+        ? raw.artisanName
+        : typeof raw.providerName === "string" && raw.providerName
+          ? raw.providerName
+          : "Artisan",
     category: typeof raw.category === "string" ? raw.category : "",
     tags,
   };
@@ -160,6 +173,7 @@ function mapSectionItem(raw: Record<string, unknown>): FeaturedProduct | null {
 
 const FeaturedProducts = () => {
   const [bestSellers, setBestSellers] = useState<FeaturedProduct[]>([]);
+  const [featuredPicks, setFeaturedPicks] = useState<FeaturedProduct[]>([]);
   const [seasonalPicks, setSeasonalPicks] = useState<FeaturedProduct[]>([]);
   const [editorPicks, setEditorPicks] = useState<FeaturedProduct[]>([]);
   const [trending, setTrending] = useState<FeaturedProduct[]>([]);
@@ -194,34 +208,55 @@ const FeaturedProducts = () => {
       return loadSection("seasonal_picks");
     };
 
+    const loadBestSellers = async () => {
+      try {
+        const res = await productsService.list({ collection: "best-sellers", pageSize: 8 });
+        return (res.data ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.priceRange?.min ?? 0,
+          imageUrl: p.images?.[0] || FALLBACK_IMAGE,
+          providerId: p.providerId,
+          providerName: p.artisanName || "Artisan",
+          category: p.category,
+          tags: p.tags ?? [],
+        }));
+      } catch {
+        return [] as FeaturedProduct[];
+      }
+    };
+
+    const loadTrending = async () => {
+      try {
+        const res = await productsService.list({ isTrending: true, sort: "trending", pageSize: 8 });
+        return (res.data ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.priceRange?.min ?? 0,
+          imageUrl: p.images?.[0] || FALLBACK_IMAGE,
+          providerId: p.providerId,
+          providerName: p.artisanName || "Artisan",
+          category: p.category,
+          tags: p.tags ?? [],
+        }));
+      } catch {
+        return [] as FeaturedProduct[];
+      }
+    };
+
     Promise.all([
+      loadBestSellers(),
       loadSection("featured_picks"),
       loadSeasonal(),
       loadSection("featured_styles"),
-      productsService.list().then((res) => res.data).catch(() => [] as Product[]),
-    ]).then(([featured, seasonal, styles, allProducts]) => {
+      loadTrending(),
+    ]).then(([best, featured, seasonal, styles, trendingProducts]) => {
       if (cancelled) return;
-      setBestSellers(featured);
+      setBestSellers(best);
+      setFeaturedPicks(featured);
       setSeasonalPicks(seasonal);
       setEditorPicks(styles);
-      // Trending stays on existing client-side filter logic.
-      setTrending(
-        allProducts
-          .filter((p) =>
-            p.tags.some((t) => ["Modern", "Afrocentric", "Custom"].includes(t)),
-          )
-          .slice(0, 8)
-          .map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: p.priceRange.min,
-            imageUrl: p.images[0] || FALLBACK_IMAGE,
-            providerId: p.providerId,
-            providerName: "Artisan",
-            category: p.category,
-            tags: p.tags,
-          })),
-      );
+      setTrending(trendingProducts);
     }).finally(() => {
       if (!cancelled) setIsLoading(false);
     });
@@ -233,6 +268,7 @@ const FeaturedProducts = () => {
 
   const hasAny =
     bestSellers.length > 0 ||
+    featuredPicks.length > 0 ||
     seasonalPicks.length > 0 ||
     editorPicks.length > 0 ||
     trending.length > 0;
@@ -256,6 +292,18 @@ const FeaturedProducts = () => {
         icon={<TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
         products={bestSellers}
         loading={isLoading}
+        viewAllHref="/marketplace/products?collection=best-sellers"
+        testId="home-best-sellers"
+      />
+      </AnimatedSection>
+      <AnimatedSection delay={50}>
+      <ProductSection
+        title="Featured Picks"
+        icon={<Star className="h-5 w-5 md:h-6 md:w-6 text-accent" />}
+        products={featuredPicks}
+        loading={isLoading}
+        viewAllHref="/marketplace/products?collection=featured_picks"
+        testId="home-featured-picks"
       />
       </AnimatedSection>
       <AnimatedSection delay={100}>
@@ -264,6 +312,8 @@ const FeaturedProducts = () => {
         icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-accent" />}
         products={seasonalPicks}
         loading={isLoading}
+        viewAllHref="/marketplace/products?collection=seasonal_picks"
+        testId="home-seasonal-picks"
       />
       </AnimatedSection>
       <AnimatedSection delay={400}><RecentlyViewed /></AnimatedSection>
@@ -273,6 +323,8 @@ const FeaturedProducts = () => {
         icon={<Award className="h-5 w-5 md:h-6 md:w-6 text-secondary" />}
         products={editorPicks}
         loading={isLoading}
+        viewAllHref="/marketplace/products?collection=featured_styles"
+        testId="home-editors-picks"
       />
       </AnimatedSection>
       <AnimatedSection delay={500}>
@@ -281,6 +333,8 @@ const FeaturedProducts = () => {
         icon={<Star className="h-5 w-5 md:h-6 md:w-6 text-primary" />}
         products={trending}
         loading={isLoading}
+        viewAllHref="/marketplace/products?sort=trending"
+        testId="home-trending"
       />
       </AnimatedSection>
     </section>

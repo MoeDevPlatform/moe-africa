@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -25,7 +25,7 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
   useEffect(() => {
     let cancelled = false;
     const ids = getRecentlyViewedIds().filter((id) => id !== excludeProductId);
-    if (ids.length < 2) {
+    if (ids.length < 1) {
       setProducts([]);
       return;
     }
@@ -44,15 +44,24 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
     };
   }, [excludeProductId]);
 
-  if (products.length < 2) return null;
+  if (products.length < 1) return null;
 
   return (
     <section className="mb-8 md:mb-12" data-testid="recently-viewed-section">
-      <div className="flex items-center gap-2 mb-4 md:mb-6">
-        <History className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-        <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
-          You recently viewed
-        </h2>
+      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+        <div className="flex items-center gap-2">
+          <History className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+          <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
+            You recently viewed
+          </h2>
+        </div>
+        <Link
+          to="/marketplace/products?collection=recently-viewed"
+          className="text-sm font-medium text-primary hover:underline"
+          data-testid="recently-viewed-view-all"
+        >
+          View all
+        </Link>
       </div>
       <Carousel opts={{ align: "start", loop: true }} className="w-full">
         <CarouselContent className="-ml-2 md:-ml-4">

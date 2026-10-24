@@ -125,22 +125,15 @@ const categoriesFromDefs = (defs: CategoryDef[]): CategoryData[] =>
 
 // Removed module-level categories — built inside component from CategoriesContext.
 
-// Derive Seasonal Picks season from the current month (West Africa default).
-// Nov–Apr = Harmattan, May–Oct = Rainy.
-const currentSeason = (): "harmattan" | "rainy" => {
-  const m = new Date().getMonth();
-  return m >= 10 || m <= 3 ? "harmattan" : "rainy";
-};
-
 const quickLinks = [
   { name: "All Categories", slug: "all-categories", icon: <Layers className="h-4 w-4" />, path: "/marketplace#browse-by-category" },
   { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace/products" },
   { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
   { name: "Custom Orders", slug: "custom-orders", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/custom-orders" },
-  { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?featured=true", badge: "New" },
+  { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?collection=featured_picks", badge: "New" },
   { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace/products?sort=newest" },
-  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: `/marketplace/products?season=${currentSeason()}` },
-  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace/products?sort=bestSeller" },
+  { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: "/marketplace/products?collection=seasonal_picks" },
+  { name: "Best Sellers", slug: "best-sellers", icon: <TrendingUp className="h-4 w-4" />, path: "/marketplace/products?collection=best-sellers" },
   { name: "Trending Now", slug: "trending-now", icon: <Flame className="h-4 w-4" />, path: "/marketplace/products?sort=trending" },
 ];
 
@@ -223,15 +216,16 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
   const handleFeaturedClick = (categorySlug: string, featuredSlug: string) => {
     onClose();
     // Map featured rails to product list query params.
-    if (featuredSlug === "best-sellers") return navigate(`/marketplace/products?category=${categorySlug}&sort=bestSeller`);
+    if (featuredSlug === "best-sellers") return navigate(`/marketplace/products?category=${categorySlug}&collection=best-sellers`);
     if (featuredSlug === "trending-pieces") return navigate(`/marketplace/products?category=${categorySlug}&sort=trending`);
-    if (featuredSlug === "seasonal-picks") return navigate(`/marketplace/products?category=${categorySlug}&season=${currentSeason()}`);
-    return navigate(`/marketplace/products?category=${categorySlug}&featured=true`);
+    if (featuredSlug === "seasonal-picks") return navigate(`/marketplace/products?category=${categorySlug}&collection=seasonal_picks`);
+    return navigate(`/marketplace/products?category=${categorySlug}&collection=featured_picks`);
   };
 
   return (
     <div 
       className="absolute top-full left-0 w-full bg-card border-b border-border shadow-lg z-50"
+      data-testid="mega-menu"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

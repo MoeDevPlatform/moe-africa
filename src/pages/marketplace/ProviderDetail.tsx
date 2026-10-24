@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Star, MapPin, CheckCircle2, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
 import { productsService, providersService } from "@/lib/apiServices";
+import { pushRecentArtisan } from "@/lib/recentArtisans";
 import { artisanReviewsService, type ArtisanReviewApi } from "@/lib/apiServices";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -119,11 +120,7 @@ const ProviderDetail = () => {
 
   useEffect(() => {
     if (!provider) return;
-    const viewed = JSON.parse(localStorage.getItem("recentlyViewed") || "[]");
-    if (!viewed.includes(provider.id)) {
-      viewed.unshift(provider.id);
-      localStorage.setItem("recentlyViewed", JSON.stringify(viewed.slice(0, 10)));
-    }
+    pushRecentArtisan(provider.id);
   }, [provider?.id]);
 
   useEffect(() => {

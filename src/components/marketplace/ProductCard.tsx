@@ -69,6 +69,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   return (
     <Card 
       className="product-card overflow-hidden cursor-pointer"
+      data-product-id={product.id}
       onClick={handleCardClick}
     >
       <div className="product-card__image relative h-64 bg-muted">
