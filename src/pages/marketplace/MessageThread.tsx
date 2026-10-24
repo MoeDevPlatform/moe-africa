@@ -47,29 +47,33 @@ const MessageThread = () => {
     setEmptyHint(false);
 
     (async () => {
+      let resolved = false;
       try {
         const one = await messagingService.getConversation(numericConversationId);
-        if (cancelled) return;
-        setProviderId(one.providerId);
-        setProviderName(one.providerName || one.artisanName || "Artisan");
-        return;
-      } catch {
-        /* fall through to list */
-      }
-      try {
-        const res = await messagingService.listConversations();
-        if (cancelled) return;
-        const match = (res?.data ?? []).find((c) => c.id === numericConversationId);
-        if (match) {
-          setProviderId(match.providerId);
-          setProviderName(match.providerName);
-        } else {
-          setNotFound(true);
+        if (!cancelled && one?.providerId) {
+          setProviderId(one.providerId);
+          setProviderName(one.providerName || one.artisanName || "Artisan");
+          resolved = true;
         }
       } catch {
-        if (!cancelled) setNotFound(true);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        /* fall through to the inbox list */
+      }
+      if (!resolved && !cancelled) {
+        try {
+          const res = await messagingService.listConversations();
+          const match = (res?.data ?? []).find((c) => c.id === numericConversationId);
+          if (!cancelled && match?.providerId) {
+            setProviderId(match.providerId);
+            setProviderName(match.providerName || "Artisan");
+            resolved = true;
+          }
+        } catch {
+          /* show the unavailable state below */
+        }
+      }
+      if (!cancelled) {
+        if (!resolved) setNotFound(true);
+        setIsLoading(false);
       }
     })();
 

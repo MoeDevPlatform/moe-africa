@@ -5,25 +5,21 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAuth } from "@/contexts/AuthContext";
 import { messagingService } from "@/lib/apiServices";
 
-/**
- * Persistent floating entry to marketplace messaging for signed-in customers.
- * Stacked above the refresh FAB. Uses listConversations unread counts.
- */
+/** Persistent messaging button, kept clear of the refresh and scroll buttons. */
 const FloatingMessagesButton = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [unread, setUnread] = useState(0);
 
-  const hideOnAuth =
+  const hide =
     location.pathname.startsWith("/auth") ||
-    location.pathname.startsWith("/admin") ||
-    location.pathname.startsWith("/artisan");
-
-  const show = Boolean(isAuthenticated && user?.role === "customer" && !hideOnAuth);
+    location.pathname.startsWith("/admin");
+  const canCountUnread =
+    isAuthenticated && (user?.role === "customer" || user?.role === "artisan");
 
   useEffect(() => {
-    if (!show) {
+    if (hide || !canCountUnread) {
       setUnread(0);
       return;
     }
@@ -49,9 +45,21 @@ const FloatingMessagesButton = () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [show, location.pathname]);
+  }, [hide, canCountUnread, location.pathname]);
 
-  if (!show) return null;
+  if (hide) return null;
+
+  const openMessages = () => {
+    if (!isAuthenticated) {
+      navigate("/auth?tab=signin");
+      return;
+    }
+    if (user?.role === "admin") {
+      navigate("/admin/messages");
+      return;
+    }
+    navigate("/marketplace/messages");
+  };
 
   return (
     <TooltipProvider>
@@ -60,8 +68,8 @@ const FloatingMessagesButton = () => {
           <button
             type="button"
             data-testid="floating-messages-btn"
-            onClick={() => navigate("/marketplace/messages")}
-            className="fixed bottom-20 right-6 z-50 h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+            onClick={openMessages}
+            className="fixed bottom-36 right-6 z-[70] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
             aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
           >
             <MessageCircle className="h-5 w-5" />
