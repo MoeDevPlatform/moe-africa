@@ -13,6 +13,16 @@ function isLocalApi(url: string): boolean {
   }
 }
 
+/** View all is hidden when every item already fits in the preview. */
+async function followViewAll(page: Page, sectionTestId: string, linkTestId: string, href: string) {
+  const section = page.getByTestId(sectionTestId);
+  await expect(section).toBeVisible();
+  await expect(section).toHaveAttribute("data-preview-ready", "true");
+  const link = section.getByTestId(linkTestId);
+  if (await link.count()) await link.click();
+  else await page.goto(href, { waitUntil: "domcontentloaded" });
+}
+
 test.describe("Phase 6 collections (local)", () => {
   test.describe.configure({ timeout: 180_000 });
 
@@ -91,16 +101,15 @@ test.describe("Phase 6 collections (local)", () => {
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/marketplace", { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("home-best-sellers")).toBeVisible();
-    await page.getByTestId("home-best-sellers-view-all").click();
+    await followViewAll(page, "home-best-sellers", "home-best-sellers-view-all", "/marketplace/products?collection=best-sellers");
     await expect(page).toHaveURL(/collection=best-sellers/);
     await expect(page.getByRole("heading", { name: "Best Sellers" })).toBeVisible();
     await page.goto("/marketplace", { waitUntil: "domcontentloaded" });
-    await page.getByTestId("home-featured-picks-view-all").click();
+    await followViewAll(page, "home-featured-picks", "home-featured-picks-view-all", "/marketplace/products?collection=featured_picks");
     await expect(page).toHaveURL(/collection=featured_picks/);
     await expect(page.getByRole("heading", { name: "Featured Picks" })).toBeVisible();
     await page.goto("/marketplace", { waitUntil: "domcontentloaded" });
-    await page.getByTestId("featured-artisans-view-all").click();
+    await followViewAll(page, "featured-artisans-section", "featured-artisans-view-all", "/marketplace/artisans?collection=featured_artisans");
     await expect(page).toHaveURL(/collection=featured_artisans/);
     await expect(page.getByRole("heading", { name: "Featured Artisans" })).toBeVisible();
 
@@ -153,7 +162,7 @@ test.describe("Phase 6 collections (local)", () => {
     await expect(recent).toBeVisible();
     await expect(recent).toContainText("Phase2 API Variation Probe");
     await expect(recent).toContainText("Ankara Midi Dress");
-    await page.getByTestId("recently-viewed-view-all").click();
+    await followViewAll(page, "recently-viewed-section", "recently-viewed-view-all", "/marketplace/products?collection=recently-viewed");
     await expect(page).toHaveURL(/collection=recently-viewed/);
     await expect(page.locator('[data-product-id="72"]')).toBeVisible();
     await expect(page.locator('[data-product-id="1"]')).toBeVisible();
@@ -164,7 +173,7 @@ test.describe("Phase 6 collections (local)", () => {
     await page.goto("/marketplace", { waitUntil: "domcontentloaded" });
     const recentArtisans = page.getByTestId("recent-artisans-section");
     await expect(recentArtisans).toBeVisible();
-    await page.getByTestId("recent-artisans-view-all").click();
+    await followViewAll(page, "recent-artisans-section", "recent-artisans-view-all", "/marketplace/artisans?collection=recent");
     await expect(page).toHaveURL(/\/marketplace\/artisans\?collection=recent/);
     await expect(page.getByRole("heading", { name: "Recently Viewed Artisans" })).toBeVisible();
     await expect(page.getByTestId("artisans-total-count")).toContainText("1 artisans found");
@@ -200,9 +209,8 @@ test.describe("Phase 6 collections (local)", () => {
 
     await page.goto("/admin/sections/featured_picks", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("algorithm-selection")).toBeVisible();
-    const algorithmCount = await page.getByTestId("algorithm-item").count();
     if ((featuredBody.items ?? []).some((item: { selection?: string }) => item.selection === "algorithm")) {
-      expect(algorithmCount).toBeGreaterThan(0);
+      await expect(page.getByTestId("algorithm-item").first()).toBeVisible();
     }
 
     await page.goto("/admin/sections/featured_styles", { waitUntil: "domcontentloaded" });

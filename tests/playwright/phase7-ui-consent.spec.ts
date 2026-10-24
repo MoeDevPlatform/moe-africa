@@ -52,8 +52,15 @@ test.describe("Phase 7 message, enquiry, and signup consent (local)", () => {
 
     await signIn(page, "phase3.customer@local.test", "password123");
     await page.goto("/marketplace/product/1", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Add to Wishlist" }).click();
-    await expect(page.getByRole("button", { name: "Remove from wishlist" })).toBeVisible();
+    const addWishlist = page.getByRole("button", { name: "Add to wishlist" });
+    const removeWishlist = page.getByRole("button", { name: "Remove from wishlist" });
+    await expect(addWishlist.or(removeWishlist).first()).toBeVisible();
+    if (await removeWishlist.count()) {
+      await removeWishlist.first().click();
+      await expect(addWishlist.first()).toBeVisible();
+    }
+    await addWishlist.first().click();
+    await expect(removeWishlist.first()).toBeVisible();
     const sent = page.waitForResponse((response) => {
       if (response.request().method() !== "POST" || new URL(response.url()).port !== "3000") return false;
       return /\/conversations/.test(new URL(response.url()).pathname);

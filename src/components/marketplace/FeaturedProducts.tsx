@@ -1,11 +1,13 @@
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Heart, TrendingUp, Star, Calendar, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
+  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi,
 } from "@/components/ui/carousel";
+import { SectionViewAll } from "@/components/marketplace/SectionViewAll";
+import { useFullyVisibleSlides } from "@/hooks/usePreviewCapacity";
 import EmptySection from "@/components/marketplace/EmptySection";
 import RecentlyViewed from "@/components/marketplace/RecentlyViewed";
 import Skeleton from "@/components/common/Skeleton";
@@ -90,6 +92,10 @@ interface ProductSectionProps {
 }
 
 const ProductSection = ({ title, icon, products, loading, viewAllHref, testId }: ProductSectionProps) => {
+  const [api, setApi] = useState<CarouselApi>();
+  const preview = useFullyVisibleSlides(api);
+  const showViewAll = Boolean(viewAllHref) && preview.ready && products.length > preview.visible;
+
   if (loading) {
     return (
       <div className="mb-8 md:mb-12">
@@ -108,19 +114,18 @@ const ProductSection = ({ title, icon, products, loading, viewAllHref, testId }:
   if (products.length === 0) return null;
 
   return (
-    <div className="mb-8 md:mb-12" data-testid={testId}>
-      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
-        <div className="flex items-center gap-2">
+    <div className="mb-8 md:mb-12" data-testid={testId} data-preview-ready={preview.ready ? "true" : "false"}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+        <div className="flex min-w-0 items-center gap-2">
           {icon}
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">{title}</h2>
         </div>
-        {viewAllHref && (
-          <Link to={viewAllHref} className="text-sm font-medium text-primary hover:underline" data-testid={`${testId}-view-all`}>
-            View all
-          </Link>
+        {showViewAll && viewAllHref && (
+          <SectionViewAll to={viewAllHref} testId={`${testId}-view-all`} label={`View all ${title}`} />
         )}
       </div>
       <Carousel
+        setApi={setApi}
         opts={{ align: "start", loop: true, dragFree: true }}
         className="w-full scrollbar-hide"
       >

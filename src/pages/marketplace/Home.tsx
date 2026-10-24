@@ -3,20 +3,20 @@ import { SkeletonGrid } from "@/components/common/Skeleton";
 import RecommendedArtisanCarousel from "@/components/marketplace/RecommendedArtisanCarousel";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProviderCard from "@/components/marketplace/ProviderCard";
 import HeroBanner from "@/components/marketplace/HeroBanner";
 import FeaturedArtisans from "@/components/marketplace/FeaturedArtisans";
 import FeaturedProducts from "@/components/marketplace/FeaturedProducts";
-import FilterDrawer, { FilterState, providerMatchesLocation } from "@/components/marketplace/FilterDrawer";
+import FilterDrawer, { FilterState, deliveryMaxDays, providerMatchesLocation } from "@/components/marketplace/FilterDrawer";
+import { SectionViewAll } from "@/components/marketplace/SectionViewAll";
 import EmptySection from "@/components/marketplace/EmptySection";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
-} from "@/components/ui/carousel";
+import { type CarouselApi } from "@/components/ui/carousel";
+import { useFullyVisibleSlides, useGridColumns } from "@/hooks/usePreviewCapacity";
 import { Tag, Clock, Shirt, Palette, Sparkles } from "lucide-react";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
@@ -120,8 +120,8 @@ const MarketplaceHome = () => {
       : undefined;
 
     Promise.allSettled([
-      productsService.list(productFilters).then((res) => setAllProducts(res.data)),
-      providersService.list().then((res) => setAllProviders(res.data)),
+      productsService.list({ ...(productFilters ?? {}), pageSize: 100 }).then((res) => setAllProducts(res.data)),
+      providersService.list({ pageSize: 100 }).then((res) => setAllProviders(res.data)),
     ]).finally(() => setIsLoading(false));
   }, [hasPreferences, preferences.budget, preferences.categories, preferences.styles]);
 
@@ -275,7 +275,6 @@ const MarketplaceHome = () => {
   const dealProducts = useMemo(() => {
     return filteredProducts
       .filter((p) => (p.priceRange?.min ?? 0) < (p.priceRange?.max ?? 0))
-      .slice(0, 3)
       .map((p) => ({
         id: p.id,
         name: p.name,
@@ -292,7 +291,6 @@ const MarketplaceHome = () => {
   const styleProducts = useMemo(() => {
     return filteredProducts
       .filter((p) => (p.tags ?? []).some((t) => ["Traditional", "Afrocentric", "Modern", "Elegant"].includes(t)))
-      .slice(0, 4)
       .map((p) => ({
         id: p.id,
         name: p.name,
@@ -379,6 +377,95 @@ const MarketplaceHome = () => {
     }
     return list.slice(0, 6);
   }, [filteredProviders, artisanSort, hydratedRatings]);
+
+  const servicesGrid = useGridColumns();
+  const dealsGrid = useGridColumns();
+  const stylesGrid = useGridColumns();
+  const recentArtisansGrid = useGridColumns();
+  const pickedProvidersGrid = useGridColumns();
+  const pickedProductsGrid = useGridColumns();
+  const [recommendedApi, setRecommendedApi] = useState<CarouselApi>();
+  const recommendedPreview = useFullyVisibleSlides(recommendedApi);
+
+  const productShelfHref = (collection: "deals" | "styles") => {
+    const params = new URLSearchParams();
+    params.set("collection", collection);
+    if (hasPreferences && preferences.categories.length === 1) params.set("category", preferences.categories[0]);
+    if (hasPreferences && preferences.categories.length > 1) params.set("categories", preferences.categories.join(","));
+    if (hasPreferences && preferences.budget > 0 && preferences.budget < 500000) {
+      params.set("maxPrice", String(preferences.budget));
+    }
+    if (collection !== "styles" && hasPreferences && preferences.styles.length) {
+      params.set("styleTags", preferences.styles.join(","));
+      params.set("styleMatch", "any");
+    }
+    if (filters.materials.length) params.set("materials", filters.materials.join(","));
+    if (filters.priceRange[0] > 0) params.set("minPrice", String(filters.priceRange[0]));
+    if (filters.priceRange[1] < 500000) params.set("maxPrice", String(filters.priceRange[1]));
+    const days = deliveryMaxDays(filters.deliveryEstimate);
+    if (days) params.set("maxDeliveryDays", String(days));
+    if (filters.country) params.set("country", filters.country);
+    if (filters.state) params.set("state", filters.state);
+    if (collection !== "styles" && filters.styleTags.length) {
+      params.set("styleTags", filters.styleTags.join(","));
+      params.set("styleMatch", "any");
+    }
+    return `/marketplace/products?${params.toString()}`;
+  };
+
+  const artisanShelfHref = (collection: "services" | "recommended" | "picked") => {
+    const params = new URLSearchParams();
+    params.set("collection", collection);
+    if (collection !== "picked" && selectedCategory) params.set("category", selectedCategory);
+    if (collection === "picked" && preferences.categories.length) {
+      params.set("categories", preferences.categories.join(","));
+    }
+    if (collection === "recommended") params.set("sort", artisanSort);
+    if (filters.styleTags.length) params.set("styleTags", filters.styleTags.join(","));
+    if (filters.country) params.set("country", filters.country);
+    if (filters.state) params.set("state", filters.state);
+    if (filters.minRating) params.set("minRating", String(filters.minRating));
+    if (filters.availableOnly) params.set("availableOnly", "true");
+    return `/marketplace/artisans?${params.toString()}`;
+  };
+
+  const pickedProductsHref = () => {
+    const params = new URLSearchParams();
+    params.set("collection", "picked");
+    if (preferences.categories.length === 1) params.set("category", preferences.categories[0]);
+    if (preferences.categories.length > 1) params.set("categories", preferences.categories.join(","));
+    if (preferences.budget > 0 && preferences.budget < 500000) params.set("maxPrice", String(preferences.budget));
+    if (preferences.styles.length) {
+      params.set("styleTags", preferences.styles.join(","));
+      params.set("styleMatch", "any");
+    }
+    return `/marketplace/products?${params.toString()}`;
+  };
+
+  const visibleServices = servicesGrid.ready ? filteredProviders.slice(0, servicesGrid.columns) : [];
+  const showServicesViewAll = servicesGrid.ready && filteredProviders.length > servicesGrid.columns;
+  const visibleDeals = dealsGrid.ready ? dealProducts.slice(0, dealsGrid.columns) : [];
+  const showDealsViewAll = dealsGrid.ready && dealProducts.length > dealsGrid.columns;
+  const visibleStyles = stylesGrid.ready ? styleProducts.slice(0, stylesGrid.columns) : [];
+  const showStylesViewAll = stylesGrid.ready && styleProducts.length > stylesGrid.columns;
+  const showRecommendedViewAll =
+    !isLoading && recommendedPreview.ready && filteredProviders.length > recommendedPreview.visible;
+  const recentArtisanTotal = getRecentArtisanIds().length;
+  const visibleRecentArtisans = recentArtisansGrid.ready
+    ? recentArtisans.slice(0, recentArtisansGrid.columns)
+    : [];
+  const showRecentArtisansViewAll =
+    recentArtisansGrid.ready && recentArtisanTotal > recentArtisansGrid.columns;
+  const visiblePickedProviders = pickedProvidersGrid.ready
+    ? preferenceProviders.slice(0, pickedProvidersGrid.columns)
+    : [];
+  const visiblePickedProducts = pickedProductsGrid.ready
+    ? preferenceProducts.slice(0, pickedProductsGrid.columns)
+    : [];
+  const pickedProductsOverflow =
+    pickedProductsGrid.ready && preferenceProducts.length > pickedProductsGrid.columns;
+  const pickedProvidersOverflow =
+    pickedProvidersGrid.ready && preferenceProviders.length > pickedProvidersGrid.columns;
 
   return (
     <div className="marketplace-home min-h-screen bg-gradient-subtle overflow-x-hidden">
@@ -471,21 +558,34 @@ const MarketplaceHome = () => {
 
         {/* Picked for you — only when preferences are set. */}
         {hasPreferences && (preferenceProviders.length > 0 || preferenceProducts.length > 0) && (
-          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Picked For You</h2>
+          <AnimatedSection delay={500}><section
+            className="mb-12 md:mb-16"
+            data-testid="picked-for-you"
+            data-preview-ready={pickedProvidersGrid.ready || pickedProductsGrid.ready ? "true" : "false"}
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+              <div className="flex min-w-0 items-center gap-2">
+                <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Picked For You</h2>
+              </div>
+              {(pickedProductsOverflow || pickedProvidersOverflow) && (
+                <SectionViewAll
+                  to={pickedProductsOverflow ? pickedProductsHref() : artisanShelfHref("picked")}
+                  testId="picked-for-you-view-all"
+                  label="View all Picked For You"
+                />
+              )}
             </div>
             {preferenceProviders.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-6">
-                {preferenceProviders.slice(0, 6).map((provider) => (
+              <div ref={pickedProvidersGrid.ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-6">
+                {visiblePickedProviders.map((provider) => (
                   <ProviderCard key={provider.id} provider={provider} />
                 ))}
               </div>
             )}
             {preferenceProducts.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
-                {preferenceProducts.slice(0, 8).map((p) => (
+              <div ref={pickedProductsGrid.ref} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+                {visiblePickedProducts.map((p) => (
                   <div
                     key={p.id}
                     className="group cursor-pointer"
@@ -516,11 +616,24 @@ const MarketplaceHome = () => {
         )}
 
         {/* Recommended Providers */}
-        <AnimatedSection delay={200}><section className="home-band mb-12 md:mb-16">
+        <AnimatedSection delay={200}><section
+          className="home-band mb-12 md:mb-16"
+          data-testid="recommended-artisans"
+          data-preview-ready={!isLoading && (recommendedProviders.length === 0 || recommendedPreview.ready) ? "true" : "false"}
+        >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
-              {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
-            </h2>
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:w-auto sm:justify-start">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
+                {selectedCategory ? "Filtered Artisans" : "Recommended Artisans"}
+              </h2>
+              {showRecommendedViewAll && (
+                <SectionViewAll
+                  to={artisanShelfHref("recommended")}
+                  testId="recommended-artisans-view-all"
+                  label={selectedCategory ? "View all Filtered Artisans" : "View all Recommended Artisans"}
+                />
+              )}
+            </div>
             <Select value={artisanSort} onValueChange={setArtisanSort}>
               <SelectTrigger className="w-full sm:w-40 h-9 text-sm" aria-label="Sort artisans">
                 <SelectValue />
@@ -534,7 +647,7 @@ const MarketplaceHome = () => {
           </div>
 
           {recommendedProviders.length > 0 ? (
-            <RecommendedArtisanCarousel artisans={recommendedProviders} />
+            <RecommendedArtisanCarousel artisans={recommendedProviders} onApi={setRecommendedApi} />
           ) : !isLoading ? (
             <EmptySection title="No artisans to recommend yet" description="Artisans will show up here once they join the platform." />
           ) : <SkeletonGrid count={4} />}
@@ -542,13 +655,26 @@ const MarketplaceHome = () => {
 
         {/* Services For You */}
         {filteredProviders.length > 0 && (
-          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
+          <AnimatedSection delay={500}><section
+            className="mb-12 md:mb-16"
+            data-testid="services-for-you"
+            data-preview-ready={servicesGrid.ready ? "true" : "false"}
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+              <div className="flex min-w-0 items-center gap-2">
+                <Shirt className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Services For You</h2>
+              </div>
+              {showServicesViewAll && (
+                <SectionViewAll
+                  to={artisanShelfHref("services")}
+                  testId="services-view-all"
+                  label="View all Services For You"
+                />
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {filteredProviders.slice(0, 3).map((provider) => (
+            <div ref={servicesGrid.ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+              {visibleServices.map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
             </div>
@@ -557,13 +683,26 @@ const MarketplaceHome = () => {
 
         {/* Deals For You */}
         {dealProducts.length > 0 && (
-          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Tag className="h-5 w-5 md:h-6 md:w-6 text-accent" aria-hidden="true" />
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Deals For You</h2>
+          <AnimatedSection delay={500}><section
+            className="mb-12 md:mb-16"
+            data-testid="deals-for-you"
+            data-preview-ready={dealsGrid.ready ? "true" : "false"}
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+              <div className="flex min-w-0 items-center gap-2">
+                <Tag className="h-5 w-5 md:h-6 md:w-6 text-accent" aria-hidden="true" />
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Deals For You</h2>
+              </div>
+              {showDealsViewAll && (
+                <SectionViewAll
+                  to={productShelfHref("deals")}
+                  testId="deals-view-all"
+                  label="View all Deals For You"
+                />
+              )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {dealProducts.map((product) => (
+            <div ref={dealsGrid.ref} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+              {visibleDeals.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
                     <img loading="lazy" decoding="async"
@@ -589,13 +728,26 @@ const MarketplaceHome = () => {
 
         {/* Styles For You */}
         {styleProducts.length > 0 && (
-          <AnimatedSection delay={500}><section className="mb-12 md:mb-16">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-              <Palette className="h-5 w-5 md:h-6 md:w-6 text-secondary" aria-hidden="true" />
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Styles For You</h2>
+          <AnimatedSection delay={500}><section
+            className="mb-12 md:mb-16"
+            data-testid="styles-for-you"
+            data-preview-ready={stylesGrid.ready ? "true" : "false"}
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+              <div className="flex min-w-0 items-center gap-2">
+                <Palette className="h-5 w-5 md:h-6 md:w-6 text-secondary" aria-hidden="true" />
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Styles For You</h2>
+              </div>
+              {showStylesViewAll && (
+                <SectionViewAll
+                  to={productShelfHref("styles")}
+                  testId="styles-view-all"
+                  label="View all Styles For You"
+                />
+              )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
-              {styleProducts.map((product) => (
+            <div ref={stylesGrid.ref} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+              {visibleStyles.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
                   <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
                     <img loading="lazy" decoding="async"
@@ -618,18 +770,26 @@ const MarketplaceHome = () => {
 
         {/* Recently Viewed */}
         {recentArtisans.length > 0 && (
-          <AnimatedSection delay={400}><section className="mb-12 md:mb-16" data-testid="recent-artisans-section">
-            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
-              <div className="flex items-center gap-2">
+          <AnimatedSection delay={400}><section
+            className="mb-12 md:mb-16"
+            data-testid="recent-artisans-section"
+            data-preview-ready={recentArtisansGrid.ready ? "true" : "false"}
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+              <div className="flex min-w-0 items-center gap-2">
                 <Clock className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" aria-hidden="true" />
                 <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">Recently Viewed Artisans</h2>
               </div>
-              <Link to="/marketplace/artisans?collection=recent" className="text-sm font-medium text-primary hover:underline" data-testid="recent-artisans-view-all">
-                View all
-              </Link>
+              {showRecentArtisansViewAll && (
+                <SectionViewAll
+                  to="/marketplace/artisans?collection=recent"
+                  testId="recent-artisans-view-all"
+                  label="View all Recently Viewed Artisans"
+                />
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-              {recentArtisans.map((provider) => (
+            <div ref={recentArtisansGrid.ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+              {visibleRecentArtisans.map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
             </div>

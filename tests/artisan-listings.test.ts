@@ -24,4 +24,7 @@ describe("Unique public artisan listings", () => {
   test("incomplete profiles with different IDs are not collapsed", () => {
     expect(uniqueArtisanListings([artisan(25, { about: "" }), artisan(28, { about: "" })])).toHaveLength(2);
   });
+  test("the oldest storefront id is kept when a later copy is listed first", () => {
+    expect(uniqueArtisanListings([artisan(28), artisan(25)]).map((p) => p.id)).toEqual([25]);
+  });
 });

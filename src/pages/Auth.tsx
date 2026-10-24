@@ -103,10 +103,21 @@ const Auth = () => {
     return false;
   };
 
-  const handleGoogle = (purpose: "signIn" | "signUp" = "signIn") => {
+  useEffect(() => {
+    if (searchParams.get("error") === "consent") {
+      setConsentError("Agree to the Terms of Service and Privacy Policy to create an account.");
+    }
+  }, [searchParams]);
+
+  const handleGoogle = async (purpose: "signIn" | "signUp" = "signIn") => {
     if (purpose === "signUp" && !consentGranted()) return;
+    let url = authService.googleOAuthUrl();
+    if (purpose === "signUp") {
+      const ticket = await authService.issueOAuthConsent();
+      url += `?state=${encodeURIComponent(ticket.state)}`;
+    }
     // Full-page redirect — backend handles the OAuth dance and bounces back to /auth/callback.
-    window.location.href = authService.googleOAuthUrl();
+    window.location.href = url;
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -366,6 +377,7 @@ const Auth = () => {
                             variant="outline"
                             className="w-full gap-2"
                             onClick={() => handleGoogle("signIn")}
+                            data-testid="signin-google"
                             disabled={isLoading}
                           >
                             <Mail className="h-4 w-4" /> Continue with Google
@@ -422,6 +434,7 @@ const Auth = () => {
                       <ClerkGoogleButton
                         mode="signUp"
                         disabled={isLoading}
+                        unsafeMetadata={{ acceptedTerms: true, role: "customer" }}
                         onBeforeRedirect={consentGranted}
                       />
                     )}
@@ -436,6 +449,7 @@ const Auth = () => {
                           variant="outline"
                           className="w-full gap-2"
                           onClick={() => handleGoogle("signUp")}
+                          data-testid="signup-google"
                           disabled={isLoading}
                         >
                           <Mail className="h-4 w-4" /> Continue with Google
@@ -648,6 +662,7 @@ const Auth = () => {
                         variant="outline"
                         className="w-full gap-2"
                         onClick={() => handleGoogle("signUp")}
+                        data-testid="signup-google"
                         disabled={isLoading}
                       >
                         <Mail className="h-4 w-4" /> Continue with Google

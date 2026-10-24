@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
+import { SectionViewAll } from "@/components/marketplace/SectionViewAll";
+import { useFullyVisibleSlides } from "@/hooks/usePreviewCapacity";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { productsService } from "@/lib/apiServices";
 import { getRecentlyViewedIds } from "@/lib/recentlyViewed";
@@ -21,6 +24,8 @@ type Props = {
 const RecentlyViewed = ({ excludeProductId }: Props) => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [api, setApi] = useState<CarouselApi>();
+  const preview = useFullyVisibleSlides(api);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,23 +52,27 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
   if (products.length < 1) return null;
 
   return (
-    <section className="mb-8 md:mb-12" data-testid="recently-viewed-section">
-      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
-        <div className="flex items-center gap-2">
+    <section
+      className="mb-8 md:mb-12"
+      data-testid="recently-viewed-section"
+      data-preview-ready={preview.ready ? "true" : "false"}
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-6">
+        <div className="flex min-w-0 items-center gap-2">
           <History className="h-5 w-5 md:h-6 md:w-6 text-primary" />
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold">
             You recently viewed
           </h2>
         </div>
-        <Link
-          to="/marketplace/products?collection=recently-viewed"
-          className="text-sm font-medium text-primary hover:underline"
-          data-testid="recently-viewed-view-all"
-        >
-          View all
-        </Link>
+        {preview.ready && products.length > preview.visible && (
+          <SectionViewAll
+            to="/marketplace/products?collection=recently-viewed"
+            testId="recently-viewed-view-all"
+            label="View all You recently viewed"
+          />
+        )}
       </div>
-      <Carousel opts={{ align: "start", loop: true }} className="w-full">
+      <Carousel setApi={setApi} opts={{ align: "start", loop: true }} className="w-full">
         <CarouselContent className="-ml-2 md:-ml-4">
           {products.map((product) => (
             <CarouselItem

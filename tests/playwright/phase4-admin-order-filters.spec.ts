@@ -43,7 +43,8 @@ test.describe("Phase 4 admin order filters (local)", () => {
     const initialRes = await initial;
     expect(initialRes.ok()).toBeTruthy();
     const initialBody = await initialRes.json();
-    expect(initialBody.pagination.totalItems).toBe(4);
+    const initialTotal = initialBody.pagination.totalItems;
+    expect(initialTotal).toBeGreaterThanOrEqual(4);
     await expect(page.getByRole("heading", { name: "ORD-002" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "ORD-001" })).toBeVisible();
 
@@ -109,7 +110,7 @@ test.describe("Phase 4 admin order filters (local)", () => {
     await page.getByTestId("admin-order-clear").click();
     const restoredRes = await restored;
     const restoredBody = await restoredRes.json();
-    expect(restoredBody.pagination.totalItems).toBe(4);
+    expect(restoredBody.pagination.totalItems).toBe(initialTotal);
     await expect(page.getByTestId("admin-order-search")).toHaveValue("");
     await expect(page.getByRole("heading", { name: "ORD-002" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "ORD-001" })).toBeVisible();

@@ -17,6 +17,7 @@ test.describe('Auth', () => {
     await page.locator('#signup-email').fill(existingEmail);
     await page.locator('#signup-password').fill('Test@1234Aa');
     await page.locator('#confirm-password').fill('Test@1234Aa');
+    await page.getByTestId('signup-consent').click();
 
     await page.locator('[data-testid="signup-btn"]').scrollIntoViewIfNeeded();
     await page.locator('[data-testid="signup-btn"]').click();

@@ -77,6 +77,17 @@ function buildFilters(
 
   if (minPrice && Number.isFinite(Number(minPrice))) filters.minPrice = Number(minPrice);
   if (maxPrice && Number.isFinite(Number(maxPrice))) filters.maxPrice = Number(maxPrice);
+  const styleTags = searchParams.get("styleTags");
+  if (styleTags) filters.styleTags = styleTags;
+  if (searchParams.get("styleMatch") === "any") filters.styleMatch = "any";
+  const materials = searchParams.get("materials");
+  if (materials) filters.materials = materials;
+  const country = searchParams.get("country");
+  if (country) filters.country = country;
+  const state = searchParams.get("state");
+  if (state) filters.state = state;
+  const categoryList = searchParams.get("categories");
+  if (categoryList) filters.categories = categoryList;
   if (maxDeliveryDays && Number.isFinite(Number(maxDeliveryDays))) {
     filters.maxDeliveryDays = Number(maxDeliveryDays);
   }
@@ -121,6 +132,17 @@ function buildFilters(
     title = "Best Sellers";
     description =
       "Products with genuine orders, plus any product marked as a best seller. Highest order count first. Cancelled and rejected orders are not counted.";
+  } else if (collection === "deals") {
+    filters.collection = "deals";
+    title = "Deals For You";
+    description = "Products whose original price is higher than the current price.";
+  } else if (collection === "styles") {
+    filters.collection = "styles";
+    title = "Styles For You";
+    description = "Products tagged Traditional, Afrocentric, Modern, or Elegant.";
+  } else if (collection === "picked") {
+    title = "Picked For You";
+    description = "Products matching the preferences used for this homepage section.";
   } else if (collection === "featured_picks") {
     title = "Featured Picks";
     description =
@@ -223,18 +245,22 @@ const AllProducts = () => {
 
   const requestIdRef = useRef(0);
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const inFlightPageRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const filtersKey = searchParams.toString();
 
   const loadPage = useCallback(
     async (pageToLoad: number, replace: boolean) => {
+      if (!replace && inFlightPageRef.current === pageToLoad) return;
       const requestId = ++requestIdRef.current;
+      if (!replace) inFlightPageRef.current = pageToLoad;
       const { filters, title: newTitle, description: newDescription } = buildFilters(
         searchParams,
         categories,
       );
 
       if (replace) {
+        inFlightPageRef.current = null;
         setIsLoading(true);
         setError(null);
         setDisplayProducts([]);
@@ -292,6 +318,7 @@ const AllProducts = () => {
           setHasMore(false);
         }
       } finally {
+        if (inFlightPageRef.current === pageToLoad) inFlightPageRef.current = null;
         if (requestId === requestIdRef.current) {
           setIsLoading(false);
           setIsLoadingMore(false);

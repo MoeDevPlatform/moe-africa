@@ -84,8 +84,17 @@ const AllArtisans = () => {
     filters,
   );
 
+  const shelfSort = searchParams.get("sort");
+  const categoriesQuery = searchParams.get("categories") || "";
+  const styleTagQuery = searchParams.get("styleTags") || "";
+  const minRatingQuery = searchParams.get("minRating");
+  const availableOnly = searchParams.get("availableOnly") === "true";
+  const country = searchParams.get("country");
+  const state = searchParams.get("state");
+
   useEffect(() => {
-    if (collection !== "featured_artisans" && collection !== "recent") {
+    const shelf = collection === "services" || collection === "recommended" || collection === "picked";
+    if (collection !== "featured_artisans" && collection !== "recent" && !shelf) {
       setCollectionArtisans(null);
       setCollectionError(null);
       return;
@@ -100,6 +109,47 @@ const AllArtisans = () => {
         const list = await providersService.searchAll({});
         const byId = new Map(list.map((row) => [Number(row.id), row]));
         return ids.map((id) => byId.get(id)).filter((row): row is Provider => Boolean(row));
+      }
+      if (collection === "services" || collection === "recommended" || collection === "picked") {
+        const query: Record<string, unknown> = {};
+        if (country) query.country = country;
+        if (state) query.state = state;
+        let list = await providersService.searchAll(query);
+        if (category) list = list.filter((row) => (row.category || "") === category);
+        const wantedCategories = categoriesQuery.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
+        if (!category && wantedCategories.length) {
+          list = list.filter((row) =>
+            wantedCategories.some((value) => (row.category || "").toLowerCase().includes(value)),
+          );
+        }
+        const tags = styleTagQuery.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean);
+        if (tags.length) {
+          list = list.filter((row) => {
+            const own = (row.styleTags || []).map((tag) => tag.toLowerCase());
+            return tags.some((tag) => own.includes(tag));
+          });
+        }
+        if (availableOnly) {
+          list = list.filter((row) => Number((row as Provider & { productCount?: number }).productCount ?? 0) > 0);
+        }
+        const minRating = Number(minRatingQuery);
+        if (Number.isFinite(minRating) && minRating > 0) {
+          list = list.filter((row) => Number(row.rating ?? 0) >= minRating);
+        }
+        if (collection === "recommended") {
+          const ratingOf = (row: Provider) => Number(row.rating ?? 0);
+          const createdOf = (row: Provider) => {
+            const raw = (row as Provider & { createdAt?: string }).createdAt;
+            const parsed = typeof raw === "string" ? Date.parse(raw) : NaN;
+            return Number.isFinite(parsed) ? parsed : row.id;
+          };
+          list = [...list].sort((a, b) => {
+            if (shelfSort === "rating") return ratingOf(b) - ratingOf(a);
+            if (shelfSort === "recent") return createdOf(b) - createdOf(a);
+            return Number(!!b.featured) - Number(!!a.featured) || ratingOf(b) - ratingOf(a);
+          });
+        }
+        return list;
       }
       const res = await sectionsService.get("featured_artisans");
       return (res.items ?? []).map((raw) => sectionArtisanToProvider(raw)).filter((row) => row.id > 0);
@@ -120,9 +170,29 @@ const AllArtisans = () => {
     return () => {
       cancelled = true;
     };
-  }, [collection]);
+  }, [collection, category, categoriesQuery, country, state, styleTagQuery, minRatingQuery, availableOnly, shelfSort]);
 
   const copy = useMemo(() => {
+    if (collection === "picked") {
+      return {
+        title: "Picked For You",
+        description: "Artisans matching the categories saved in your preferences.",
+      };
+    }
+    if (collection === "services") {
+      return {
+        title: "Services For You",
+        description: "Artisans from the homepage Services For You section, with the same category and filters.",
+      };
+    }
+    if (collection === "recommended") {
+      return {
+        title: category ? "Filtered Artisans" : "Recommended Artisans",
+        description: category
+          ? "Artisans in the selected category, in the homepage recommendation order."
+          : "Artisans from the homepage Recommended Artisans section, in the same order.",
+      };
+    }
     if (collection === "featured_artisans") {
       return {
         title: "Featured Artisans",

@@ -75,6 +75,7 @@ const ClerkGoogleButton = ({ mode, unsafeMetadata, disabled, onBeforeRedirect, h
         variant="outline"
         className="w-full gap-2 border-primary text-primary hover:bg-primary/5 hover:text-primary"
         onClick={handleGoogle}
+        data-testid={mode === "signUp" ? "signup-google" : "signin-google"}
         disabled={disabled || redirecting || !clerk.loaded}
       >
         <GoogleIcon />

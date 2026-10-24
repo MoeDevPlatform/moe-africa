@@ -97,6 +97,9 @@ export const authService = {
       return mockAuthFallback(data.name, data.email, data.role);
     }
   },
+  /** One-time state for a new Google signup. Sign-in does not call this. */
+  issueOAuthConsent: () =>
+    apiPost<{ state: string }>("/auth/oauth-consent", { acceptedTerms: true }),
   /** Full-page redirect target for Google OAuth (item 9). */
   googleOAuthUrl: () => {
     const base = (import.meta.env?.VITE_API_BASE_URL ??
@@ -438,6 +441,8 @@ export interface ProductFilters {
   maxPrice?: number;
   materials?: string;
   styleTags?: string;
+  styleMatch?: "any";
+  categories?: string;
   maxDeliveryDays?: number;
   country?: string;
   state?: string;
@@ -635,6 +640,17 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
   };
 };
 
+function uniqueProducts(rows: Product[]): Product[] {
+  const seen = new Set<number>();
+  const out: Product[] = [];
+  for (const row of rows) {
+    if (!Number.isFinite(row.id) || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out;
+}
+
 export const productsService = {
   /**
    * Lists products from the API only. Does not silently substitute mock catalogue
@@ -647,7 +663,7 @@ export const productsService = {
       filters as Record<string, unknown>,
     );
     return {
-      data: Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [],
+      data: uniqueProducts(Array.isArray(res?.data) ? res.data.map(normalizeProduct) : []),
       pagination: res?.pagination ?? { page: 1, pageSize: 0, totalPages: 1, totalItems: 0 },
       filterMeta: res?.filterMeta,
     };
@@ -672,7 +688,7 @@ export const productsService = {
         ids: ids.join(","),
       });
       const rows = Array.isArray(raw) ? raw : (raw?.data ?? []);
-      if (rows.length > 0) return rows.map(normalizeProduct);
+      if (rows.length > 0) return uniqueProducts(rows.map(normalizeProduct));
     } catch {
       /* fall through to per-id fetch */
     }
@@ -688,7 +704,7 @@ export const productsService = {
       const res = await apiGet<{ data: Record<string, any>[] }>(
         `/service-providers/${providerId}/products`,
       );
-      return Array.isArray(res?.data) ? res.data.map(normalizeProduct) : [];
+      return uniqueProducts(Array.isArray(res?.data) ? res.data.map(normalizeProduct) : []);
     } catch {
       return mockGetProductsByProviderId(providerId);
     }

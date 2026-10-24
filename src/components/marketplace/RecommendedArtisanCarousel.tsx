@@ -3,7 +3,13 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import ProviderCard from "./ProviderCard";
 import type { Provider } from "@/data/mockData";
 
-export default function RecommendedArtisanCarousel({ artisans }: { artisans: Provider[] }) {
+export default function RecommendedArtisanCarousel({
+  artisans,
+  onApi,
+}: {
+  artisans: Provider[];
+  onApi?: (api: CarouselApi) => void;
+}) {
   const [api, setApi] = useState<CarouselApi>();
   const [selected, setSelected] = useState(0);
   const [snapCount, setSnapCount] = useState(0);
@@ -22,6 +28,10 @@ export default function RecommendedArtisanCarousel({ artisans }: { artisans: Pro
       api.off("reInit", update);
     };
   }, [api]);
+
+  useEffect(() => {
+    if (api) onApi?.(api);
+  }, [api, onApi]);
 
   const progress =
     snapCount > 1 ? ((selected + 1) / snapCount) * 100 : 100;
