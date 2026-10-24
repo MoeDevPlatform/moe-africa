@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
@@ -13,6 +13,8 @@ import { useCategories } from "@/contexts/CategoriesContext";
 import FilterDrawer, { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const ARTISAN_BATCH = 20;
 
 const VIEWS: { id: ArtisanDiscoveryView; label: string }[] = [
   { id: "all", label: "All" },
@@ -279,6 +281,35 @@ const AllArtisans = () => {
     setSearchParams(params);
   };
 
+  const fullList = collection ? (collectionArtisans ?? []) : search.all;
+  const listKey = fullList.map((row) => row.id).join(",");
+  const [visibleCount, setVisibleCount] = useState(ARTISAN_BATCH);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const listLoading = collection ? collectionLoading : search.loading;
+  const listError = collection ? collectionError : search.error;
+
+  useEffect(() => {
+    setVisibleCount(ARTISAN_BATCH);
+  }, [listKey]);
+
+  const visibleArtisans = fullList.slice(0, visibleCount);
+  const hasMore = visibleArtisans.length < fullList.length;
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || listLoading || listError) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((count) => count + ARTISAN_BATCH);
+        }
+      },
+      { root: null, rootMargin: "240px", threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, listLoading, listError, visibleCount]);
+
   return (
     <div className="min-h-screen bg-background">
       <MarketplaceNavbar />
@@ -331,19 +362,30 @@ const AllArtisans = () => {
 
         <div data-testid="artisans-grid">
           <ArtisanResults
-            {...(collection
-              ? {
-                  results: collectionArtisans ?? [],
-                  loading: collectionLoading,
-                  error: collectionError,
-                  page: 1,
-                  totalPages: 1,
-                  setPage: () => undefined,
-                }
-              : search)}
+            results={visibleArtisans}
+            loading={listLoading}
+            error={listError}
+            page={1}
+            totalPages={1}
+            setPage={() => undefined}
             filtered={isFiltered || Boolean(collection)}
             onClear={clearAll}
           />
+          {!listLoading && !listError && visibleArtisans.length > 0 ? (
+            <>
+              <div
+                ref={sentinelRef}
+                className="h-10 flex items-center justify-center mt-8"
+                data-testid="artisans-load-more"
+                aria-hidden={!hasMore}
+              />
+              {!hasMore ? (
+                <p className="text-center text-sm text-muted-foreground pb-8" data-testid="artisans-end">
+                  You’ve reached the end of the catalogue
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </main>
 

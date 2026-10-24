@@ -171,5 +171,5 @@ export function useArtisanSearch(
 
   const totalPages = Math.max(1, Math.ceil(all.length / ARTISAN_PAGE_SIZE));
   const pageItems = all.slice((page - 1) * ARTISAN_PAGE_SIZE, page * ARTISAN_PAGE_SIZE);
-  return { results: pageItems, total: all.length, page, totalPages, setPage, loading, error };
+  return { results: pageItems, all, total: all.length, page, totalPages, setPage, loading, error };
 }
