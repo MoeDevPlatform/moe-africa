@@ -1,6 +1,6 @@
 export type CustomCategory = "tailoring" | "shoemaking" | "jewellery" | "leatherwork" | "home" | "other";
-export function customCategory(category: string): CustomCategory {
-  const value = category.toLowerCase();
+export function customCategory(category: string | null | undefined): CustomCategory {
+  const value = String(category ?? "").toLowerCase();
   if (/tailor|clothing|fashion/.test(value)) return "tailoring";
   if (/shoe|footwear/.test(value)) return "shoemaking";
   if (/jewel|jewell/.test(value)) return "jewellery";

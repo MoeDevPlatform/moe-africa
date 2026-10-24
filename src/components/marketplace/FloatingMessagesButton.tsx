@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAuth } from "@/contexts/AuthContext";
 import { messagingService } from "@/lib/apiServices";
 
-/** Persistent messaging button, kept clear of the refresh and scroll buttons. */
+/** Persistent messaging button, kept clear of the scroll-to-top button. */
 const FloatingMessagesButton = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -69,7 +69,7 @@ const FloatingMessagesButton = () => {
             type="button"
             data-testid="floating-messages-btn"
             onClick={openMessages}
-            className="fixed bottom-36 right-6 z-[70] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+            className="fixed bottom-36 right-6 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
             aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
           >
             <MessageCircle className="h-5 w-5" />

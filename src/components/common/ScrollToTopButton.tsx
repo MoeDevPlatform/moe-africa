@@ -28,7 +28,7 @@ const ScrollToTopButton = () => {
             aria-label="Scroll to top"
             tabIndex={visible ? 0 : -1}
             className={cn(
-              "fixed bottom-20 right-6 z-[60] h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all duration-300",
+              "fixed bottom-20 right-6 z-40 h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all duration-300",
               visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none",
             )}
           >

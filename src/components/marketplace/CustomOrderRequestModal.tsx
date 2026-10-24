@@ -128,13 +128,13 @@ export default function CustomOrderRequestModal({
         selected.map(
           (file) =>
             new Promise<{ name: string; url: string }>((resolve, reject) => {
-              const reader = new FileReader();
+        const reader = new FileReader();
               reader.onload = () =>
                 typeof reader.result === "string"
                   ? resolve({ name: file.name, url: reader.result })
                   : reject(new Error("Could not read image."));
-              reader.onerror = () => reject(new Error("Could not read image."));
-              reader.readAsDataURL(file);
+        reader.onerror = () => reject(new Error("Could not read image."));
+        reader.readAsDataURL(file);
             }),
         ),
       );

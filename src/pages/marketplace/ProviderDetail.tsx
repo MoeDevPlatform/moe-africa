@@ -125,7 +125,6 @@ const ProviderDetail = () => {
 
   useEffect(() => {
     if (location.hash !== "#custom-order" || provider?.isCustomOrderEligible !== true) return;
-    document.getElementById("custom-order")?.scrollIntoView({ behavior: "smooth", block: "center" });
     setShowCustomOrderModal(true);
   }, [location.hash, provider?.id, provider?.isCustomOrderEligible]);
 
@@ -368,25 +367,15 @@ const ProviderDetail = () => {
                   )}
                 </div>
                 {provider.isCustomOrderEligible === true && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          id="custom-order"
-                          className="w-full mt-6 bg-secondary hover:bg-secondary-dark"
-                          data-testid="request-custom-order-btn"
-                          onClick={() => setShowCustomOrderModal(true)}
-                        >
-                          Request Custom Order
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">
-                          Request a fully custom commission from this artisan
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Button
+                    id="custom-order"
+                    type="button"
+                    className="w-full mt-6 bg-secondary hover:bg-secondary-dark"
+                    data-testid="request-custom-order-btn"
+                    onClick={() => setShowCustomOrderModal(true)}
+                  >
+                    Request Custom Order
+                  </Button>
                 )}
               </div>
             </div>
