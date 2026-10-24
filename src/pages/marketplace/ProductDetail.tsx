@@ -450,7 +450,7 @@ const ProductDetail = () => {
               </p>
             )}
 
-            {(provider.isCustomOrderEligible === true || (product as Product & { isCustomOrderEligible?: boolean }).isCustomOrderEligible === true) && (
+            {provider.isCustomOrderEligible === true && (
               <div
                 data-testid="product-custom-order-banner"
                 className="rounded-xl bg-primary/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"

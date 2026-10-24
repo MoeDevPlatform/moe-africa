@@ -612,7 +612,10 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
       : {}),
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
-    isCustomOrderEligible: raw.isCustomOrderEligible === true || raw.artisan?.isCustomOrderEligible === true || raw.provider?.isCustomOrderEligible === true,
+    isCustomOrderEligible:
+      raw.artisan?.isCustomOrderEligible === true ||
+      raw.provider?.artisanProfile?.isCustomOrderEligible === true ||
+      raw.provider?.isCustomOrderEligible === true,
     // Item 10 — preserve approval status for artisan dashboard / admin UI.
     ...(raw.status ? { status: raw.status } : {}),
     ...(raw.customisationRequired != null ? { customisationRequired: !!raw.customisationRequired } : {}),
