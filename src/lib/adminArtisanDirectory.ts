@@ -15,7 +15,28 @@ export async function loadArtisanDirectory(
     );
     for (const result of pages) rows.push(...(result.data ?? []));
   }
-  return [...new Map(rows.map((row) => [row.id, row])).values()];
+  return sortArtisanDirectory([...new Map(rows.map((row) => [row.id, row])).values()]);
+}
+
+function artisanSortLabel(row: AdminArtisanRow) {
+  return (row.name || row.brandName || row.businessName || "").trim();
+}
+
+/** Case-insensitive A–Z by the Name column, then brand, then id. */
+export function sortArtisanDirectory(rows: AdminArtisanRow[]) {
+  return [...rows].sort((a, b) => {
+    const byName = artisanSortLabel(a).localeCompare(artisanSortLabel(b), undefined, {
+      sensitivity: "base",
+    });
+    if (byName !== 0) return byName;
+    const byBrand = (a.brandName || a.businessName || "").localeCompare(
+      b.brandName || b.businessName || "",
+      undefined,
+      { sensitivity: "base" },
+    );
+    if (byBrand !== 0) return byBrand;
+    return a.id - b.id;
+  });
 }
 
 export function searchArtisanDirectory(rows: AdminArtisanRow[], search: string) {
@@ -88,5 +109,5 @@ export function filterArtisanDirectory(
       out = out.filter((row) => new Date(row.createdAt) <= to);
     }
   }
-  return out;
+  return sortArtisanDirectory(out);
 }

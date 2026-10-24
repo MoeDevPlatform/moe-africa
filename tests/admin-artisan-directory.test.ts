@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { loadArtisanDirectory, searchArtisanDirectory } from "../src/lib/adminArtisanDirectory";
+import { loadArtisanDirectory, searchArtisanDirectory, sortArtisanDirectory } from "../src/lib/adminArtisanDirectory";
 import type { AdminArtisanRow } from "../src/lib/apiServices";
 
 const artisan = (id: number, name: string): AdminArtisanRow => ({
@@ -20,6 +20,12 @@ describe("Admin artisan directory search", () => {
     expect(calls.sort()).toEqual([1, 2, 3, 4]);
     expect(searchArtisanDirectory(directory, "john").map((row) => row.id)).toEqual([4]);
     expect(searchArtisanDirectory(directory, "")).toHaveLength(4);
+    expect(directory.map((row) => row.name)).toEqual([
+      "Artisan 1",
+      "Artisan 2",
+      "Artisan 3",
+      "john appeased",
+    ]);
   });
 
   test("matches name, email and business names regardless of case or outside spaces", () => {
@@ -28,6 +34,16 @@ describe("Admin artisan directory search", () => {
       expect(searchArtisanDirectory([row], query)).toEqual([row]);
     }
     expect(searchArtisanDirectory([row], "john")).toEqual([]);
+  });
+
+  test("sorts the directory A–Z by name, ignoring case", () => {
+    const sorted = sortArtisanDirectory([
+      artisan(3, "yvng dev"),
+      artisan(1, "Test Artisan"),
+      artisan(2, "dav Mav"),
+      { ...artisan(4, "Test Artisan"), brandName: "PW Biz 2" },
+    ]);
+    expect(sorted.map((row) => row.id)).toEqual([2, 4, 1, 3]);
   });
 
   test("a failed later page rejects rather than presenting incomplete search results", async () => {

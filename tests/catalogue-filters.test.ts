@@ -52,7 +52,7 @@ describe("Admin artisan directory filters", () => {
     expect(matched.map((row) => row.id)).toEqual([1]);
   });
 
-  test("clearing filters returns the full directory", () => {
-    expect(filterArtisanDirectory(rows, {}).map((row) => row.id)).toEqual([1, 2]);
+  test("clearing filters returns the full directory in name order", () => {
+    expect(filterArtisanDirectory(rows, {}).map((row) => row.id)).toEqual([2, 1]);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,11 @@ import {
 import { apiGet } from "@/lib/moeApi";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 type ActivityItem = {
   id: string;
@@ -45,13 +50,17 @@ const Dashboard = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activityOrder, setActivityOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [activityLetter, setActivityLetter] = useState("all");
+  const [activityFrom, setActivityFrom] = useState("");
+  const [activityTo, setActivityTo] = useState("");
 
   const loadActivity = async () => {
     const items: ActivityItem[] = [];
     try {
       const [messagesRes, unread] = await Promise.all([
         apiGet<{ data?: Array<Record<string, unknown>> }>("/admin/messages", {
-          pageSize: 8,
+          pageSize: 100,
         }),
         adminMessagingService.unreadCount().catch(() => 0),
       ]);
@@ -87,7 +96,7 @@ const Dashboard = () => {
     try {
       const reviewsRes = await apiGet<{
         data?: Array<Record<string, unknown>>;
-      }>("/admin/reviews", { pageSize: 8 });
+      }>("/admin/reviews", { pageSize: 100 });
       for (const row of reviewsRes.data ?? []) {
         const rating = Number(row.rating ?? 0);
         const artisanName = String(row.artisanName || `Artisan #${row.artisanId}`);
@@ -108,8 +117,40 @@ const Dashboard = () => {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-    setActivity(items.slice(0, 10));
+    setActivity(items);
   };
+
+  const activityFiltersActive =
+    activityOrder !== "newest" || activityLetter !== "all" || !!activityFrom || !!activityTo;
+
+  const visibleActivity = useMemo(() => {
+    let items = activity;
+    if (activityLetter !== "all") {
+      const letter = activityLetter.toLowerCase();
+      items = items.filter((item) => item.title.trim().toLowerCase().startsWith(letter));
+    }
+    if (activityFrom) {
+      const from = new Date(`${activityFrom}T00:00:00`);
+      if (!Number.isNaN(from.getTime())) {
+        items = items.filter((item) => new Date(item.createdAt) >= from);
+      }
+    }
+    if (activityTo) {
+      const to = new Date(`${activityTo}T23:59:59.999`);
+      if (!Number.isNaN(to.getTime())) {
+        items = items.filter((item) => new Date(item.createdAt) <= to);
+      }
+    }
+    const sorted = [...items].sort((a, b) => {
+      if (activityOrder === "az" || activityOrder === "za") {
+        const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+        if (byTitle !== 0) return activityOrder === "az" ? byTitle : -byTitle;
+      }
+      const byDate = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return activityOrder === "oldest" ? byDate : -byDate;
+    });
+    return activityFiltersActive ? sorted : sorted.slice(0, 10);
+  }, [activity, activityOrder, activityLetter, activityFrom, activityTo, activityFiltersActive]);
 
   const loadEventsTeaser = async () => {
     try {
@@ -351,7 +392,60 @@ const Dashboard = () => {
               </Link>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="admin-activity-filters">
+              <Select value={activityOrder} onValueChange={(value) => setActivityOrder(value as typeof activityOrder)}>
+                <SelectTrigger className="bg-card" data-testid="admin-activity-order" aria-label="Sort activity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card">
+                  <SelectItem value="newest">Date, newest</SelectItem>
+                  <SelectItem value="oldest">Date, oldest</SelectItem>
+                  <SelectItem value="az">Alphabetical, A–Z</SelectItem>
+                  <SelectItem value="za">Alphabetical, Z–A</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={activityLetter} onValueChange={setActivityLetter}>
+                <SelectTrigger className="bg-card" data-testid="admin-activity-letter" aria-label="Letter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card max-h-60">
+                  <SelectItem value="all">All letters</SelectItem>
+                  {LETTERS.map((letter) => (
+                    <SelectItem key={letter} value={letter}>{letter}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                aria-label="Activity from"
+                data-testid="admin-activity-date-from"
+                value={activityFrom}
+                onChange={(event) => setActivityFrom(event.target.value)}
+              />
+              <Input
+                type="date"
+                aria-label="Activity to"
+                data-testid="admin-activity-date-to"
+                value={activityTo}
+                onChange={(event) => setActivityTo(event.target.value)}
+              />
+              {activityFiltersActive ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  data-testid="admin-activity-clear"
+                  onClick={() => {
+                    setActivityOrder("newest");
+                    setActivityLetter("all");
+                    setActivityFrom("");
+                    setActivityTo("");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
             {isLoading ? (
               <Skeleton className="h-28 w-full" />
             ) : activity.length === 0 ? (
@@ -359,8 +453,10 @@ const Dashboard = () => {
                 No recent messages or reviews yet. Contact Us and inbox items appear here when
                 submitted.
               </p>
+            ) : visibleActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity matches these filters.</p>
             ) : (
-              activity.map((item) => (
+              visibleActivity.map((item) => (
                 <Link
                   key={item.id}
                   to={item.href}
