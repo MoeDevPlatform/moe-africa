@@ -58,6 +58,8 @@ export interface RegisterRequest {
   role?: UserRole;
   /** Required for artisan signup — multi-select of service category slugs. */
   serviceCategories?: string[];
+  /** Caller affirms the existing Terms of Service and Privacy Policy. */
+  acceptedTerms?: boolean;
 }
 
 // Mock auth fallback for offline/dev use

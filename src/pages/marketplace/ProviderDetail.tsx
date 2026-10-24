@@ -241,9 +241,15 @@ const ProviderDetail = () => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button size="lg" onClick={() => setShowMessaging(true)} variant="outline" className="bg-background/50 backdrop-blur">
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Contact Us About This Artisan
+                        <Button
+                          size="lg"
+                          onClick={() => setShowMessaging(true)}
+                          variant="outline"
+                          className="bg-background/50 backdrop-blur h-auto whitespace-normal text-center"
+                          data-testid="make-enquiry-btn"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2 shrink-0" />
+                          Make an Enquiry
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent><p className="text-xs">Send an inquiry to MoE Support about this artisan</p></TooltipContent>
@@ -351,12 +357,13 @@ const ProviderDetail = () => {
                   </div>
                   {!isOwnStorefront && (
                     <Button
-                      className="w-full"
+                      className="w-full h-auto whitespace-normal"
                       variant="outline"
+                      data-testid="make-enquiry-sidebar-btn"
                       onClick={() => setShowMessaging(true)}
                     >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Contact Us About This Artisan
+                      <MessageCircle className="h-4 w-4 mr-2 shrink-0" />
+                      Make an Enquiry
                     </Button>
                   )}
                 </div>

@@ -271,12 +271,13 @@ const ProductDetail = () => {
       {!isOwnProduct && (
         <Button
           size="lg"
-          variant="ghost"
+          variant="outline"
           className="w-full"
+          data-testid="message-us-btn"
           onClick={() => setShowMessaging(true)}
         >
           <MessageCircle className="h-4 w-4 mr-2" />
-          Message Artisan
+          Message Us
         </Button>
       )}
     </>

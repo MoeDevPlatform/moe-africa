@@ -78,6 +78,8 @@ const Auth = () => {
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<UserRole>("customer");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [consentError, setConsentError] = useState("");
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [availableServiceCategories, setAvailableServiceCategories] = useState<ServiceCategoryOption[]>([]);
 
@@ -92,7 +94,17 @@ const Auth = () => {
     );
   };
 
-  const handleGoogle = () => {
+  const consentGranted = () => {
+    if (acceptedTerms) {
+      setConsentError("");
+      return true;
+    }
+    setConsentError("Agree to the Terms of Service and Privacy Policy to create an account.");
+    return false;
+  };
+
+  const handleGoogle = (purpose: "signIn" | "signUp" = "signIn") => {
+    if (purpose === "signUp" && !consentGranted()) return;
     // Full-page redirect — backend handles the OAuth dance and bounces back to /auth/callback.
     window.location.href = authService.googleOAuthUrl();
   };
@@ -160,6 +172,7 @@ const Auth = () => {
       toast.error("Select at least one service category");
       return;
     }
+    if (!consentGranted()) return;
     setAuthError("");
     setIsLoading(true);
     try {
@@ -170,6 +183,7 @@ const Auth = () => {
         signUpPassword,
         role,
         role === "artisan" ? serviceCategories : undefined,
+        true,
       );
       toast.success("Account created successfully!");
       navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
@@ -351,7 +365,7 @@ const Auth = () => {
                             type="button"
                             variant="outline"
                             className="w-full gap-2"
-                            onClick={handleGoogle}
+                            onClick={() => handleGoogle("signIn")}
                             disabled={isLoading}
                           >
                             <Mail className="h-4 w-4" /> Continue with Google
@@ -376,6 +390,28 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="signup">
+                <div className="flex items-start gap-2 py-2">
+                  <Checkbox
+                    id="accept-terms"
+                    data-testid="signup-consent"
+                    checked={acceptedTerms}
+                    onCheckedChange={(value) => {
+                      setAcceptedTerms(value === true);
+                      if (value === true) setConsentError("");
+                    }}
+                  />
+                  <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+                    {" "}and{" "}
+                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                  </Label>
+                </div>
+                {consentError && (
+                  <p className="text-sm text-destructive" data-testid="signup-consent-error" role="alert">
+                    {consentError}
+                  </p>
+                )}
                 {/* Role + categories ride along as Clerk unsafeMetadata so POST /auth/clerk-verify
                     can create an artisan profile for Google sign-ups too. Google sign-up is only
                     offered for customers — artisan accounts require email sign-up so service
@@ -383,7 +419,11 @@ const Auth = () => {
                 {role === "customer" ? (
                   <>
                     {isClerkEnabled && (
-                      <ClerkGoogleButton mode="signUp" disabled={isLoading} />
+                      <ClerkGoogleButton
+                        mode="signUp"
+                        disabled={isLoading}
+                        onBeforeRedirect={consentGranted}
+                      />
                     )}
                     {!isClerkEnabled && (
                       <>
@@ -395,7 +435,7 @@ const Auth = () => {
                           type="button"
                           variant="outline"
                           className="w-full gap-2"
-                          onClick={handleGoogle}
+                          onClick={() => handleGoogle("signUp")}
                           disabled={isLoading}
                         >
                           <Mail className="h-4 w-4" /> Continue with Google
@@ -607,7 +647,7 @@ const Auth = () => {
                         type="button"
                         variant="outline"
                         className="w-full gap-2"
-                        onClick={handleGoogle}
+                        onClick={() => handleGoogle("signUp")}
                         disabled={isLoading}
                       >
                         <Mail className="h-4 w-4" /> Continue with Google
@@ -621,9 +661,8 @@ const Auth = () => {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          By continuing, you agree to MOE's{" "}
           <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
-          {" "}and{" "}
+          {" · "}
           <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
         </p>
       </div>

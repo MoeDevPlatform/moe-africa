@@ -20,6 +20,7 @@ interface AuthContextType {
     password: string,
     role?: UserRole,
     serviceCategories?: string[],
+    acceptedTerms?: boolean,
   ) => Promise<void>;
   /** Persist tokens + hydrate profile (used by OTP verify + Google OAuth callback). */
   loginWithTokens: (token: string, refreshToken: string) => Promise<void>;
@@ -138,8 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     role?: UserRole,
     serviceCategories?: string[],
+    acceptedTerms?: boolean,
   ) => {
-    const res = await authService.register({ name, email, password, role, serviceCategories });
+    const res = await authService.register({
+      name,
+      email,
+      password,
+      role,
+      serviceCategories,
+      acceptedTerms,
+    });
     clearArtisanStash();
     clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, res.token);

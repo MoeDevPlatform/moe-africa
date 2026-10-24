@@ -17,6 +17,8 @@ interface ClerkGoogleButtonProps {
   /** Sign-up only: copied by Clerk onto the new user; read by POST /auth/clerk-verify. */
   unsafeMetadata?: Record<string, unknown>;
   disabled?: boolean;
+  /** Return false to stop the redirect, for example when signup consent is missing. */
+  onBeforeRedirect?: () => boolean;
   /** Optional helper text rendered under the button. */
   hint?: string;
 }
@@ -29,11 +31,12 @@ interface ClerkGoogleButtonProps {
  *
  * Must render inside <ClerkProvider> — gate on `isClerkEnabled` at the call site.
  */
-const ClerkGoogleButton = ({ mode, unsafeMetadata, disabled, hint }: ClerkGoogleButtonProps) => {
+const ClerkGoogleButton = ({ mode, unsafeMetadata, disabled, onBeforeRedirect, hint }: ClerkGoogleButtonProps) => {
   const clerk = useClerk();
   const [redirecting, setRedirecting] = useState(false);
 
   const handleGoogle = async () => {
+    if (onBeforeRedirect && !onBeforeRedirect()) return;
     if (!clerk.loaded || !clerk.client) return;
     setRedirecting(true);
     try {

@@ -74,6 +74,7 @@ export async function registerArtisan(
       role: 'artisan',
       serviceCategories: artisan.serviceCategories,
       phone: `+23480${String(10000000 + artisan.index).slice(0, 8)}`,
+      acceptedTerms: true,
     },
   });
 

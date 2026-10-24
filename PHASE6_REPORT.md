@@ -157,7 +157,12 @@ Frontend:
 - Playwright `phase4-discovery.spec.ts`: 3 passed (product filters and the updated Best Sellers request, artisan chips, admin filters).
 - Playwright `phase5-curation-orders.spec.ts`: 2 passed (curation artisan names, pending-order card and ownership).
 
-The Phase 6 browser test recorded the headings, URLs, API totals, curated order before and after refresh, and the empty states above. It did not click every category shortcut in the mega menu. Those shortcuts use the same collection query as the quick links. It did not click the Best Sellers “Order count / Name A–Z” sort control; the API supports re-sorting the same best-seller set, and the default order-count order was the one displayed. Load-more was exercised on All Products (56 items, page size 20), not on Best Sellers, which has only two qualifying products.
+The Phase 6 browser test recorded the headings, URLs, API totals, curated order before and after refresh, and the empty states above. Load-more was exercised on All Products (56 items, page size 20), not on Best Sellers, which has only two qualifying products.
+
+A follow-up Playwright test, `phase6-gaps.spec.ts`, closed the two checks that run did not click. It passed in 12.6 seconds:
+
+- **Sort.** On Best Sellers, choosing **Name Z–A** sent `GET /products?collection=best-sellers&sort=name_desc`. The response still contained only the same best-seller ids, with `totalItems` unchanged, and the names were Z–A. A best-selling product is one with `isBestSeller` true or at least one order that is not cancelled or rejected. Both local rows qualified by order count (Ankara Midi Dress 3, Phase2 API Variation Probe 2).
+- **Category shortcut.** In the desktop mega menu, the Best Sellers control under the active category opened `/marketplace/products?collection=best-sellers&category=…`. The product request used that same category. Every returned row was in that category and still met the best-seller rule. The heading stayed **Best Sellers**.
 
 ## Left unchanged on purpose
 
