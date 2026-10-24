@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { filterArtisanDirectory, loadArtisanDirectory } from "@/lib/adminArtisanDirectory";
+import {
+  describeCreatedRange,
+  filterArtisanDirectory,
+  loadArtisanDirectory,
+  resolveCreatedRange,
+  type CreatedPreset,
+} from "@/lib/adminArtisanDirectory";
 import { ARTISAN_BUSINESS_PLACEHOLDER, ARTISAN_NAME_PLACEHOLDER, ARTISAN_NAMING_HELP } from "@/lib/namingConventions";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -75,6 +81,7 @@ const Artisans = () => {
   const [countryFilter, setCountryFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("");
+  const [createdPreset, setCreatedPreset] = useState<CreatedPreset>("any");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -208,6 +215,11 @@ const Artisans = () => {
     }
     return [...values].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [rows]);
+  const createdRange = useMemo(
+    () => resolveCreatedRange(createdPreset, dateFrom, dateTo),
+    [createdPreset, dateFrom, dateTo],
+  );
+  const createdSummary = describeCreatedRange(createdRange.dateFrom, createdRange.dateTo);
   const matches = useMemo(
     () =>
       filterArtisanDirectory(rows, {
@@ -216,10 +228,10 @@ const Artisans = () => {
         country: countryFilter === "all" ? "" : countryFilter,
         state: stateFilter === "all" ? "" : stateFilter,
         city: cityFilter,
-        dateFrom,
-        dateTo,
+        dateFrom: createdRange.dateFrom,
+        dateTo: createdRange.dateTo,
       }),
-    [rows, search, categoryFilter, countryFilter, stateFilter, cityFilter, dateFrom, dateTo],
+    [rows, search, categoryFilter, countryFilter, stateFilter, cityFilter, createdRange],
   );
   const filtersActive =
     statusFilter !== "all" ||
@@ -228,8 +240,7 @@ const Artisans = () => {
     countryFilter !== "all" ||
     stateFilter !== "all" ||
     !!cityFilter ||
-    !!dateFrom ||
-    !!dateTo;
+    createdPreset !== "any";
   const clearDirectoryFilters = () => {
     setStatusFilter("all");
     setSearch("");
@@ -237,6 +248,7 @@ const Artisans = () => {
     setCountryFilter("all");
     setStateFilter("all");
     setCityFilter("");
+    setCreatedPreset("any");
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
@@ -456,32 +468,69 @@ const Artisans = () => {
               setCurrentPage(1);
             }}
           />
-          <Input
-            type="date"
-            aria-label="Created from"
-            data-testid="admin-artisan-date-from"
-            value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <Input
-            type="date"
-            aria-label="Created to"
-            data-testid="admin-artisan-date-to"
-            value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
+          <div className="space-y-1">
+            <Label htmlFor="admin-artisan-created">Created</Label>
+            <Select
+              value={createdPreset}
+              onValueChange={(value) => {
+                setCreatedPreset(value as CreatedPreset);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger id="admin-artisan-created" className="w-full bg-card" data-testid="admin-artisan-created">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card">
+                <SelectItem value="any">Any time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="month">This month</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {createdPreset === "custom" ? (
+            <div className="grid grid-cols-2 gap-2 md:col-span-2">
+              <div className="space-y-1">
+                <Label htmlFor="admin-artisan-date-from">From</Label>
+                <Input
+                  id="admin-artisan-date-from"
+                  type="date"
+                  data-testid="admin-artisan-date-from"
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="admin-artisan-date-to">To</Label>
+                <Input
+                  id="admin-artisan-date-to"
+                  type="date"
+                  data-testid="admin-artisan-date-to"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
           {filtersActive ? (
             <Button type="button" variant="ghost" data-testid="admin-artisan-clear" onClick={clearDirectoryFilters}>
               Clear filters
             </Button>
           ) : null}
         </div>
+        {createdSummary ? (
+          <p className="text-sm text-muted-foreground" data-testid="admin-artisan-created-summary">
+            Showing artisans {createdSummary.replace(/^Created/, "created")}.
+          </p>
+        ) : null}
 
         {selectedCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-3">

@@ -55,4 +55,11 @@ describe("Admin artisan directory filters", () => {
   test("clearing filters returns the full directory in name order", () => {
     expect(filterArtisanDirectory(rows, {}).map((row) => row.id)).toEqual([2, 1]);
   });
+
+  test("one created date means that calendar day, and a reversed range still matches", () => {
+    expect(filterArtisanDirectory(rows, { dateFrom: "2026-03-15" }).map((row) => row.id)).toEqual([2]);
+    expect(
+      filterArtisanDirectory(rows, { dateFrom: "2026-03-31", dateTo: "2026-03-01" }).map((row) => row.id),
+    ).toEqual([2]);
+  });
 });

@@ -97,17 +97,80 @@ export function filterArtisanDirectory(
   if (city) {
     out = out.filter((row) => (row.city || "").toLowerCase().includes(city));
   }
-  if (filters.dateFrom) {
-    const from = new Date(`${filters.dateFrom}T00:00:00`);
-    if (!Number.isNaN(from.getTime())) {
-      out = out.filter((row) => new Date(row.createdAt) >= from);
-    }
+  const created = normalizeCreatedBounds(filters.dateFrom, filters.dateTo);
+  if (created.from) {
+    out = out.filter((row) => new Date(row.createdAt) >= created.from!);
   }
-  if (filters.dateTo) {
-    const to = new Date(`${filters.dateTo}T23:59:59.999`);
-    if (!Number.isNaN(to.getTime())) {
-      out = out.filter((row) => new Date(row.createdAt) <= to);
-    }
+  if (created.to) {
+    out = out.filter((row) => new Date(row.createdAt) <= created.to!);
   }
   return sortArtisanDirectory(out);
+}
+
+export type CreatedPreset = "any" | "today" | "7" | "30" | "month" | "custom";
+
+function localDay(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** Turns a preset, or a custom from/to, into an inclusive local-day range. One date means that day. */
+export function resolveCreatedRange(
+  preset: CreatedPreset,
+  from = "",
+  to = "",
+  now = new Date(),
+) {
+  if (preset === "today") {
+    const day = localDay(now);
+    return { dateFrom: day, dateTo: day };
+  }
+  if (preset === "7" || preset === "30") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - (preset === "7" ? 6 : 29));
+    return { dateFrom: localDay(start), dateTo: localDay(now) };
+  }
+  if (preset === "month") {
+    return {
+      dateFrom: localDay(new Date(now.getFullYear(), now.getMonth(), 1)),
+      dateTo: localDay(now),
+    };
+  }
+  if (preset === "custom") {
+    return { dateFrom: from, dateTo: to };
+  }
+  return { dateFrom: "", dateTo: "" };
+}
+
+function dayStart(value: string) {
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dayEnd(value: string) {
+  const parsed = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** A single bound is that calendar day. A reversed pair is swapped. */
+export function normalizeCreatedBounds(dateFrom?: string, dateTo?: string) {
+  let fromValue = dateFrom?.trim() ?? "";
+  let toValue = dateTo?.trim() ?? "";
+  if (fromValue && !toValue) toValue = fromValue;
+  if (!fromValue && toValue) fromValue = toValue;
+  if (fromValue && toValue && fromValue > toValue) {
+    [fromValue, toValue] = [toValue, fromValue];
+  }
+  return { from: fromValue ? dayStart(fromValue) : null, to: toValue ? dayEnd(toValue) : null };
+}
+
+export function describeCreatedRange(dateFrom: string, dateTo: string) {
+  const bounds = normalizeCreatedBounds(dateFrom, dateTo);
+  if (!bounds.from || !bounds.to) return "";
+  const label = (date: Date) =>
+    date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const start = label(bounds.from);
+  const end = label(bounds.to);
+  return start === end ? `Created on ${start}` : `Created from ${start} to ${end}`;
 }
