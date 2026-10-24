@@ -54,7 +54,12 @@ const ArtisanCombobox = ({ artisans, value, onChange, disabled }: ArtisanCombobo
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+        align="start"
+        onWheel={(event) => event.stopPropagation()}
+        onTouchMove={(event) => event.stopPropagation()}
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search name, email or brand…"
@@ -62,7 +67,13 @@ const ArtisanCombobox = ({ artisans, value, onChange, disabled }: ArtisanCombobo
             onValueChange={setQuery}
             data-testid="admin-product-artisan-search"
           />
-          <CommandList>
+          <CommandList
+            className="max-h-60 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+            onWheel={(event) => {
+              // The product dialog cancels wheel events that bubble out of it.
+              event.stopPropagation();
+            }}
+          >
             <CommandEmpty>No artisan found.</CommandEmpty>
             <CommandGroup>
               {matches.map((row) => (
