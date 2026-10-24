@@ -46,8 +46,14 @@ const getStatusConfig = (status: Order["status"] | CustomOrderRecord["status"]) 
     string,
     { label: string; icon: typeof Clock; variant: "secondary" | "default" | "destructive" | "outline"; color: string }
   > = {
+    in_review: {
+      label: "Under review",
+      icon: Clock,
+      variant: "outline",
+      color: "text-amber-600",
+    },
     pending: {
-      label: "Pending",
+      label: "With artisan",
       icon: Clock,
       variant: "secondary",
       color: "text-muted-foreground",
@@ -199,7 +205,9 @@ const CustomOrderCard = ({ order }: { order: CustomOrderRecord }) => {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Waiting for the artisan to review your request. You’ll see their response here.
+            {order.status === "in_review"
+              ? "MOE is reviewing this request. The artisan will see it after we send it on."
+              : "Waiting for the artisan to review your request. You’ll see their response here."}
           </p>
         )}
       </CardContent>

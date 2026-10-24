@@ -1364,6 +1364,7 @@ export interface CustomOrderRecord {
   budgetMax?: number | null;
   deadline?: string | null;
   status:
+    | "in_review"
     | "pending"
     | "accepted"
     | "declined"
@@ -1450,6 +1451,9 @@ export const customOrderService = {
   },
   respond: (id: string, body: { status: "accepted" | "declined"; artisanResponse?: string }) =>
     apiPatch<CustomOrderRecord>(`/artisans/me/custom-orders/${id}`, body),
+  /** Admin sends a reviewed request on to the artisan. */
+  releaseToArtisan: (id: string) =>
+    apiPost<CustomOrderRecord>(`/admin/custom-orders/${id}/release`, {}),
   listAdmin: async (params?: {
     page?: number;
     pageSize?: number;

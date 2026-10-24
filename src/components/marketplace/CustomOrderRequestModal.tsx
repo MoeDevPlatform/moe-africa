@@ -182,7 +182,7 @@ export default function CustomOrderRequestModal({
         ),
       });
       toast.success(
-        `Your custom order request has been sent to ${artisanName}. They will respond within 48 hours.`,
+        `Your request is with MOE for review. We'll send it to ${artisanName} after that.`,
       );
       onOpenChange(false);
     } catch (err) {
@@ -214,9 +214,8 @@ export default function CustomOrderRequestModal({
           <p className="font-medium text-foreground">Help the artisan understand what you need</p>
           <p>
             Describe the item clearly — style, materials, measurements, colours, and any other
-            details that matter. Clear requests get faster, more accurate replies (usually within
-            48 hours). A quote or payment link is only sent if the artisan offers one after
-            reviewing your request.
+            details that matter. MOE reviews the request first, then sends it to the artisan.
+            A quote or payment link is only sent if the artisan offers one after that.
           </p>
         </div>
 

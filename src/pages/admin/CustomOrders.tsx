@@ -36,6 +36,7 @@ const CustomOrdersAdminPage = () => {
   const [recalculating, setRecalculating] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   const loadOrders = () => {
     setLoading(true);
@@ -92,17 +93,34 @@ const CustomOrdersAdminPage = () => {
     }
   };
 
+  const sendToArtisan = async (id: string) => {
+    setSendingId(id);
+    try {
+      await customOrderService.releaseToArtisan(id);
+      toast.success("Sent to the artisan");
+      setRows((current) =>
+        current.map((row) => (row.id === id ? { ...row, status: "pending" } : row)),
+      );
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not send this request");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   const visibleRows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (statusFilter !== "all" && row.status !== statusFilter) return false;
-      if (!needle) return true;
-      return [row.artisanName, row.customerName, row.description, String(row.id)]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
+    return rows
+      .filter((row) => {
+        if (statusFilter !== "all" && row.status !== statusFilter) return false;
+        if (!needle) return true;
+        return [row.artisanName, row.customerName, row.description, String(row.id)]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(needle);
+      })
+      .sort((a, b) => Number(b.status === "in_review") - Number(a.status === "in_review"));
   }, [rows, query, statusFilter]);
 
   return (
@@ -111,9 +129,8 @@ const CustomOrdersAdminPage = () => {
         <div>
           <h1 className="text-2xl font-bold">Custom Orders</h1>
           <p className="text-muted-foreground text-sm max-w-2xl">
-            Commission requests for eligible artisans. Eligibility is toggled on each artisan&apos;s
-            detail page. Ranking below uses fulfilment, satisfaction, and response metrics — separate
-            from eligibility.
+            New requests wait here for review. Send one on when it is ready for the artisan.
+            Eligibility is toggled on each artisan&apos;s detail page.
           </p>
         </div>
 
@@ -208,8 +225,10 @@ const CustomOrdersAdminPage = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>All requests</CardTitle>
-            <CardDescription>Latest commission submissions across the marketplace.</CardDescription>
+            <CardTitle>Requests to review</CardTitle>
+            <CardDescription>
+              Requests marked Needs review have not been sent to the artisan yet.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row" data-testid="admin-custom-order-filters">
@@ -228,9 +247,18 @@ const CustomOrdersAdminPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {["all", "pending", "accepted", "declined", "in_progress", "completed", "cancelled"].map((status) => (
+                  {[
+                    ["all", "All statuses"],
+                    ["in_review", "Needs review"],
+                    ["pending", "With artisan"],
+                    ["accepted", "Accepted"],
+                    ["declined", "Declined"],
+                    ["in_progress", "In progress"],
+                    ["completed", "Completed"],
+                    ["cancelled", "Cancelled"],
+                  ].map(([status, label]) => (
                     <SelectItem key={status} value={status}>
-                      {status === "all" ? "All statuses" : status.replace("_", " ")}
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -261,9 +289,29 @@ const CustomOrdersAdminPage = () => {
                         {row.budget != null ? ` · Budget ₦${row.budget.toLocaleString()}` : ""}
                       </p>
                     </div>
-                    <Badge variant="outline" className="capitalize">
-                      {row.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {row.status === "in_review" && (
+                        <Button
+                          size="sm"
+                          data-testid="admin-send-custom-order"
+                          disabled={sendingId === row.id}
+                          onClick={() => void sendToArtisan(row.id)}
+                        >
+                          {sendingId === row.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Send to artisan"
+                          )}
+                        </Button>
+                      )}
+                      <Badge variant="outline" className="capitalize">
+                        {row.status === "in_review"
+                          ? "Needs review"
+                          : row.status === "pending"
+                            ? "With artisan"
+                            : row.status.replace("_", " ")}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
