@@ -222,6 +222,7 @@ const Artisans = () => {
     [rows, search, categoryFilter, countryFilter, stateFilter, cityFilter, dateFrom, dateTo],
   );
   const filtersActive =
+    statusFilter !== "all" ||
     !!search ||
     categoryFilter !== "all" ||
     countryFilter !== "all" ||
@@ -230,6 +231,7 @@ const Artisans = () => {
     !!dateFrom ||
     !!dateTo;
   const clearDirectoryFilters = () => {
+    setStatusFilter("all");
     setSearch("");
     setCategoryFilter("all");
     setCountryFilter("all");
