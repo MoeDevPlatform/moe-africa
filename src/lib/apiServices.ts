@@ -152,6 +152,8 @@ export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthRespon
 export interface ArtisanProfile {
   profileViews?: number;
   totalOrders?: number;
+  /** Orders in the artisan Pending view: confirmed, in progress, ready, shipped, or approved. */
+  pendingOrderCount?: number;
   id: number;
   userId: number;
   businessName: string;
@@ -597,6 +599,9 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
     materials: raw.materials ?? "",
     tags,
     images,
+    ...(typeof raw.artisanName === "string" && raw.artisanName.trim()
+      ? { artisanName: raw.artisanName.trim() }
+      : {}),
     category: (raw.category ?? "tailoring") as Product["category"],
     providerId: Number(providerId) || 0,
     isCustomOrderEligible: raw.isCustomOrderEligible === true || raw.artisan?.isCustomOrderEligible === true || raw.provider?.isCustomOrderEligible === true,
@@ -1078,10 +1083,16 @@ export interface Order {
   isCustomOrder: boolean;
   status:
     | "pending"
-    | "awaiting_payment"
+    | "confirmed"
     | "in_progress"
-    | "completed"
-    | "cancelled";
+    | "ready"
+    | "shipped"
+    | "delivered"
+    | "cancelled"
+    | "approved"
+    | "rejected"
+    | "awaiting_payment"
+    | "completed";
   price: number;
   currency: string;
   shippingAddress: ShippingAddress;
@@ -1164,24 +1175,40 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
 }
 
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ["in_progress", "awaiting_payment", "cancelled"],
-  awaiting_payment: ["in_progress", "cancelled"],
-  in_progress: ["completed", "cancelled"],
-  completed: [],
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["in_progress", "cancelled"],
+  in_progress: ["ready", "cancelled"],
+  ready: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: [],
   cancelled: [],
+  approved: ["shipped", "cancelled"],
+  rejected: ["cancelled"],
 };
 
 export const isActiveOrderStatus = (status: string) =>
-  !["completed", "cancelled"].includes(status);
+  !["delivered", "completed", "cancelled", "rejected"].includes(status);
+
+export type ArtisanOrderView = "all" | "new" | "pending" | "completed";
+
+export interface ArtisanOrderSummary {
+  new: number;
+  pending: number;
+  completed: number;
+  all: number;
+}
 
 export const ordersService = {
   list: async (params?: {
     status?: string;
+    view?: ArtisanOrderView;
     isCustomOrder?: boolean;
     page?: number;
     pageSize?: number;
-  }): Promise<PaginatedResponse<Order>> => {
-    const res = await apiGet<PaginatedResponse<Record<string, unknown>>>(
+  }): Promise<PaginatedResponse<Order> & { total?: number; summary?: ArtisanOrderSummary }> => {
+    const res = await apiGet<
+      PaginatedResponse<Record<string, unknown>> & { total?: number; summary?: ArtisanOrderSummary }
+    >(
       "/orders",
       params as Record<string, unknown>,
     );
@@ -1207,6 +1234,9 @@ export const ordersService = {
   ) => {
     return apiPatch<Order>(`/orders/${id}`, data);
   },
+  /** Artisan/admin status change. Customers stay on PATCH /orders/:id. */
+  updateStatus: (id: string, status: string) =>
+    apiPatch<Order>(`/orders/${id}/status`, { status }),
   getTracking: async (id: string) => {
     try {
       return await apiGet<{
@@ -2323,6 +2353,7 @@ export interface AdminProductRow {
   category: string;
   price: number;
   artisan: string;
+  artisanName?: string | null;
   providerId: number;
   createdAt: string;
 }

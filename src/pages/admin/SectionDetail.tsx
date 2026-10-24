@@ -29,7 +29,9 @@ const SectionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Array<{ id: number; label: string; score?: number }>>([]);
+  const [results, setResults] = useState<
+    Array<{ id: number; label: string; score?: number; artisanName?: string | null }>
+  >([]);
   const [searching, setSearching] = useState(false);
   const [keywordsText, setKeywordsText] = useState("");
   const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
@@ -60,7 +62,9 @@ const SectionDetail = () => {
     sectionKey === "featured_artisans" ? "artisan" : "product";
 
   // Browse list shown before typing; filtered live as the admin types.
-  const [catalogue, setCatalogue] = useState<Array<{ id: number; label: string; image?: string; sub?: string }>>([]);
+  const [catalogue, setCatalogue] = useState<
+    Array<{ id: number; label: string; image?: string; sub?: string; artisanName?: string | null }>
+  >([]);
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   useEffect(() => {
     if (!sectionKey) return;
@@ -81,6 +85,7 @@ const SectionDetail = () => {
               id: p.id,
               label: p.name || `Product #${p.id}`,
               image: p.images?.[0],
+              artisanName: p.artisanName || null,
               sub: p.priceRange?.min != null ? `₦${p.priceRange.min.toLocaleString()}` : undefined,
             })),
           );
@@ -95,10 +100,25 @@ const SectionDetail = () => {
 
   const imageById = new Map(catalogue.map((c) => [c.id, c]));
   const q = query.trim().toLowerCase();
-  const visibleResults: Array<{ id: number; label: string; score?: number; image?: string; sub?: string }> =
+  const visibleResults: Array<{
+    id: number;
+    label: string;
+    score?: number;
+    image?: string;
+    sub?: string;
+    artisanName?: string | null;
+  }> =
     results.length > 0
-      ? results.map((r) => ({ ...r, image: imageById.get(r.id)?.image, sub: imageById.get(r.id)?.sub }))
-      : catalogue.filter((c) => !q || c.label.toLowerCase().includes(q));
+      ? results.map((r) => {
+          const known = imageById.get(r.id);
+          return {
+            ...r,
+            image: known?.image,
+            sub: known?.sub,
+            artisanName: r.artisanName || known?.artisanName || null,
+          };
+        })
+      : catalogue.filter((c) => !q || c.label.toLowerCase().includes(q) || (c.artisanName || "").toLowerCase().includes(q));
   const curatedIds = new Set(items.map((i) => Number(i.itemId)));
 
   const runSearch = async () => {
@@ -152,7 +172,7 @@ const SectionDetail = () => {
             const adminProducts = await adminService.listProducts({ pageSize: 100 });
             products = (adminProducts.data ?? [])
               .filter((p) => (p.name || "").toLowerCase().includes(q))
-              .map((p) => ({ id: p.id, name: p.name })) as typeof products;
+              .map((p) => ({ id: p.id, name: p.name, artisanName: p.artisanName || p.artisan || null })) as typeof products;
           } catch {
             /* ignore */
           }
@@ -161,6 +181,8 @@ const SectionDetail = () => {
           products.map((p) => ({
             id: p.id,
             label: p.name || `Product #${p.id}`,
+            artisanName:
+              ("artisanName" in p ? (p as { artisanName?: string | null }).artisanName : null) || null,
           })),
         );
       }
@@ -414,6 +436,13 @@ const SectionDetail = () => {
                             ? item.preview.name
                             : null) || `${item.itemType} #${item.itemId}`}
                         </p>
+                        {item.itemType === "product" && (
+                          <p className="truncate text-xs text-muted-foreground" data-testid="curated-artisan-name">
+                            {typeof item.preview?.artisanName === "string" && item.preview.artisanName
+                              ? item.preview.artisanName
+                              : "Artisan unavailable"}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {item.itemType} · id {item.itemId}
                           {item.compositeScore != null
@@ -424,6 +453,7 @@ const SectionDetail = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        data-testid={`remove-section-item-${item.itemId}`}
                         onClick={() => removeItem(item.itemId)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -481,6 +511,7 @@ const SectionDetail = () => {
                       <div
                         key={r.id}
                         data-testid="search-result"
+                        data-product-id={r.id}
                         className="flex items-center gap-3 rounded-md border p-3"
                       >
                         <img
@@ -495,7 +526,12 @@ const SectionDetail = () => {
                           }`}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{r.label}</p>
+                          <p className="truncate text-sm font-medium" data-testid="curation-product-name">{r.label}</p>
+                          {itemType === "product" && (
+                            <p className="truncate text-xs text-muted-foreground" data-testid="curation-artisan-name">
+                              {r.artisanName || "Artisan unavailable"}
+                            </p>
+                          )}
                           {r.sub && <p className="truncate text-xs text-muted-foreground">{r.sub}</p>}
                           {r.score != null && (
                             <p className="text-xs text-muted-foreground">

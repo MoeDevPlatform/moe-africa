@@ -20,26 +20,50 @@ import { toast } from "sonner";
 import {
   ORDER_STATUS_TRANSITIONS,
   ordersService,
+  type ArtisanOrderSummary,
+  type ArtisanOrderView,
   type Order,
   type OrderStatusHistoryEntry,
 } from "@/lib/apiServices";
 
 const statusLabel = (s: string) => s.replace(/_/g, " ");
 
-const ArtisanOrdersPanel = () => {
+const FILTERS: Array<{ id: ArtisanOrderView; label: string; hint: string }> = [
+  { id: "all", label: "All", hint: "Every order assigned to you, including cancelled" },
+  { id: "new", label: "New Orders", hint: "Status: pending" },
+  { id: "pending", label: "Pending Orders", hint: "Status: confirmed, in progress, ready, shipped, or approved" },
+  { id: "completed", label: "Completed Orders", hint: "Status: delivered" },
+];
+
+type Props = {
+  view?: ArtisanOrderView;
+  onViewChange?: (view: ArtisanOrderView) => void;
+  onOrdersChanged?: () => void;
+};
+
+const ArtisanOrdersPanel = ({ view = "all", onViewChange, onOrdersChanged }: Props) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [summary, setSummary] = useState<ArtisanOrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, OrderStatusHistoryEntry[]>>({});
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(null);
     ordersService
-      .list({ pageSize: 50 })
-      .then((res) => setOrders(res.data ?? []))
-      .catch(() => toast.error("Failed to load orders"))
+      .list({ pageSize: 100, view })
+      .then((res) => {
+        setOrders(res.data ?? []);
+        setSummary(res.summary ?? null);
+      })
+      .catch((e: unknown) => {
+        setOrders([]);
+        setError(e instanceof Error ? e.message : "Failed to load orders");
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     load();
@@ -50,16 +74,17 @@ const ArtisanOrdersPanel = () => {
       const track = await ordersService.getTracking(orderId);
       setHistory((prev) => ({ ...prev, [orderId]: track.history ?? [] }));
     } catch {
-      /* ignore */
+      /* history is optional */
     }
   };
 
   const handleStatusChange = async (order: Order, next: string) => {
     setUpdatingId(order.id);
     try {
-      await ordersService.update(order.id, { status: next });
+      await ordersService.updateStatus(order.id, next);
       toast.success(`Order marked ${statusLabel(next)}`);
       load();
+      onOrdersChanged?.();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Update failed");
     } finally {
@@ -67,79 +92,118 @@ const ArtisanOrdersPanel = () => {
     }
   };
 
-  if (loading) return <Skeleton className="h-48 w-full" />;
-
-  if (orders.length === 0) {
-    return (
-      <Card className="p-8 text-center text-muted-foreground">
-        No orders yet. Customer orders for your products will appear here.
-      </Card>
-    );
-  }
+  const countFor = (id: ArtisanOrderView) => {
+    if (!summary) return null;
+    return id === "all" ? summary.all : summary[id];
+  };
 
   return (
     <div className="space-y-4">
-      {orders.map((order) => {
-        const nextStatuses = ORDER_STATUS_TRANSITIONS[order.status] ?? [];
-        const rows = history[order.id];
-        return (
-          <Card key={order.id} className="p-4 space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{order.productName}</p>
-                <p className="text-xs text-muted-foreground">
-                  #{order.orderNumber ?? order.id} · ₦{order.price.toLocaleString()}
-                </p>
-              </div>
-              <Badge variant="outline" className="capitalize">
-                {statusLabel(order.status)}
-              </Badge>
-            </div>
+      <div className="flex flex-wrap gap-2" data-testid="artisan-order-filters">
+        {FILTERS.map((filter) => {
+          const active = view === filter.id;
+          const count = countFor(filter.id);
+          return (
+            <Button
+              key={filter.id}
+              type="button"
+              size="sm"
+              variant={active ? "default" : "outline"}
+              aria-pressed={active}
+              title={filter.hint}
+              data-testid={`artisan-order-filter-${filter.id}`}
+              onClick={() => onViewChange?.(filter.id)}
+            >
+              {filter.label}
+              {count != null ? ` (${count})` : ""}
+            </Button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {FILTERS.find((filter) => filter.id === view)?.hint}
+      </p>
 
-            {nextStatuses.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground">Update status:</span>
-                <Select
-                  disabled={updatingId === order.id}
-                  onValueChange={(v) => handleStatusChange(order, v)}
-                >
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue placeholder="Choose next status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nextStatuses.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {statusLabel(s)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {updatingId === order.id && <Loader2 className="h-4 w-4 animate-spin" />}
-              </div>
-            )}
-
-            <Collapsible onOpenChange={(open) => open && !rows && loadHistory(order.id)}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1 px-0">
-                  <ChevronDown className="h-4 w-4" />
-                  Status history
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2 space-y-2 border-l-2 border-muted ml-2 pl-3">
-                {(rows ?? order.statusHistory ?? []).map((h, i) => (
-                  <div key={`${h.createdAt}-${i}`} className="text-sm">
-                    <p className="font-medium capitalize">{statusLabel(h.status)}</p>
+      {loading ? (
+        <Skeleton className="h-48 w-full" data-testid="artisan-orders-loading" />
+      ) : error ? (
+        <Card className="p-8 text-center" data-testid="artisan-orders-error">
+          <p className="text-destructive">{error}</p>
+          <Button type="button" variant="outline" className="mt-4" onClick={load}>
+            Retry
+          </Button>
+        </Card>
+      ) : orders.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground" data-testid="artisan-orders-empty">
+          {view === "all"
+            ? "No orders yet. Customer orders for your products will appear here."
+            : "No orders match this filter."}
+        </Card>
+      ) : (
+        <div className="space-y-4" data-testid="artisan-orders-list">
+          {orders.map((order) => {
+            const nextStatuses = ORDER_STATUS_TRANSITIONS[order.status] ?? [];
+            const rows = history[order.id];
+            return (
+              <Card key={order.id} className="p-4 space-y-3" data-testid={`artisan-order-${order.id}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{order.productName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(h.createdAt).toLocaleString()}
-                      {h.note ? ` — ${h.note}` : ""}
+                      #{order.orderNumber ?? order.id} · ₦{order.price.toLocaleString()}
                     </p>
                   </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
-        );
-      })}
+                  <Badge variant="outline" className="capitalize" data-testid="artisan-order-status">
+                    {statusLabel(order.status)}
+                  </Badge>
+                </div>
+
+                {nextStatuses.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Update status:</span>
+                    <Select
+                      disabled={updatingId === order.id}
+                      onValueChange={(value) => handleStatusChange(order, value)}
+                    >
+                      <SelectTrigger className="w-[180px] h-9" data-testid={`artisan-order-next-${order.id}`}>
+                        <SelectValue placeholder="Choose next status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nextStatuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {statusLabel(status)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {updatingId === order.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                  </div>
+                )}
+
+                <Collapsible onOpenChange={(open) => open && !rows && loadHistory(order.id)}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1 px-0">
+                      <ChevronDown className="h-4 w-4" />
+                      Status history
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2 space-y-2 border-l-2 border-muted ml-2 pl-3">
+                    {(rows ?? order.statusHistory ?? []).map((entry, index) => (
+                      <div key={`${entry.createdAt}-${index}`} className="text-sm">
+                        <p className="font-medium capitalize">{statusLabel(entry.status)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(entry.createdAt).toLocaleString()}
+                          {entry.note ? ` — ${entry.note}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

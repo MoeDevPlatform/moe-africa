@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-24  
 **Requirements:** 1, 2, 3, 4, 5, 9, 10, 17  
-**Not in scope:** Requirement 33 payment/quotation workflow. Existing payment and order behaviour was left as-is. Phase 5 was not started.
+**Not in scope:** Requirement 33 payment/quotation workflow. Existing payment and order behaviour was left as-is. Phase 5 was not part of this phase.
 
 ---
 
@@ -128,6 +128,6 @@ Local approved catalogue at run time: 56 public products, 6 approved artisans, 0
 - Top Rated shows only artisans with review rows. A stored rating without reviews does not qualify.
 - Search results stay alphabetical. They are not reordered by the separate relevance score.
 - The homepage preview drawer was not part of this suite. It still filters the homepage preview and belongs with Phase 6.
-- Admin orders and custom-order list filters were implemented earlier and were not exercised by this Playwright file.
+- Admin orders and custom-order list filters were not in the original discovery file. They were checked afterwards in `tests/playwright/phase4-admin-order-filters.spec.ts` against localhost. Both tests passed. Admin orders sent status, payment status, and search together: pending returned 3, cancelled plus unpaid returned 0, cancelled plus refunded returned ORD-002, search `Ankara` kept that row, an unknown search returned none, and Clear restored all 4. Custom orders filter the loaded page: accepted returned the empty state, `silk wrap` kept only the Phase 3 description, and `Phase3` kept all 3 because that text is also the artisan name. Clearing the controls restored all 3.
 
-Phase 4 is verified against the local catalogue above. Phase 5 has not been started.
+Phase 4 is verified against the local catalogue above, including the admin order and custom-order filters.

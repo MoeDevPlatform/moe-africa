@@ -1,12 +1,12 @@
 import Skeleton from "@/components/common/Skeleton";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/marketplace/Navbar";
 import Footer from "@/components/marketplace/Footer";
 import AddProductModal from "@/components/artisan/AddProductModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { artisanService, ArtisanProfile, metaService, ServiceCategoryOption } from "@/lib/apiServices";
+import { artisanService, ArtisanProfile, metaService, ServiceCategoryOption, type ArtisanOrderView } from "@/lib/apiServices";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +87,11 @@ function categoriesEqual(a: string[], b: string[]): boolean {
 
 const ArtisanDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab") || "products";
+  const orderView = (["all", "new", "pending", "completed"].includes(searchParams.get("orderView") || "")
+    ? searchParams.get("orderView")
+    : "all") as ArtisanOrderView;
   const { user, refreshProfile } = useAuth();
   const [artisanProfile, setArtisanProfile] = useState<ArtisanProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -458,16 +463,28 @@ const ArtisanDashboard = () => {
 
         {/* Quick Stats */}
         <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+          className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8"
           data-testid="dashboard-stats"
         >
           {[
             { label: "Total Products", value: products.length, icon: Package },
             { label: "Average Rating", value: artisanProfile?.rating?.toFixed(1) || "—", icon: Star },
             { label: "Total Orders", value: artisanProfile?.totalOrders ?? "—", icon: ShoppingBag },
+            {
+              label: "Pending Orders",
+              value: artisanProfile?.pendingOrderCount ?? "—",
+              icon: ClipboardList,
+              testId: "artisan-pending-orders",
+              onClick: () => {
+                const next = new URLSearchParams(searchParams);
+                next.set("tab", "orders");
+                next.set("orderView", "pending");
+                setSearchParams(next);
+              },
+            },
             { label: "Profile Views", value: artisanProfile?.profileViews ?? "—", icon: Eye },
-          ].map(({ label, value, icon: Icon }) => (
-            <Card key={label} className="border-0 rounded-xl shadow-sm">
+          ].map(({ label, value, icon: Icon, testId, onClick }) => {
+            const body = (
               <CardContent className="flex flex-col items-start gap-3 p-4">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Icon className="h-5 w-5 text-primary" />
@@ -477,11 +494,39 @@ const ArtisanDashboard = () => {
                   {isLoadingProfile || isLoadingProducts ? <Skeleton className="h-8 w-16 mt-1" /> : <p className="text-3xl font-semibold mt-1">{value}</p>}
                 </div>
               </CardContent>
-            </Card>
-          ))}
+            );
+            if (!onClick) {
+              return (
+                <Card key={label} className="border-0 rounded-xl shadow-sm">
+                  {body}
+                </Card>
+              );
+            }
+            return (
+              <Card key={label} className="border-0 rounded-xl shadow-sm">
+                <button
+                  type="button"
+                  data-testid={testId}
+                  onClick={onClick}
+                  className="w-full text-left rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {body}
+                </button>
+              </Card>
+            );
+          })}
         </div>
 
-        <Tabs defaultValue="products" className="w-full">
+        <Tabs
+          value={requestedTab}
+          onValueChange={(value) => {
+            const next = new URLSearchParams(searchParams);
+            if (value === "products") next.delete("tab");
+            else next.set("tab", value);
+            setSearchParams(next, { replace: true });
+          }}
+          className="w-full"
+        >
           <div className="flex flex-wrap gap-3 mb-6">
             <Button onClick={() => setShowAddProduct(true)}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
             <Button variant="outline" disabled={!artisanProfile} onClick={() => { document.querySelector<HTMLButtonElement>('[role="tab"][data-state][id$="trigger-profile"]')?.click(); requestAnimationFrame(() => { if (!editingProfile) document.getElementById("business-profile-edit")?.click(); }); }}><Pencil className="h-4 w-4 mr-2" />Edit Business Profile</Button>
@@ -598,7 +643,23 @@ const ArtisanDashboard = () => {
                 <CardDescription>Update order status and view fulfillment history.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ArtisanOrdersPanel />
+                <ArtisanOrdersPanel
+                  view={orderView}
+                  onViewChange={(nextView) => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("tab", "orders");
+                    if (nextView === "all") next.delete("orderView");
+                    else next.set("orderView", nextView);
+                    setSearchParams(next, { replace: true });
+                  }}
+                  onOrdersChanged={() => {
+                    artisanService.getMyProfile().then((profile) => {
+                      setArtisanProfile((current) =>
+                        current ? { ...current, pendingOrderCount: profile.pendingOrderCount } : profile,
+                      );
+                    }).catch(() => undefined);
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>

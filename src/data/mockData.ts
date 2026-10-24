@@ -24,6 +24,8 @@ export interface Product {
   images: string[];
   category: string;
   providerId: number;
+  /** Brand, business, or account name from the product's artisan relationship. */
+  artisanName?: string | null;
   isCustomOrderEligible?: boolean;
   /** Admin approval status (item 10) — only present on backend-sourced products. */
   status?: "pending" | "approved" | "rejected" | "draft";
