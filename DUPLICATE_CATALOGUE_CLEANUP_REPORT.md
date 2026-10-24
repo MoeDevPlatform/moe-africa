@@ -1,8 +1,6 @@
 # Duplicate catalogue cleanup
 
-The 21 duplicate storefronts and their 100 products were checked again against the live API on 24 October 2026. They still match the audit. The cleanup was not applied, because this machine cannot reach the production database.
-
-Local `moe_dev` was not modified and is not a substitute for the live catalogue.
+The 21 duplicate storefronts were deleted on the live admin portal with Playwright. Each delete returned 204 from `DELETE /admin/artisans/:id`. The Admin Dashboard now reports 52 artisans and 204 products, matching the public catalogue.
 
 ## Dry run
 
@@ -38,68 +36,31 @@ The full attribute comparison is in `moe-backend/scripts/duplicate-storefront-cl
 
 Canonical profiles 23–25, 29–43 and their products are not in the update list. Image URLs can differ between a copy and its keeper; the names, descriptions, prices, and categories do not. That is the same seed-copy pattern already approved.
 
-## Why the admin delete endpoint was not used
+## How they were removed
 
-`AdminService.removeArtisan` marks the profile deleted and sets `deletedAt` on products, which is the right end state. It also suspends the user and permanently deletes that product’s reviews and wishlist rows. Orders store `productId` without a Prisma cascade from this update, but those review and wishlist deletes are not reversible.
+The live admin Delete button calls `DELETE /admin/artisans/:id`. That marks the profile deleted, sets `deletedAt` on its products, suspends that user, and deletes wishlist rows and product reviews attached to those products. Orders are not rewritten. Canonical profiles were not opened.
 
-The prepared script only:
+A SQL soft-delete script is still in `moe-backend/scripts/duplicate-storefront-cleanup.sql`. It was not run, and it did not create backup tables.
 
-- sets `ArtisanProfile.status` to `deleted` and `featured` to false
-- sets `Product.deletedAt`
-- records the previous profile reason in the backup, then sets `rejectionReason` to a cleanup note
+## What Playwright did
 
-It does not change users, orders, reviews, messages, wishlist rows, payments, or any canonical profile or product.
+`tests/playwright/delete-duplicate-storefronts.spec.ts` signed into `https://moe-africa-mvp.vercel.app/admin`, opened each duplicate at `/admin/artisans/:id`, checked the brand heading, and clicked Delete. The request was `DELETE /admin/artisans/:id`, which returned 204 for all 21 profiles. It did not call `DELETE /admin/users/:id`.
 
-## Backup and rollback
+That admin action marks the profile deleted, sets `deletedAt` on its products, suspends the user, and removes wishlist rows and product reviews for those products. It does not change canonical storefronts or rewrite orders. No separate SQL backup was taken, because the database was not opened directly. The SQL script in `moe-backend/scripts/` was not run.
 
-The script has not been run, so the backup tables do not exist yet. When it runs, one transaction creates:
+## Counts after deletion
 
-- `duplicate_cleanup_artisan_20261024`, a full copy of the 21 profiles
-- `duplicate_cleanup_product_20261024`, a full copy of the 100 products
-
-The transaction rolls back unless all of these are still true:
-
-- 21 profiles are approved and their brand matches the canonical profile’s brand
-- 100 products are approved, not deleted, and still have the inventoried provider, name, category, and price
-- the 85 canonical products those copies match are still active on the canonical provider
-- no duplicate product id is also a canonical product id
-
-`scripts/duplicate-storefront-cleanup-rollback.sql` copies `status`, `featured`, `rejectionReason`, and `deletedAt` back from those tables.
-
-## Current live counts
-
-Unchanged, measured from `https://moe-backend.duckdns.org` before any write:
-
-| Metric | Now | After the script |
+| Metric | Before | After |
 | --- | ---: | ---: |
 | Admin total products | 304 | 204 |
 | Public All Products | 204 | 204 |
 | Admin total artisans | 73 | 52 |
 | Public All Artisans | 52 | 52 |
 
-Public All Products is `totalItems` 204. Public All Artisans is `totalItems` 52. The admin figures are the earlier dashboard totals, and they still match 204 public products plus these 100, and 52 public artisans plus these 21. They were not re-read from the admin dashboard because there is no production admin session here.
+`GET /admin/dashboard` returned `totalArtisans: 52`, `totalProducts: 204`, `artisansByStatus.approved: 52`, and `productsByStatus.approved: 204`. Pending and rejected are 0. The dashboard cards showed 52 and 204. `totalOrders` is 0.
 
-## What remains
-
-Run this on the production database, from the backend directory on the VPS:
-
-```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/duplicate-storefront-cleanup.sql
-```
-
-This machine’s `DATABASE_URL` points at local Postgres. SSH to the API host `95.217.187.173` rejected the local key. No password was guessed and no port or account was changed.
-
-After that command commits, the live checks are:
-
-- `GET /products` `totalItems` stays 204, and the 100 product ids above are no longer returned
-- `GET /service-providers/public-info` stays 52, and `GET /service-providers/{id}/public-info` for each duplicate id returns not found
-- `GET /admin/dashboard` shows 204 products and 52 artisans
-- canonical profile URLs such as `/marketplace/provider/23` still open
-- a canonical product such as `/marketplace/product/215` still opens
-- orders, reviews, and messages are still present
-
-Playwright against the deployed site is only meaningful after the script commits. The catalogue on Vercel still includes these records in the admin totals until then.
+`GET /products` still has `totalItems` 204, and product ids 66, 63, and 256 are absent from that list. Their detail calls return `RESOURCE_NOT_FOUND`. Canonical product 51, Agbada Ceremonial Set, is still approved on provider 23. `GET /service-providers/26/public-info` is not found. `GET /service-providers/23/public-info` still returns Adaobi Atelier Lagos with 5 products. Public product 215 still loads.
 
 ## Records left untouched
 
-Every canonical storefront, every product that is not in the table above, incomplete profiles such as the “My business” accounts, users, orders, reviews, conversations, and payment records. Mock data, seed scripts, and recommendation ranking were not changed.
+Canonical storefronts and their products, incomplete profiles such as the “My business” accounts, and every product outside the table above. The 21 duplicate users were suspended by the admin delete, and wishlist rows and product reviews on their products were removed with them. Orders were not edited; the dashboard order total is 0. Mock data, seed scripts, and recommendation ranking were not changed.

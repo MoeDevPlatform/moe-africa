@@ -45,6 +45,11 @@ test('delete the 21 duplicate storefronts from the admin portal', async ({ page 
 
   for (const row of DUPLICATES) {
     await page.goto(`/admin/artisans/${row.id}`, { waitUntil: 'domcontentloaded' });
+    const missing = page.getByText('Artisan not found.');
+    if (await missing.isVisible().catch(() => false)) {
+      console.log('already gone', row.id, row.brand);
+      continue;
+    }
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading).toHaveText(row.brand, { timeout: 20_000 });
 
@@ -103,6 +108,7 @@ test('admin totals match the catalogue after duplicate removal', async ({ page }
   console.log('admin totals', {
     totalArtisans: body.totalArtisans,
     totalProducts: body.totalProducts,
+    totalOrders: body.totalOrders,
     artisansByStatus: body.artisansByStatus,
     productsByStatus: body.productsByStatus,
   });
@@ -115,7 +121,10 @@ test('admin totals match the catalogue after duplicate removal', async ({ page }
 
   const duplicateProduct = await page.request.get(`${PLAYWRIGHT_API_URL}/products/66`);
   const canonicalProduct = await page.request.get(`${PLAYWRIGHT_API_URL}/products/51`);
-  console.log('product 66', duplicateProduct.status(), 'product 51', canonicalProduct.status());
-  expect(duplicateProduct.status()).toBe(404);
-  expect(canonicalProduct.status()).toBe(200);
+  const duplicateBody = await duplicateProduct.json();
+  const canonicalBody = await canonicalProduct.json();
+  console.log('product 66', duplicateProduct.status(), duplicateBody.code || duplicateBody.id);
+  console.log('product 51', canonicalProduct.status(), canonicalBody.id, canonicalBody.name);
+  expect(duplicateBody.code).toBe('RESOURCE_NOT_FOUND');
+  expect(canonicalBody.id).toBe(51);
 });

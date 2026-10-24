@@ -121,7 +121,7 @@ The admin dashboard was not opened on production. This session does not have a p
 
 No count query, filter, or label was changed. The public totals already describe the records a customer can reach, and the admin totals already describe every non-deleted record. Changing either number to match the other would be wrong.
 
-The duplicate accounts were later approved for cleanup. That cleanup has not been applied. Production database access is not available from this machine, so the live totals are unchanged. The verified inventory, the soft-delete script, and the rollback are in `DUPLICATE_CATALOGUE_CLEANUP_REPORT.md`.
+Those 21 duplicate storefronts were later deleted from the live admin portal. The Admin Dashboard now reports 52 artisans and 204 products. See `DUPLICATE_CATALOGUE_CLEANUP_REPORT.md`.
 
 A dashboard subtitle could say that Total Products includes catalogue copies and Total Artisans includes duplicate accounts. That label was not added. The existing cards are accurate for the definitions above.
 
