@@ -14,9 +14,14 @@ const SECTION_GUIDE: Record<
   { purpose: string; manages: string; marketplace: string }
 > = {
   featured_picks: {
-    purpose: "Curated Featured Picks. Best Sellers is a separate order-based collection.",
+    purpose: "Hand-picked products for Featured Picks only. Best Sellers is a different shelf.",
     manages: "Products (order = display order). Newest products fill only this shelf when fewer than four are curated.",
     marketplace: "Homepage → Featured Picks",
+  },
+  best_sellers: {
+    purpose: "The Best Sellers shelf. Optional pins stay here. The system ranking is real orders, not the Featured Picks list.",
+    manages: "Products. Order count, then name. Nothing is copied from Featured Picks.",
+    marketplace: "Homepage → Best Sellers",
   },
   featured_artisans: {
     purpose: "Pin specific artisans to the Featured Artisans homepage block.",

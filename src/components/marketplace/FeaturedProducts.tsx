@@ -213,23 +213,7 @@ const FeaturedProducts = () => {
       return loadSection("seasonal_picks");
     };
 
-    const loadBestSellers = async () => {
-      try {
-        const res = await productsService.list({ collection: "best-sellers", pageSize: 8 });
-        return (res.data ?? []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.priceRange?.min ?? 0,
-          imageUrl: p.images?.[0] || FALLBACK_IMAGE,
-          providerId: p.providerId,
-          providerName: p.artisanName || "Artisan",
-          category: p.category,
-          tags: p.tags ?? [],
-        }));
-      } catch {
-        return [] as FeaturedProduct[];
-      }
-    };
+    const loadBestSellers = () => loadSection("best_sellers");
 
     const loadTrending = async () => {
       try {
