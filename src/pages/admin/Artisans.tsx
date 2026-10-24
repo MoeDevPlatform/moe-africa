@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadArtisanDirectory, searchArtisanDirectory } from "@/lib/adminArtisanDirectory";
+import { filterArtisanDirectory, loadArtisanDirectory } from "@/lib/adminArtisanDirectory";
+import { ARTISAN_BUSINESS_PLACEHOLDER, ARTISAN_NAME_PLACEHOLDER, ARTISAN_NAMING_HELP } from "@/lib/namingConventions";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,12 @@ const Artisans = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">(initialStatus);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [stateFilter, setStateFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [actionRow, setActionRow] = useState<
     { row: AdminArtisanRow; next: ApprovalStatus } | null
@@ -191,10 +198,48 @@ const Artisans = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
+  const countryStates =
+    countries.find((country) => country.name === countryFilter)?.states ?? [];
+  const categoryOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const row of rows) {
+      if (row.category) values.add(row.category);
+      for (const service of row.serviceCategories ?? []) values.add(service);
+    }
+    return [...values].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [rows]);
   const matches = useMemo(
-    () => searchArtisanDirectory(rows, search),
-    [rows, search],
+    () =>
+      filterArtisanDirectory(rows, {
+        search,
+        category: categoryFilter === "all" ? "" : categoryFilter,
+        country: countryFilter === "all" ? "" : countryFilter,
+        state: stateFilter === "all" ? "" : stateFilter,
+        city: cityFilter,
+        dateFrom,
+        dateTo,
+      }),
+    [rows, search, categoryFilter, countryFilter, stateFilter, cityFilter, dateFrom, dateTo],
   );
+  const filtersActive =
+    !!search ||
+    categoryFilter !== "all" ||
+    countryFilter !== "all" ||
+    stateFilter !== "all" ||
+    !!cityFilter ||
+    !!dateFrom ||
+    !!dateTo;
+  const clearDirectoryFilters = () => {
+    setSearch("");
+    setCategoryFilter("all");
+    setCountryFilter("all");
+    setStateFilter("all");
+    setCityFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setCurrentPage(1);
+    setSelected(new Set());
+  };
   const pagination = {
     page: Math.min(currentPage, Math.max(1, Math.ceil(matches.length / 20))),
     pageSize: 20,
@@ -318,12 +363,13 @@ const Artisans = () => {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-artisan-filters">
+          <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search name, email or brand…"
               value={search}
+              data-testid="admin-artisan-search"
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
@@ -336,7 +382,7 @@ const Artisans = () => {
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as ApprovalStatus | "all")}
           >
-            <SelectTrigger className="w-full sm:w-48 bg-card">
+            <SelectTrigger className="w-full bg-card" data-testid="admin-artisan-status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card">
@@ -346,6 +392,93 @@ const Artisans = () => {
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={categoryFilter}
+            onValueChange={(value) => {
+              setCategoryFilter(value);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full bg-card" data-testid="admin-artisan-category">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All categories</SelectItem>
+              {categoryOptions.map((value) => (
+                <SelectItem key={value} value={value}>{value}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={countryFilter}
+            onValueChange={(value) => {
+              setCountryFilter(value);
+              setStateFilter("all");
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full bg-card" data-testid="admin-artisan-country">
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All countries</SelectItem>
+              {countries.map((country) => (
+                <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={stateFilter}
+            onValueChange={(value) => {
+              setStateFilter(value);
+              setCurrentPage(1);
+            }}
+            disabled={countryFilter === "all"}
+          >
+            <SelectTrigger className="w-full bg-card" data-testid="admin-artisan-state">
+              <SelectValue placeholder="State" />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All states</SelectItem>
+              {countryStates.map((state) => (
+                <SelectItem key={state} value={state}>{state}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="City"
+            value={cityFilter}
+            data-testid="admin-artisan-city"
+            onChange={(e) => {
+              setCityFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+          <Input
+            type="date"
+            aria-label="Created from"
+            data-testid="admin-artisan-date-from"
+            value={dateFrom}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+          <Input
+            type="date"
+            aria-label="Created to"
+            data-testid="admin-artisan-date-to"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+          {filtersActive ? (
+            <Button type="button" variant="ghost" data-testid="admin-artisan-clear" onClick={clearDirectoryFilters}>
+              Clear filters
+            </Button>
+          ) : null}
         </div>
 
         {selectedCount > 0 && (
@@ -639,6 +772,7 @@ const Artisans = () => {
                 <Input
                   id="firstName"
                   name="firstName"
+                  placeholder={ARTISAN_NAME_PLACEHOLDER}
                   value={createForm.firstName}
                   onChange={(e) => setCreateForm({ ...createForm, firstName: e.target.value })}
                 />
@@ -681,9 +815,11 @@ const Artisans = () => {
               <Input
                 id="businessName"
                 name="businessName"
+                placeholder={ARTISAN_BUSINESS_PLACEHOLDER}
                 value={createForm.businessName}
                 onChange={(e) => setCreateForm({ ...createForm, businessName: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">{ARTISAN_NAMING_HELP}</p>
             </div>
             <div className="space-y-2">
               <Label>Service categories</Label>

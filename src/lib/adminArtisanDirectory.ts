@@ -1,4 +1,5 @@
 import type { AdminArtisanRow, PaginatedResponse } from "./apiServices";
+import { countries } from "../data/countryStateData";
 
 /** Load every server page before exposing a searchable directory. */
 export async function loadArtisanDirectory(
@@ -59,7 +60,13 @@ export function filterArtisanDirectory(
   }
   const country = filters.country?.trim().toLowerCase();
   if (country) {
-    out = out.filter((row) => (row.country || "").toLowerCase() === country);
+    const known = countries.find(
+      (item) => item.name.toLowerCase() === country || item.code.toLowerCase() === country,
+    );
+    const accepted = new Set(
+      [country, known?.name.toLowerCase(), known?.code.toLowerCase()].filter(Boolean) as string[],
+    );
+    out = out.filter((row) => accepted.has((row.country || "").toLowerCase()));
   }
   const state = filters.state?.trim().toLowerCase();
   if (state) {

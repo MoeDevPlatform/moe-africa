@@ -1,102 +1,133 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
 import MarketplaceFooter from "@/components/marketplace/Footer";
 import ArtisanResults from "@/components/marketplace/ArtisanResults";
-import { useArtisanSearch } from "@/hooks/useArtisanSearch";
-import { providers as mockProviders } from "@/data/mockData";
-import { providersService } from "@/lib/apiServices";
+import { useArtisanSearch, type ArtisanDiscoveryView } from "@/hooks/useArtisanSearch";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/contexts/CategoriesContext";
-import type { Provider } from "@/data/mockData";
 import FilterDrawer, { DEFAULT_ARTISAN_FILTERS, type FilterState } from "@/components/marketplace/FilterDrawer";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const VIEWS: { id: ArtisanDiscoveryView; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "featured", label: "Featured" },
+  { id: "top-rated", label: "Top Rated" },
+  { id: "custom-orders", label: "Custom Orders" },
+  { id: "best-sellers", label: "Best Sellers" },
+];
+
+function viewFromParams(params: URLSearchParams): ArtisanDiscoveryView {
+  const raw = params.get("view");
+  if (raw === "featured" || raw === "top-rated" || raw === "custom-orders" || raw === "best-sellers") {
+    return raw;
+  }
+  if (params.get("featured") === "true") return "featured";
+  return "all";
+}
 
 const AllArtisans = () => {
   const navigate = useNavigate();
   const { categories } = useCategories();
-  const [searchParams] = useSearchParams();
-  const [displayProviders, setDisplayProviders] = useState<Provider[]>([]);
-  const [title, setTitle] = useState("All Artisans");
-  const [description, setDescription] = useState("Discover talented artisans from across Africa");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterState>(DEFAULT_ARTISAN_FILTERS);
-  
-  
-  const featured = searchParams.get("featured");
+
   const category = searchParams.get("category");
   const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
+  const view = viewFromParams(searchParams);
+
   const search = useArtisanSearch(
-    { category, featured: featured === "true", q: searchQuery || undefined },
+    {
+      category,
+      featured: view === "featured",
+      q: searchQuery || undefined,
+      view,
+    },
     filters,
   );
-  const isFiltered =
-    JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS) || !!searchQuery;
 
-  useEffect(() => {
-    const loadProviders = async () => {
-      try {
-        const listFilters: Record<string, unknown> = {};
-        let newTitle = "All Artisans";
-        let newDescription = "Discover talented artisans from across Africa";
-
-        if (searchQuery) {
-          listFilters.q = searchQuery;
-          newTitle = `Artisans for “${searchQuery}”`;
-          newDescription = "Artisans matching your search";
-        }
-        if (featured === "true") {
-          listFilters.featured = true;
-          newTitle = "Featured Artisans";
-          newDescription = "Our most acclaimed artisans with exceptional craftsmanship";
-        }
-        if (category) {
-          listFilters.category = category;
-          const cat = getCategory(category, categories);
-          if (cat) {
-            newTitle = `Artisans in ${cat.label}`;
-            newDescription = `Browse artisans specialising in ${cat.label.toLowerCase()}`;
-          }
-        }
-        if (searchQuery && (category || featured)) {
-          newTitle = `Artisans for “${searchQuery}”`;
-          newDescription = "Artisans matching your search and filters";
-        }
-
-        const res = await providersService.list(listFilters);
-        setDisplayProviders(res.data);
-        setTitle(newTitle);
-        setDescription(newDescription);
-      } catch {
-        let fallback = [...mockProviders];
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          fallback = fallback.filter(
-            (p) =>
-              p.brandName.toLowerCase().includes(q) ||
-              (p.category || "").toLowerCase().includes(q) ||
-              (p.city || "").toLowerCase().includes(q),
-          );
-        }
-        if (featured === "true") {
-          fallback = fallback.filter(p => p.featured);
-        }
-        if (category) {
-          fallback = fallback.filter(p => (p.category || "").toLowerCase() === category.toLowerCase());
-        }
-        setDisplayProviders(fallback);
+  const copy = useMemo(() => {
+    if (searchQuery) {
+      return {
+        title: `Artisans for “${searchQuery}”`,
+        description: "Artisans matching your search, in A–Z order",
+      };
+    }
+    if (view === "featured") {
+      return {
+        title: "Featured Artisans",
+        description: "Artisans marked featured in the catalogue, in A–Z order",
+      };
+    }
+    if (view === "top-rated") {
+      return {
+        title: "Top Rated Artisans",
+        description: "Artisans with published reviews, highest real average first",
+      };
+    }
+    if (view === "custom-orders") {
+      return {
+        title: "Custom Order Artisans",
+        description: "Artisans currently eligible for custom orders, in A–Z order",
+      };
+    }
+    if (view === "best-sellers") {
+      return {
+        title: "Best-Selling Artisans",
+        description: "Artisans with at least one product marked as a best seller",
+      };
+    }
+    if (category) {
+      const cat = getCategory(category, categories);
+      if (cat) {
+        return {
+          title: `Artisans in ${cat.label}`,
+          description: `Browse artisans specialising in ${cat.label.toLowerCase()}`,
+        };
       }
+    }
+    return {
+      title: "All Artisans",
+      description: "Discover talented artisans from across Africa, A–Z",
     };
+  }, [searchQuery, view, category, categories]);
 
-    loadProviders();
-  }, [featured, category, searchQuery, categories]);
+  const isFiltered =
+    JSON.stringify(filters) !== JSON.stringify(DEFAULT_ARTISAN_FILTERS) ||
+    !!searchQuery ||
+    view !== "all" ||
+    !!category;
+
+  const selectView = (next: ArtisanDiscoveryView) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "all") {
+      params.delete("view");
+      params.delete("featured");
+    } else {
+      params.set("view", next);
+      params.delete("featured");
+    }
+    setSearchParams(params);
+  };
+
+  const clearAll = () => {
+    setFilters(DEFAULT_ARTISAN_FILTERS);
+    const params = new URLSearchParams(searchParams);
+    params.delete("view");
+    params.delete("featured");
+    params.delete("q");
+    params.delete("search");
+    setSearchParams(params);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <MarketplaceNavbar />
-      
+
       <main className="container mx-auto px-4 py-8">
-        {/* Back Link */}
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
         >
@@ -104,17 +135,40 @@ const AllArtisans = () => {
           Back
         </button>
 
-        {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
-            <p className="text-muted-foreground">{description}</p>
-            <p className="text-sm text-muted-foreground mt-2">{search.loading ? "Searching…" : `${search.total} artisans found`}</p>
+        <div className="mb-8 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{copy.title}</h1>
+              <p className="text-muted-foreground">{copy.description}</p>
+              <p className="text-sm text-muted-foreground mt-2" data-testid="artisans-total-count">
+                {search.loading ? "Searching…" : `${search.total} artisans found`}
+              </p>
+            </div>
+            <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
           </div>
-          <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
+
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Artisan discovery">
+            {VIEWS.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                size="sm"
+                role="tab"
+                aria-selected={view === item.id}
+                data-testid={`artisan-view-${item.id}`}
+                variant={view === item.id ? "default" : "outline"}
+                className={cn(view === item.id && "pointer-events-none")}
+                onClick={() => selectView(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <ArtisanResults {...search} filtered={isFiltered} onClear={() => setFilters(DEFAULT_ARTISAN_FILTERS)} />
+        <div data-testid="artisans-grid">
+          <ArtisanResults {...search} filtered={isFiltered} onClear={clearAll} />
+        </div>
       </main>
 
       <MarketplaceFooter />

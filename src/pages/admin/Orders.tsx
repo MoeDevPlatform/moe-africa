@@ -6,6 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreVertical, Calendar, User, Loader2 } from "lucide-react";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -94,6 +101,8 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AdminOrderStatus | "all">("all");
+  const [paymentFilter, setPaymentFilter] = useState<AdminPaymentStatus | "all">("all");
 
   // Debounce search input
   useEffect(() => {
@@ -112,6 +121,8 @@ const Orders = () => {
         page,
         pageSize,
         q: debouncedQ || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        paymentStatus: paymentFilter === "all" ? undefined : paymentFilter,
       });
       setOrders(res.data ?? []);
       setTotalPages(res.pagination?.totalPages ?? 1);
@@ -123,7 +134,7 @@ const Orders = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedQ]);
+  }, [page, pageSize, debouncedQ, statusFilter, paymentFilter]);
 
   useEffect(() => {
     load();
@@ -174,15 +185,68 @@ const Orders = () => {
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by order #, product, provider, or customer..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 border-input bg-card"
-            aria-label="Search orders"
-          />
+        <div className="flex flex-col gap-3 lg:flex-row" data-testid="admin-order-filters">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by order #, product, provider, or customer..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 border-input bg-card"
+              aria-label="Search orders"
+              data-testid="admin-order-search"
+            />
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => {
+              setStatusFilter(value as AdminOrderStatus | "all");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full lg:w-48 bg-card" data-testid="admin-order-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {ORDER_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>{status.replace("_", " ")}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={paymentFilter}
+            onValueChange={(value) => {
+              setPaymentFilter(value as AdminPaymentStatus | "all");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full lg:w-48 bg-card" data-testid="admin-order-payment">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All payments</SelectItem>
+              {PAYMENT_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(searchQuery || statusFilter !== "all" || paymentFilter !== "all") && (
+            <Button
+              type="button"
+              variant="ghost"
+              data-testid="admin-order-clear"
+              onClick={() => {
+                setSearchQuery("");
+                setDebouncedQ("");
+                setStatusFilter("all");
+                setPaymentFilter("all");
+                setPage(1);
+              }}
+            >
+              Clear
+            </Button>
+          )}
         </div>
 
         {/* States */}

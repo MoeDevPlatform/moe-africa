@@ -10,6 +10,15 @@ import { useCategories } from "@/contexts/CategoriesContext";
 import type { Product } from "@/data/mockData";
 import { SkeletonGrid } from "@/components/common/Skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
 
 const PAGE_SIZE = 20;
 
@@ -30,6 +39,9 @@ function buildFilters(
   const season = searchParams.get("season");
   const category = searchParams.get("category");
   const type = searchParams.get("type");
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
+  const maxDeliveryDays = searchParams.get("maxDeliveryDays");
   const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
 
   const filters: Record<string, unknown> = {};
@@ -62,18 +74,30 @@ function buildFilters(
     description = "Hand-picked selections from our best artisans";
   }
 
+  if (minPrice && Number.isFinite(Number(minPrice))) filters.minPrice = Number(minPrice);
+  if (maxPrice && Number.isFinite(Number(maxPrice))) filters.maxPrice = Number(maxPrice);
+  if (maxDeliveryDays && Number.isFinite(Number(maxDeliveryDays))) {
+    filters.maxDeliveryDays = Number(maxDeliveryDays);
+  }
+
   if (sort === "newest") {
     filters.sort = "newest";
     title = "New Arrivals";
     description = "Fresh additions to our marketplace";
   } else if (sort === "bestSeller") {
     filters.sort = "bestSeller";
+    filters.isBestSeller = true;
     title = "Best Sellers";
-    description = "Our most popular items loved by customers";
+    description = "Products marked as best sellers in the catalogue";
   } else if (sort === "trending") {
     filters.sort = "trending";
+    filters.isTrending = true;
     title = "Trending Now";
-    description = "The hottest styles making waves right now";
+    description = "Products marked as trending in the catalogue";
+  } else if (sort === "price_asc" || sort === "price_desc" || sort === "name_desc") {
+    filters.sort = sort;
+  } else {
+    filters.sort = "name_asc";
   }
 
   if (season === "harmattan") {
@@ -97,7 +121,7 @@ function buildFilters(
 const AllProducts = () => {
   const navigate = useNavigate();
   const { categories } = useCategories();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(1);
@@ -213,15 +237,21 @@ const AllProducts = () => {
           Back
         </button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
-          <p className="text-muted-foreground">{description}</p>
-          <p
-            className="text-sm text-muted-foreground mt-2"
-            data-testid="products-total-count"
-          >
-            {isLoading ? "Loading…" : `${totalItems} products found`}
-          </p>
+        <div className="mb-8 space-y-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
+            <p className="text-muted-foreground">{description}</p>
+            <p
+              className="text-sm text-muted-foreground mt-2"
+              data-testid="products-total-count"
+            >
+              {isLoading ? "Loading…" : `${totalItems} products found`}
+            </p>
+          </div>
+          <ProductCatalogueControls
+            searchParams={searchParams}
+            onChange={setSearchParams}
+          />
         </div>
 
         {error && displayProducts.length === 0 ? (
@@ -297,5 +327,124 @@ const AllProducts = () => {
     </div>
   );
 };
+
+function setParam(params: URLSearchParams, key: string, value: string) {
+  if (!value || value === "all") params.delete(key);
+  else params.set(key, value);
+}
+
+function ProductCatalogueControls({
+  searchParams,
+  onChange,
+}: {
+  searchParams: URLSearchParams;
+  onChange: (next: URLSearchParams) => void;
+}) {
+  const sort = searchParams.get("sort") || "name_asc";
+  const category = searchParams.get("category") || "all";
+  const minPrice = searchParams.get("minPrice") || "";
+  const maxPrice = searchParams.get("maxPrice") || "";
+  const delivery = searchParams.get("maxDeliveryDays") || "all";
+
+  const update = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    setParam(next, key, value);
+    onChange(next);
+  };
+
+  const clear = () => {
+    const next = new URLSearchParams(searchParams);
+    ["sort", "category", "minPrice", "maxPrice", "maxDeliveryDays", "q", "search"].forEach((key) =>
+      next.delete(key),
+    );
+    onChange(next);
+  };
+
+  const hasControls =
+    sort !== "name_asc" ||
+    category !== "all" ||
+    !!minPrice ||
+    !!maxPrice ||
+    delivery !== "all" ||
+    !!searchParams.get("q") ||
+    !!searchParams.get("search");
+
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end" data-testid="product-filters">
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-sort">Sort</label>
+        <Select value={sort} onValueChange={(value) => update("sort", value)}>
+          <SelectTrigger id="product-sort" className="w-full lg:w-48" data-testid="product-sort">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name_asc">Name A–Z</SelectItem>
+            <SelectItem value="name_desc">Name Z–A</SelectItem>
+            <SelectItem value="price_asc">Price: low to high</SelectItem>
+            <SelectItem value="price_desc">Price: high to low</SelectItem>
+            <SelectItem value="newest">Newest</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-category">Category</label>
+        <Select value={category} onValueChange={(value) => update("category", value)}>
+          <SelectTrigger id="product-category" className="w-full lg:w-48" data-testid="product-category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {PRODUCT_CATEGORIES.map((item) => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-min-price">Min price</label>
+        <Input
+          id="product-min-price"
+          data-testid="product-min-price"
+          inputMode="numeric"
+          placeholder="₦ min"
+          className="w-full lg:w-32"
+          value={minPrice}
+          onChange={(e) => update("minPrice", e.target.value.replace(/[^\d]/g, ""))}
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-max-price">Max price</label>
+        <Input
+          id="product-max-price"
+          data-testid="product-max-price"
+          inputMode="numeric"
+          placeholder="₦ max"
+          className="w-full lg:w-32"
+          value={maxPrice}
+          onChange={(e) => update("maxPrice", e.target.value.replace(/[^\d]/g, ""))}
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-delivery">Delivery</label>
+        <Select value={delivery} onValueChange={(value) => update("maxDeliveryDays", value)}>
+          <SelectTrigger id="product-delivery" className="w-full lg:w-44" data-testid="product-delivery">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any delivery</SelectItem>
+            <SelectItem value="3">Within 3 days</SelectItem>
+            <SelectItem value="7">Within 7 days</SelectItem>
+            <SelectItem value="14">Within 14 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {hasControls ? (
+        <Button type="button" variant="ghost" data-testid="product-filters-clear" onClick={clear}>
+          Clear
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export default AllProducts;

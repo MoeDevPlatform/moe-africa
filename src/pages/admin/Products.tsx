@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,13 @@ import { Search, Check, X, Loader2, Eye, FileText, Trash2, Plus, ImagePlus } fro
 import { Label } from "@/components/ui/label";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { loadArtisanDirectory } from "@/lib/adminArtisanDirectory";
+import ArtisanCombobox from "@/components/admin/ArtisanCombobox";
+import {
+  PRODUCT_DESCRIPTION_PLACEHOLDER,
+  PRODUCT_NAME_PLACEHOLDER,
+  PRODUCT_NAMING_HELP,
+} from "@/lib/namingConventions";
 import type { AdminArtisanRow } from "@/lib/apiServices";
 import {
   Dialog,
@@ -89,7 +96,9 @@ const Products = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "all">(initialStatus);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [actionRow, setActionRow] = useState<
     { row: AdminProductRow; next: ProductStatus } | null
@@ -117,10 +126,26 @@ const Products = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     if (!addOpen) return;
-    adminService
-      .listArtisans({ pageSize: 100, status: "approved" })
-      .then((res) => setArtisanOptions(res.data ?? []))
+    loadArtisanDirectory((page) =>
+      adminService.listArtisans({ page, pageSize: 100, status: "approved" }),
+    )
+      .then((directory) =>
+        setArtisanOptions(
+          [...directory].sort((a, b) =>
+            (a.brandName || a.businessName || a.name).localeCompare(
+              b.brandName || b.businessName || b.name,
+              undefined,
+              { sensitivity: "base" },
+            ),
+          ),
+        ),
+      )
       .catch(() => setArtisanOptions([]));
   }, [addOpen]);
 
@@ -224,13 +249,21 @@ const Products = () => {
     }
   };
 
-  const load = (page = 1, status: ProductStatus | "all" = statusFilter) => {
+  const load = (
+    page = 1,
+    status: ProductStatus | "all" = statusFilter,
+    query = debouncedSearch,
+    category = categoryFilter,
+  ) => {
     setIsLoading(true);
     adminService
       .listProducts({
         page,
         pageSize: 20,
         status: status === "all" ? undefined : status,
+        q: query.length >= 1 ? query : undefined,
+        category: category === "all" ? undefined : category,
+        sort: "name",
       })
       .then((res) => {
         setRows(res.data ?? []);
@@ -247,20 +280,11 @@ const Products = () => {
     if (statusFilter === "all") params.delete("status");
     else params.set("status", statusFilter);
     setParams(params, { replace: true });
-    load(1, statusFilter);
+    load(1, statusFilter, debouncedSearch, categoryFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, [statusFilter, debouncedSearch, categoryFilter]);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) =>
-        !search
-          ? true
-          : r.name.toLowerCase().includes(search.toLowerCase()) ||
-            r.artisan?.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [rows, search],
-  );
+  const filtered = rows;
 
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((r) => selected.has(r.id));
@@ -381,10 +405,22 @@ const Products = () => {
             <Input
               placeholder="Search product or artisan…"
               value={search}
+              data-testid="admin-product-search"
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 border-input bg-card"
             />
           </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-48 bg-card" data-testid="admin-product-category-filter">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All categories</SelectItem>
+              {PRODUCT_CATEGORIES.map((item) => (
+                <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as ProductStatus | "all")}
@@ -764,21 +800,12 @@ const Products = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Artisan</Label>
-              <Select
+              <ArtisanCombobox
+                artisans={artisanOptions}
                 value={productForm.artisanId}
-                onValueChange={(v) => setProductForm({ ...productForm, artisanId: v })}
-              >
-                <SelectTrigger data-testid="admin-product-artisan">
-                  <SelectValue placeholder="Select artisan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {artisanOptions.map((a) => (
-                    <SelectItem key={a.id} value={String(a.id)}>
-                      {a.brandName ?? a.businessName ?? a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(artisanId) => setProductForm({ ...productForm, artisanId })}
+                disabled={adding}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="prod-name">Product name</Label>
@@ -786,15 +813,18 @@ const Products = () => {
                 id="prod-name"
                 name="name"
                 data-testid="admin-product-name"
+                placeholder={PRODUCT_NAME_PLACEHOLDER}
                 value={productForm.name}
                 onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">{PRODUCT_NAMING_HELP}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="prod-desc">Description</Label>
               <Textarea
                 id="prod-desc"
                 data-testid="admin-product-description"
+                placeholder={PRODUCT_DESCRIPTION_PLACEHOLDER}
                 value={productForm.description}
                 onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                 rows={3}

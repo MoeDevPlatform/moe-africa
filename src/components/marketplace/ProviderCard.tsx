@@ -99,7 +99,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
       
       <CardContent className="p-6">
         <div className="flex items-center gap-2 mb-2">
-          <h3 className="text-xl font-display font-bold hover:text-primary transition-colors">
+          <h3 className="text-xl font-display font-bold hover:text-primary transition-colors" data-testid="artisan-name">
             {(provider as Provider & { businessName?: string }).businessName || provider.brandName}
           </h3>
           {provider.verified && (
@@ -132,6 +132,11 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
           ) : (
             <span className="text-muted-foreground italic">No Reviews Yet</span>
           )}
+          {provider.estimatedDeliveryDays ? (
+            <span data-testid="artisan-delivery">
+              Avg. delivery {provider.estimatedDeliveryDays} days
+            </span>
+          ) : null}
           <div className="flex items-center gap-1" data-testid="artisan-location">
             <MapPin className="h-4 w-4" />
             <span>

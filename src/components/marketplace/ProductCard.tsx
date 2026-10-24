@@ -99,7 +99,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       
       <CardContent className="p-4">
         <div className="flex items-center gap-1.5 mb-1">
-          <h3 className="font-display font-semibold text-lg line-clamp-1">{product.name}</h3>
+          <h3 className="font-display font-semibold text-lg line-clamp-1" data-testid="product-name">{product.name}</h3>
           {provider?.verified && (
             <TooltipProvider>
               <Tooltip>

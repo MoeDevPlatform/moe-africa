@@ -1,11 +1,19 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { customOrderService, type CustomOrderRecord } from "@/lib/apiServices";
 import { toast } from "sonner";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Link } from "react-router-dom";
 
 type RankRow = {
@@ -26,6 +34,8 @@ const CustomOrdersAdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [ranksLoading, setRanksLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const loadOrders = () => {
     setLoading(true);
@@ -81,6 +91,19 @@ const CustomOrdersAdminPage = () => {
       setRecalculating(false);
     }
   };
+
+  const visibleRows = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (!needle) return true;
+      return [row.artisanName, row.customerName, row.description, String(row.id)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [rows, query, statusFilter]);
 
   return (
     <AdminLayout>
@@ -188,14 +211,40 @@ const CustomOrdersAdminPage = () => {
             <CardTitle>All requests</CardTitle>
             <CardDescription>Latest commission submissions across the marketplace.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row" data-testid="admin-custom-order-filters">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search artisan, customer, or description"
+                  className="pl-10"
+                  data-testid="admin-custom-order-search"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="sm:w-48" data-testid="admin-custom-order-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["all", "pending", "accepted", "declined", "in_progress", "completed", "cancelled"].map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status === "all" ? "All statuses" : status.replace("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : rows.length === 0 ? (
               <p className="text-sm text-muted-foreground">No custom orders yet.</p>
+            ) : visibleRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No custom orders match these filters.</p>
             ) : (
               <div className="space-y-3">
-                {rows.map((row) => (
+                {visibleRows.map((row) => (
                   <div
                     key={row.id}
                     className="flex flex-wrap items-start justify-between gap-3 border rounded-lg p-3"
