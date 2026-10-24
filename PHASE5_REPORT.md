@@ -21,13 +21,11 @@ Stored statuses were not renamed and none were added.
 | Control | Stored statuses |
 |---------|-----------------|
 | New Orders | `pending` |
-| Pending Orders | `confirmed`, `in_progress`, `ready`, `shipped`, `approved` |
+| Pending Orders | `pending`, `confirmed`, `in_progress`, `ready`, `shipped`, `approved` |
 | Completed Orders | `delivered` |
 | All | every order for that artisan, including `cancelled` and `rejected` |
 
-`pending` is the newly placed status: the next legal steps are `confirmed` or `cancelled`. Calling that bucket New, and the later open statuses Pending, keeps the three labels distinct. `completed` and `awaiting_payment` are not stored by this lifecycle, so they are not used as filters. Cancelled and rejected stay on All.
-
-The Pending card uses the same Pending set as the filter. A brand-new `pending` order does not increment that card. Confirming it does.
+New is the newly placed subset of Pending. The Pending card and the Pending filter use the same set, so a stored `pending` order is counted and shown when the card is opened. Confirming it removes it from New and leaves it in Pending. Delivering it moves it to Completed. `completed` and `awaiting_payment` are not stored by this lifecycle. Cancelled and rejected stay on All. No status values or legal transitions were added.
 
 ---
 
@@ -90,8 +88,8 @@ The first custom-order run failed because the test treated `Phase3` as a descrip
 **Artisan orders**
 
 - A local order was created through `POST /orders` as `phase3.customer@local.test` for product 72, owned by Phase2 Local Studio (user 14). It was created as `pending`. This is order **5**. It was left `confirmed` in `moe_dev`.
-- Phase2 Local Studio’s Pending Orders card showed **0** while the order was still `pending`.
-- The card opened `/artisan/dashboard?tab=orders&orderView=pending`. The pending filter was active and the list was empty.
+- Phase2 Local Studio’s Pending Orders card showed **0** while order 5 was still `pending`. That was the inconsistency corrected in the follow-up below.
+- The card opened `/artisan/dashboard?tab=orders&orderView=pending`. The pending filter was active and, under the first mapping, the list was empty.
 - New Orders showed “Phase2 API Variation Probe”, status pending, and count 1.
 - The status control offered the legal next step. Choosing confirmed sent `PATCH /orders/5/status` with `{ status: "confirmed" }` and the response status was `confirmed`.
 - After refresh, New Orders no longer listed it, the Pending card showed **1**, and Pending Orders showed the same order as confirmed.
@@ -111,10 +109,26 @@ The local API was rebuilt and restarted on port 3000 so these requests hit the u
 
 ---
 
-## 6. Unresolved
+## 6. Follow-up — Pending count includes newly placed orders
+
+The first mapping treated Pending as only the later open statuses. A stored `pending` order incremented New Orders and left the Pending card at 0, so the card opened an empty list. That conflicted with Requirement 18: the dashboard has to make pending orders easy to find, and the stored status for a newly placed order is `pending`.
+
+The labels were kept. The counts were aligned:
+
+- **New Orders** remains the narrow view: status `pending` only.
+- **Pending Orders**, the card, and `pendingOrderCount` now include that status plus `confirmed`, `in_progress`, `ready`, `shipped`, and `approved`.
+- The card still opens `/artisan/dashboard?tab=orders&orderView=pending`.
+- The filter hint states that newly placed orders also appear under Pending Orders.
+- Transitions are unchanged. Another artisan still cannot list or update the order.
+
+`tests/playwright/phase5-curation-orders.spec.ts` (pending-card test only) **passed** in 31.8s against localhost. Order **6** was created as `pending` for Phase2 Local Studio, which already had confirmed order 5. The card showed **2**. The pending filter was active and showed order 6 as pending. New Orders also showed it, with count 1. Confirming it sent `PATCH /orders/6/status` with `{ status: "confirmed" }`. After refresh, New Orders count was 0 and no longer listed it, the Pending card still showed **2**, and the pending filter showed order 6 as confirmed. `phase3.artisan@local.test` still received none of the orders, and `PATCH /orders/6/status` returned **403**. Order 6 remains `confirmed` in `moe_dev`.
+
+Jest `artisan-order-views.spec.ts`: 2 passed. A `pending` row is counted in both New and Pending.
+
+## 7. Unresolved
 
 - Total Orders and Profile Views on the artisan dashboard still show `—`. `GET /artisans/me` does not return those aggregates. They were not part of this phase.
-- The account that owns the older orders (user 1, ORD-001 through ORD-004) did not accept the local test password, so those rows were not used. Order 5 is the order the artisan workflow verified.
+- The account that owns the older orders (user 1, ORD-001 through ORD-004) did not accept the local test password, so those rows were not used. Orders 5 and 6 are the local artisan-workflow rows. Both remain `confirmed`.
 - Orders in `cancelled` or `rejected` are only in All. There is no fourth named filter for them.
 - Featured Artisans is an artisan picker, not a product picker, so it does not show a product artisan line.
 - Requirement 33 remains unapproved. Phase 6 has not been started.

@@ -152,7 +152,7 @@ export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthRespon
 export interface ArtisanProfile {
   profileViews?: number;
   totalOrders?: number;
-  /** Orders in the artisan Pending view: confirmed, in progress, ready, shipped, or approved. */
+  /** Open orders for this artisan, including newly placed status `pending`. */
   pendingOrderCount?: number;
   id: number;
   userId: number;

@@ -30,9 +30,9 @@ const statusLabel = (s: string) => s.replace(/_/g, " ");
 
 const FILTERS: Array<{ id: ArtisanOrderView; label: string; hint: string }> = [
   { id: "all", label: "All", hint: "Every order assigned to you, including cancelled" },
-  { id: "new", label: "New Orders", hint: "Status: pending" },
-  { id: "pending", label: "Pending Orders", hint: "Status: confirmed, in progress, ready, shipped, or approved" },
-  { id: "completed", label: "Completed Orders", hint: "Status: delivered" },
+  { id: "new", label: "New Orders", hint: "Newly placed orders awaiting confirmation (status: pending). These also appear under Pending Orders." },
+  { id: "pending", label: "Pending Orders", hint: "Open orders, including newly placed pending orders and confirmed, in progress, ready, shipped, or approved work." },
+  { id: "completed", label: "Completed Orders", hint: "Delivered orders (status: delivered)." },
 ];
 
 type Props = {

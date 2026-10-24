@@ -116,24 +116,36 @@ test.describe("Phase 5 curation and artisan orders (local)", () => {
     expect(order.status).toBe("pending");
     expect(order.providerId).toBe(14);
 
+    const ownerToken = await apiLogin(request, OWNER.email, OWNER.password);
+    const before = await request.get(`${API}/orders?pageSize=1`, {
+      headers: { Authorization: `Bearer ${ownerToken}` },
+    });
+    expect(before.ok()).toBeTruthy();
+    const beforeSummary = (await before.json()).summary as { new: number; pending: number };
+    const expectedPending = beforeSummary.pending;
+    const expectedNew = beforeSummary.new;
+
     await uiLogin(page, OWNER.email, OWNER.password);
     await page.goto("/artisan/dashboard", { waitUntil: "domcontentloaded" });
     const pendingCard = page.getByTestId("artisan-pending-orders");
     await expect(pendingCard).toContainText("Pending Orders");
-    await expect(pendingCard).toContainText("0");
+    await expect(pendingCard).toContainText(String(expectedPending));
 
     await pendingCard.click();
     await expect(page).toHaveURL(/tab=orders/);
     await expect(page).toHaveURL(/orderView=pending/);
     await expect(page.getByTestId("artisan-order-filter-pending")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("artisan-orders-empty")).toBeVisible();
+    const pendingRow = page.getByTestId(`artisan-order-${orderId}`);
+    await expect(pendingRow).toContainText("Phase2 API Variation Probe");
+    await expect(pendingRow.getByTestId("artisan-order-status")).toHaveText(/pending/i);
+    await expect(page.getByTestId("artisan-order-filter-pending")).toContainText(`(${expectedPending})`);
 
     await page.getByTestId("artisan-order-filter-new").click();
     await expect(page).toHaveURL(/orderView=new/);
     const row = page.getByTestId(`artisan-order-${orderId}`);
     await expect(row).toContainText("Phase2 API Variation Probe");
     await expect(row.getByTestId("artisan-order-status")).toHaveText(/pending/i);
-    await expect(page.getByTestId("artisan-order-filter-new")).toContainText("(1)");
+    await expect(page.getByTestId("artisan-order-filter-new")).toContainText(`(${expectedNew})`);
 
     const patched = page.waitForResponse(
       (res) => res.request().method() === "PATCH" && new URL(res.url()).pathname === `/orders/${orderId}/status`,
@@ -148,9 +160,13 @@ test.describe("Phase 5 curation and artisan orders (local)", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/orderView=new/);
     await expect(page.getByTestId(`artisan-order-${orderId}`)).toHaveCount(0);
-    await expect(pendingCard).toContainText("1");
+    await expect(page.getByTestId("artisan-order-filter-new")).toContainText(`(${expectedNew - 1})`);
+    await expect(pendingCard).toContainText(String(expectedPending));
     await page.getByTestId("artisan-order-filter-pending").click();
+    await expect(page).toHaveURL(/orderView=pending/);
+    await expect(page.getByTestId("artisan-order-filter-pending")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId(`artisan-order-${orderId}`).getByTestId("artisan-order-status")).toHaveText(/confirmed/i);
+    await expect(page.getByTestId("artisan-order-filter-pending")).toContainText(`(${expectedPending})`);
 
     const otherToken = await apiLogin(request, OTHER.email, OTHER.password);
     const foreignList = await request.get(`${API}/orders?pageSize=100`, {
