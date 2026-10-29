@@ -402,28 +402,6 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="signup">
-                <div className="flex items-start gap-2 py-2">
-                  <Checkbox
-                    id="accept-terms"
-                    data-testid="signup-consent"
-                    checked={acceptedTerms}
-                    onCheckedChange={(value) => {
-                      setAcceptedTerms(value === true);
-                      if (value === true) setConsentError("");
-                    }}
-                  />
-                  <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug cursor-pointer">
-                    I agree to the{" "}
-                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
-                    {" "}and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-                  </Label>
-                </div>
-                {consentError && (
-                  <p className="text-sm text-destructive" data-testid="signup-consent-error" role="alert">
-                    {consentError}
-                  </p>
-                )}
                 {/* Role + categories ride along as Clerk unsafeMetadata so POST /auth/clerk-verify
                     can create an artisan profile for Google sign-ups too. Google sign-up is only
                     offered for customers — artisan accounts require email sign-up so service
@@ -639,6 +617,31 @@ const Auth = () => {
                       {authError}
                     </p>
                   )}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        id="accept-terms"
+                        data-testid="signup-consent"
+                        checked={acceptedTerms}
+                        className="mt-0.5"
+                        onCheckedChange={(value) => {
+                          setAcceptedTerms(value === true);
+                          if (value === true) setConsentError("");
+                        }}
+                      />
+                      <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug cursor-pointer">
+                        I agree to the{" "}
+                        <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+                        {" "}and{" "}
+                        <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                      </Label>
+                    </div>
+                    {consentError && (
+                      <p className="text-sm text-destructive pl-6" data-testid="signup-consent-error" role="alert">
+                        {consentError}
+                      </p>
+                    )}
+                  </div>
                   <Button
                     type="submit"
                     className="w-full"
