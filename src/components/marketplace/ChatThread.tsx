@@ -34,6 +34,8 @@ interface ChatThreadProps {
   initialConversationId?: number;
   /** Compact layout for small containers (e.g. modal use). */
   compact?: boolean;
+  /** Fill a parent panel: no duplicate header, text composer with a Send button. */
+  embedded?: boolean;
 }
 
 /**
@@ -41,7 +43,7 @@ interface ChatThreadProps {
  * Self-contained copy of the modal chat body — keeps the existing
  * MessagingModal untouched for now (conservative extraction per plan).
  */
-const ChatThread = ({ providerId, providerName, initialConversationId, compact }: ChatThreadProps) => {
+const ChatThread = ({ providerId, providerName, initialConversationId, compact, embedded }: ChatThreadProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -49,6 +51,8 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [conversationId, setConversationId] = useState<number | null>(initialConversationId ?? null);
+  const [historyStatus, setHistoryStatus] = useState<"idle" | "ready" | "error">("idle");
+  const [historyAttempt, setHistoryAttempt] = useState(0);
   const { user } = useAuth();
   const isSelfChat =
     user?.role === "artisan" && user?.artisanProfile?.id === providerId;
@@ -56,7 +60,7 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
   // Guard: artisans cannot chat with themselves.
   if (isSelfChat) {
     return (
-      <div className={cn("flex flex-col items-center justify-center bg-card border rounded-lg overflow-hidden text-center px-6", compact ? "h-[500px]" : "h-[calc(100vh-220px)] min-h-[400px]")}>
+      <div className={cn("flex flex-col items-center justify-center bg-card text-center px-6", embedded ? "h-full min-h-0" : "border rounded-lg overflow-hidden", !embedded && (compact ? "h-[500px]" : "h-[calc(100vh-220px)] min-h-[400px]"))}>
         <Avatar className="h-16 w-16 mb-4">
           <AvatarFallback className="bg-muted text-muted-foreground text-2xl">
             {providerName.charAt(0).toUpperCase()}
@@ -124,8 +128,12 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
 
   // Poll messages every 5s for delivered/read updates and new inbound text.
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId) {
+      setHistoryStatus("idle");
+      return;
+    }
     let cancelled = false;
+    setHistoryStatus("idle");
 
     const fetchOnce = () => {
       messagingService
@@ -133,7 +141,10 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
         .then((res) => {
           if (cancelled) return;
           const serverMessages = res?.data ?? [];
-          if (!Array.isArray(serverMessages)) return;
+          if (!Array.isArray(serverMessages)) {
+            setHistoryStatus("ready");
+            return;
+          }
           setMessages((prev) => {
             const byServerId = new Map<number, number>();
             prev.forEach((m, i) => {
@@ -164,14 +175,25 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
                   changed = true;
                 }
               } else {
-                next.push(mapped);
+                const localIdx = next.findIndex(
+                  (existing) =>
+                    existing.serverId == null &&
+                    existing.text === mapped.text &&
+                    existing.isCustomer === mapped.isCustomer,
+                );
+                if (localIdx >= 0) next[localIdx] = mapped;
+                else next.push(mapped);
                 changed = true;
               }
             }
             return changed ? next : prev;
           });
+          setHistoryStatus("ready");
         })
-        .catch(() => { /* silent */ });
+        .catch(() => {
+          if (cancelled) return;
+          setHistoryStatus((status) => (status === "ready" ? status : "error"));
+        });
     };
 
     fetchOnce();
@@ -180,7 +202,7 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [conversationId, providerId, providerName]);
+  }, [conversationId, providerId, providerName, historyAttempt]);
 
   // Persist locally.
   useEffect(() => {
@@ -361,92 +383,162 @@ const ChatThread = ({ providerId, providerName, initialConversationId, compact }
     return <Check className="h-3 w-3" aria-label="Sent" />;
   };
 
-  return (
-    <div className={cn("flex flex-col bg-card border rounded-lg overflow-hidden", compact ? "h-[500px]" : "h-[calc(100vh-220px)] min-h-[400px]")}>
-      <div className="px-6 py-4 border-b flex items-center gap-3">
-        <Avatar>
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {providerName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Chatting with</p>
-          <h2 className="font-semibold leading-tight">Re: {providerName}</h2>
-          <p className="text-xs text-muted-foreground">Replies from MoE Support</p>
-          <p className="text-xs text-muted-foreground">Service Provider</p>
-        </div>
-      </div>
+  const showHistoryLoading =
+    !!conversationId && messages.length === 0 && historyStatus === "idle";
+  const showHistoryError = historyStatus === "error" && messages.length === 0;
 
-      <ScrollArea className="flex-1 px-6" ref={scrollRef}>
-        <div className="space-y-4 py-4">
-          {messages.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No messages yet. Start a conversation!</p>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div key={message.id} className={`flex gap-3 ${message.isCustomer ? "flex-row-reverse" : ""}`}>
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className={message.isCustomer ? "bg-secondary" : "bg-primary text-primary-foreground"}>
-                    {message.senderName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className={`flex flex-col gap-1 max-w-[70%] ${message.isCustomer ? "items-end" : ""}`}>
-                  <div
-                    className={cn(
-                      "rounded-2xl px-4 py-2",
-                      message.isCustomer ? "bg-primary text-primary-foreground" : "bg-muted",
-                    )}
-                  >
-                    {renderMessageContent(message)}
-                  </div>
-                  <div className="flex items-center gap-1 px-2">
-                    <span className="text-xs text-muted-foreground">
-                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    {message.isCustomer && (
-                      <span className="text-xs text-muted-foreground">{renderStatusIcon(message)}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </ScrollArea>
-
-      <div className="px-6 py-4 border-t bg-background">
-        <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
-        <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => imageInputRef.current?.click()} aria-label="Attach image">
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
-            <Paperclip className="h-4 w-4" />
-          </Button>
+  const messageList = (
+    <div className="space-y-4 py-4">
+      {showHistoryLoading ? (
+        <p className="text-center py-12 text-sm text-muted-foreground" data-testid="messages-thread-loading">
+          Loading messages…
+        </p>
+      ) : showHistoryError ? (
+        <div className="text-center py-12 space-y-3" data-testid="messages-thread-error">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load this conversation.</p>
           <Button
-            variant={isRecording ? "destructive" : "outline"}
-            size="icon"
-            className="shrink-0"
-            onClick={handleVoiceRecord}
-            aria-label={isRecording ? "Stop recording" : "Record voice message"}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setHistoryStatus("idle");
+              setHistoryAttempt((n) => n + 1);
+            }}
           >
-            <Mic className={cn("h-4 w-4", isRecording && "animate-pulse")} />
-          </Button>
-          <Input
-            placeholder="Type your message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="flex-1"
-            aria-label="Message text"
-          />
-          <Button onClick={() => handleSendMessage()} size="icon" className="shrink-0" aria-label="Send message">
-            <Send className="h-4 w-4" />
+            Try again
           </Button>
         </div>
+      ) : messages.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground" data-testid="messages-thread-empty">
+          <p>No messages yet. Start a conversation!</p>
+        </div>
+      ) : (
+        messages.map((message) => (
+          <div key={message.id} className={`flex gap-3 ${message.isCustomer ? "flex-row-reverse" : ""}`}>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className={message.isCustomer ? "bg-secondary" : "bg-primary text-primary-foreground"}>
+                {message.senderName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className={`flex flex-col gap-1 max-w-[70%] ${message.isCustomer ? "items-end" : ""}`}>
+              <div
+                className={cn(
+                  "rounded-2xl px-4 py-2",
+                  message.isCustomer ? "bg-primary text-primary-foreground" : "bg-muted",
+                )}
+              >
+                {renderMessageContent(message)}
+              </div>
+              <div className="flex items-center gap-1 px-2">
+                <span className="text-xs text-muted-foreground">
+                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                {message.isCustomer && (
+                  <span className="text-xs text-muted-foreground">{renderStatusIcon(message)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const composer = embedded ? (
+    <div className="px-3 py-3 border-t bg-background">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Type your message..."
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="flex-1"
+          aria-label="Message text"
+          data-testid="messages-panel-input"
+        />
+        <Button
+          type="button"
+          onClick={() => handleSendMessage()}
+          className="shrink-0"
+          disabled={!newMessage.trim()}
+          data-testid="messages-panel-send"
+        >
+          Send
+        </Button>
       </div>
+    </div>
+  ) : (
+    <div className="px-6 py-4 border-t bg-background">
+      <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
+      <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
+      <div className="flex gap-2">
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => imageInputRef.current?.click()} aria-label="Attach image">
+          <ImageIcon className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
+          <Paperclip className="h-4 w-4" />
+        </Button>
+        <Button
+          variant={isRecording ? "destructive" : "outline"}
+          size="icon"
+          className="shrink-0"
+          onClick={handleVoiceRecord}
+          aria-label={isRecording ? "Stop recording" : "Record voice message"}
+        >
+          <Mic className={cn("h-4 w-4", isRecording && "animate-pulse")} />
+        </Button>
+        <Input
+          placeholder="Type your message..."
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="flex-1"
+          aria-label="Message text"
+        />
+        <Button onClick={() => handleSendMessage()} size="icon" className="shrink-0" aria-label="Send message">
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col min-h-0 overflow-hidden",
+        embedded
+          ? "h-full bg-background"
+          : cn("bg-card border rounded-lg", compact ? "h-[500px]" : "h-[calc(100vh-220px)] min-h-[400px]"),
+      )}
+      data-testid={embedded ? "messages-thread" : undefined}
+    >
+      {!embedded && (
+        <div className="px-6 py-4 border-b flex items-center gap-3">
+          <Avatar>
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {providerName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Chatting with</p>
+            <h2 className="font-semibold leading-tight">Re: {providerName}</h2>
+            <p className="text-xs text-muted-foreground">Replies from MoE Support</p>
+            <p className="text-xs text-muted-foreground">Service Provider</p>
+          </div>
+        </div>
+      )}
+
+      {embedded ? (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">
+          {messageList}
+        </div>
+      ) : (
+        <ScrollArea className="flex-1 px-6" ref={scrollRef}>
+          {messageList}
+        </ScrollArea>
+      )}
+
+      {composer}
     </div>
   );
 };

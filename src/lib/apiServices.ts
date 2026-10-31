@@ -2382,6 +2382,7 @@ export interface AdminProductRow {
   artisanName?: string | null;
   providerId: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AdminUserRow {
@@ -2480,6 +2481,8 @@ export const adminService = {
     q?: string;
     category?: string;
     sort?: string;
+    createdFrom?: string;
+    createdTo?: string;
   }) =>
     apiGet<PaginatedResponse<AdminProductRow>>(
       "/admin/products",

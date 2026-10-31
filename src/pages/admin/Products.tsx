@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,14 @@ import { Search, Check, X, Loader2, Eye, FileText, Trash2, Plus, ImagePlus } fro
 import { Label } from "@/components/ui/label";
 import { useCategories } from "@/contexts/CategoriesContext";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
-import { loadArtisanDirectory } from "@/lib/adminArtisanDirectory";
+import {
+  describeCreatedRange,
+  loadArtisanDirectory,
+  normalizeCreatedBounds,
+  resolveCreatedRange,
+  type CreatedPreset,
+} from "@/lib/adminArtisanDirectory";
+import { formatAdminTimestamp } from "@/lib/adminTimestamps";
 import ArtisanCombobox from "@/components/admin/ArtisanCombobox";
 import {
   PRODUCT_DESCRIPTION_PLACEHOLDER,
@@ -97,6 +104,10 @@ const Products = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "all">(initialStatus);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
+  const [createdPreset, setCreatedPreset] = useState<CreatedPreset>("any");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -249,11 +260,26 @@ const Products = () => {
     }
   };
 
+  const createdRange = useMemo(
+    () => resolveCreatedRange(createdPreset, dateFrom, dateTo),
+    [createdPreset, dateFrom, dateTo],
+  );
+  const createdBounds = useMemo(
+    () => normalizeCreatedBounds(createdRange.dateFrom, createdRange.dateTo),
+    [createdRange],
+  );
+  const createdSummary = describeCreatedRange(createdRange.dateFrom, createdRange.dateTo);
+  const createdFrom = createdBounds.from?.toISOString();
+  const createdTo = createdBounds.to?.toISOString();
+
   const load = (
     page = 1,
     status: ProductStatus | "all" = statusFilter,
     query = debouncedSearch,
     category = categoryFilter,
+    sortKey: "newest" | "oldest" | "name" = sort,
+    from = createdFrom,
+    to = createdTo,
   ) => {
     setIsLoading(true);
     adminService
@@ -263,7 +289,9 @@ const Products = () => {
         status: status === "all" ? undefined : status,
         q: query.length >= 1 ? query : undefined,
         category: category === "all" ? undefined : category,
-        sort: "name",
+        sort: sortKey,
+        createdFrom: from,
+        createdTo: to,
       })
       .then((res) => {
         setRows(res.data ?? []);
@@ -280,9 +308,9 @@ const Products = () => {
     if (statusFilter === "all") params.delete("status");
     else params.set("status", statusFilter);
     setParams(params, { replace: true });
-    load(1, statusFilter, debouncedSearch, categoryFilter);
+    load(1, statusFilter, debouncedSearch, categoryFilter, sort, createdFrom, createdTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, debouncedSearch, categoryFilter]);
+  }, [statusFilter, debouncedSearch, categoryFilter, sort, createdFrom, createdTo]);
 
   const filtered = rows;
 
@@ -399,7 +427,7 @@ const Products = () => {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -425,7 +453,7 @@ const Products = () => {
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as ProductStatus | "all")}
           >
-            <SelectTrigger className="w-full sm:w-48 bg-card">
+            <SelectTrigger className="w-full sm:w-48 bg-card" data-testid="admin-product-status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card">
@@ -436,7 +464,76 @@ const Products = () => {
               <SelectItem value="draft">Draft</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sort} onValueChange={(value) => setSort(value as "newest" | "oldest" | "name")}>
+            <SelectTrigger className="w-full sm:w-48 bg-card" data-testid="admin-product-sort">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="name">Name A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={createdPreset}
+            onValueChange={(value) => setCreatedPreset(value as CreatedPreset)}
+          >
+            <SelectTrigger className="w-full sm:w-48 bg-card" data-testid="admin-product-created">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="any">Any date</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="month">This month</SelectItem>
+              <SelectItem value="custom">Custom range</SelectItem>
+            </SelectContent>
+          </Select>
+          {createdPreset === "custom" ? (
+            <>
+              <Input
+                type="date"
+                aria-label="Created from"
+                data-testid="admin-product-date-from"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full sm:w-40 bg-card"
+              />
+              <Input
+                type="date"
+                aria-label="Created to"
+                data-testid="admin-product-date-to"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full sm:w-40 bg-card"
+              />
+            </>
+          ) : null}
+          {search || statusFilter !== "all" || categoryFilter !== "all" || sort !== "newest" || createdPreset !== "any" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              data-testid="admin-product-clear"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setCategoryFilter("all");
+                setSort("newest");
+                setCreatedPreset("any");
+                setDateFrom("");
+                setDateTo("");
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
         </div>
+        {createdSummary ? (
+          <p className="text-sm text-muted-foreground" data-testid="admin-product-created-summary">
+            {createdSummary}. The date filter applies to the full catalogue.
+          </p>
+        ) : null}
 
         {selectedCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-3">
@@ -504,13 +601,14 @@ const Products = () => {
                   <TableHead>Price</TableHead>
                   <TableHead>Artisan</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Date created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
                       No products match these filters.
                     </TableCell>
                   </TableRow>
@@ -538,6 +636,9 @@ const Products = () => {
                         <Badge variant={statusVariant(row.status)} className="capitalize">
                           {row.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground" data-testid="product-created-at">
+                        {formatAdminTimestamp(row.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -595,11 +696,11 @@ const Products = () => {
           )}
         </Card>
 
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
+        <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground" data-testid="admin-products-total">
               Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} total
             </span>
+            {pagination.totalPages > 1 ? (
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -618,8 +719,8 @@ const Products = () => {
                 Next
               </Button>
             </div>
+            ) : null}
           </div>
-        )}
       </div>
 
       <Dialog

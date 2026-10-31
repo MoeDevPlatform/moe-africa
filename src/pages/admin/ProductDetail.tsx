@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { adminService, type ProductStatus } from "@/lib/apiServices";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
+import { formatAdminTimestamp } from "@/lib/adminTimestamps";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -117,6 +118,12 @@ const ProductDetailPage = () => {
               <div>
                 <h1 className="text-3xl font-display font-bold">{product.name}</h1>
                 <p className="text-muted-foreground">{product.category}</p>
+                <p className="text-sm text-muted-foreground" data-testid="product-detail-created">
+                  Created {formatAdminTimestamp(product.createdAt)}
+                </p>
+                <p className="text-sm text-muted-foreground" data-testid="product-detail-updated">
+                  Updated {formatAdminTimestamp(product.updatedAt)}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge

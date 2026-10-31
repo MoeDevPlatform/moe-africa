@@ -6,7 +6,7 @@ import CompleteYourLook from "@/components/marketplace/CompleteYourLook";
 import ProductImageGallery from "@/components/marketplace/ProductImageGallery";
 import DeliveryEstimate from "@/components/marketplace/DeliveryEstimate";
 import ProductReviews from "@/components/marketplace/ProductReviews";
-import MessagingModal from "@/components/marketplace/MessagingModal";
+import { useMessagingDock } from "@/contexts/MessagingDockContext";
 import ProductCard from "@/components/marketplace/ProductCard";
 import ProductVariationSelector, {
   type VariationSelection,
@@ -50,7 +50,7 @@ import Skeleton from "@/components/common/Skeleton";
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [showMessaging, setShowMessaging] = useState(false);
+  const { openDock } = useMessagingDock();
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const [variations, setVariations] = useState<VariationSelection>({});
   const [variationsReady, setVariationsReady] = useState(true);
@@ -274,7 +274,7 @@ const ProductDetail = () => {
           variant="outline"
           className="w-full"
           data-testid="message-us-btn"
-          onClick={() => setShowMessaging(true)}
+          onClick={() => openDock({ providerId: provider.id, providerName: provider.brandName })}
         >
           <MessageCircle className="h-4 w-4 mr-2" />
           Message Us
@@ -618,13 +618,6 @@ const ProductDetail = () => {
       <MarketplaceFooter />
 
       {/* Customisation modals kept in codebase but no longer opened from PDP */}
-
-      <MessagingModal
-        open={showMessaging}
-        onOpenChange={setShowMessaging}
-        providerId={provider.id}
-        providerName={provider.brandName}
-      />
     </div>
   );
 };

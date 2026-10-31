@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, MessageSquare, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store } from "lucide-react";
+import { ShoppingCart, User, Search, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -282,14 +282,6 @@ const MarketplaceNavbar = () => {
               </span>
             </IconTooltip>
             
-            <IconTooltip label="Messages">
-              <Link to="/marketplace/messages">
-                <Button variant="ghost" size="icon" aria-label="View messages">
-                  <MessageSquare className="h-5 w-5" aria-hidden="true" />
-                </Button>
-              </Link>
-            </IconTooltip>
-
             <IconTooltip label="Wishlist">
               <Link to="/marketplace/wishlist">
                 <Button variant="ghost" size="icon" className="relative" aria-label={`View wishlist${getWishlistCount() > 0 ? `, ${getWishlistCount()} items` : ''}`}>

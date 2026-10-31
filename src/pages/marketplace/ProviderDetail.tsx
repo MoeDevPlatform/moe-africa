@@ -6,7 +6,7 @@ import MarketplaceFooter from "@/components/marketplace/Footer";
 import ProductCard from "@/components/marketplace/ProductCard";
 import CustomizationFormModal from "@/components/marketplace/CustomizationFormModal";
 import RequestCustomOrderModal from "@/components/marketplace/RequestCustomOrderModal";
-import MessagingModal from "@/components/marketplace/MessagingModal";
+import { useMessagingDock } from "@/contexts/MessagingDockContext";
 import CustomerReviews, { Review } from "@/components/marketplace/CustomerReviews";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const ProviderDetail = () => {
   const location = useLocation();
   const [showCustomizationForm, setShowCustomizationForm] = useState(false);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
-  const [showMessaging, setShowMessaging] = useState(false);
+  const { openDock } = useMessagingDock();
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -242,7 +242,7 @@ const ProviderDetail = () => {
                       <TooltipTrigger asChild>
                         <Button
                           size="lg"
-                          onClick={() => setShowMessaging(true)}
+                          onClick={() => openDock({ providerId: provider.id, providerName: provider.brandName })}
                           variant="outline"
                           className="bg-background/50 backdrop-blur h-auto whitespace-normal text-center"
                           data-testid="make-enquiry-btn"
@@ -359,7 +359,7 @@ const ProviderDetail = () => {
                       className="w-full h-auto whitespace-normal"
                       variant="outline"
                       data-testid="make-enquiry-sidebar-btn"
-                      onClick={() => setShowMessaging(true)}
+                      onClick={() => openDock({ providerId: provider.id, providerName: provider.brandName })}
                     >
                       <MessageCircle className="h-4 w-4 mr-2 shrink-0" />
                       Make an Enquiry
@@ -403,13 +403,6 @@ const ProviderDetail = () => {
         basePrice={25000}
         estimatedDeliveryDays={provider.estimatedDeliveryDays}
         category={provider.category as "tailoring" | "shoemaking"}
-      />
-
-      <MessagingModal
-        open={showMessaging}
-        onOpenChange={setShowMessaging}
-        providerId={provider.id}
-        providerName={provider.brandName}
       />
 
       {/* Leave-a-review dialog — POST upserts by (userId, artisanId). */}

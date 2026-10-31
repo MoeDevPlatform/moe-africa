@@ -80,6 +80,7 @@ import CookiePolicy from "./pages/marketplace/CookiePolicy";
 import ScrollToTopButton from "./components/common/ScrollToTopButton";
 import ScrollToTopOnRouteChange from "./components/common/ScrollToTopOnRouteChange";
 import FloatingMessagesButton from "./components/marketplace/FloatingMessagesButton";
+import { MessagingDockProvider } from "./contexts/MessagingDockContext";
 import ClerkSessionBridge from "./components/auth/ClerkSessionBridge";
 import { isClerkEnabled } from "./lib/clerk";
 
@@ -99,6 +100,7 @@ const App = () => (
               <Sonner />
               <ScrollToTopButton />
               <BrowserRouter>
+                <MessagingDockProvider>
                 <FloatingMessagesButton />
                 <ScrollToTopOnRouteChange />
                 <RouteEntry>
@@ -184,6 +186,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </RouteEntry>
+                </MessagingDockProvider>
               </BrowserRouter>
             </TooltipProvider>
           </PreferencesProvider>
