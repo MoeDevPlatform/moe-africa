@@ -46,6 +46,7 @@ import OrderDetail from "./pages/marketplace/OrderDetail";
 import Settings from "./pages/marketplace/Settings";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/auth/ResetPassword";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 import AuthCallback from "./pages/AuthCallback";
 import SSOCallback from "./pages/auth/SSOCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
@@ -108,6 +109,7 @@ const App = () => (
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/auth/reset-password" element={<ResetPassword />} />
+                  <Route path="/auth/verify-email" element={<VerifyEmail />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/sso-callback" element={<SSOCallback />} />
                   

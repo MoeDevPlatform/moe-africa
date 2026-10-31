@@ -147,10 +147,14 @@ test.describe("Phase 7 message, enquiry, and signup consent (local)", () => {
     await page.getByTestId("signup-btn").click();
     const createdRes = await created;
     expect(createdRes.status()).toBe(201);
+    const createdJson = await createdRes.json();
+    expect(createdJson.verificationRequired).toBe(true);
+    expect(createdJson.token).toBeUndefined();
     const createdBody = createdRes.request().postDataJSON() as { acceptedTerms?: boolean; email?: string };
     expect(createdBody.acceptedTerms).toBe(true);
     expect(createdBody.email).toBe(email);
-    await expect(page).toHaveURL(/\/marketplace/);
+    await expect(page.getByTestId("verify-email-pending")).toBeVisible();
+    await expect(page).not.toHaveURL(/\/marketplace/);
 
     await page.evaluate(() => {
       localStorage.removeItem("moe_access_token");

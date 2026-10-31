@@ -50,6 +50,12 @@ export interface AuthResponse {
   user: CustomerProfile;
 }
 
+export interface VerificationRequiredResponse {
+  verificationRequired: true;
+  email: string;
+  message: string;
+}
+
 export interface RegisterRequest {
   name: string;
   email: string;
@@ -62,39 +68,23 @@ export interface RegisterRequest {
   acceptedTerms?: boolean;
 }
 
-// Mock auth fallback for offline/dev use
-const mockAuthFallback = (
-  name: string,
-  email: string,
-  role: UserRole = "customer",
-): AuthResponse => ({
-  token: "mock_access_token_" + Date.now(),
-  refreshToken: "mock_refresh_token_" + Date.now(),
-  user: {
-    id: Date.now(),
-    username: email.split("@")[0],
-    name,
-    email,
-    role,
-    createdAt: new Date().toISOString(),
-  },
-});
-
 export const authService = {
   login: async (data: LoginRequest): Promise<LoginResult> => {
-    // Backend always returns { token, refreshToken, user } — no OTP / verification branches.
     return await apiPost<AuthResponse>("/auth/login", data);
   },
 
   register: async (data: RegisterRequest): Promise<RegisterResult> => {
     try {
-      // Backend signs the new account in immediately — returns { token, refreshToken, user }.
-      return await apiPost<AuthResponse>("/auth/register", data);
+      return await apiPost<RegisterResult>("/auth/register", data);
     } catch (err) {
       // Only fall back to mock when the network is unreachable, not on validation errors.
       if (err instanceof MoeApiError) throw err;
       console.warn("[MOE] Backend unreachable — using mock register");
-      return mockAuthFallback(data.name, data.email, data.role);
+      return {
+        verificationRequired: true,
+        email: data.email,
+        message: "Check your email to verify your account before signing in.",
+      };
     }
   },
   /** One-time state for a new Google signup. Sign-in does not call this. */
@@ -123,6 +113,10 @@ export const authService = {
     apiPost<{ message?: string }>("/auth/forgot-password", data),
   resetPassword: (data: { token: string; newPassword: string }) =>
     apiPost<{ message?: string }>("/auth/reset-password", data),
+  verifyEmail: (token: string) =>
+    apiPost<{ verified: boolean; message: string }>("/auth/verify-email", { token }),
+  resendVerification: (email: string) =>
+    apiPost<{ message: string }>("/auth/resend-verification", { email }),
   uploadAvatar: async (file: File) => {
     validateUploadFile(file);
     const formData = new FormData();
@@ -143,10 +137,8 @@ export const authService = {
   },
 };
 
-// Email-OTP / admin-OTP flows were removed on the backend; login and register
-// now always resolve to a full AuthResponse.
 export type LoginResult = AuthResponse;
-export type RegisterResult = AuthResponse;
+export type RegisterResult = VerificationRequiredResponse | AuthResponse;
 
 export function isAuthResponse(r: LoginResult | RegisterResult): r is AuthResponse {
   return typeof (r as AuthResponse).token === "string";
@@ -400,6 +392,8 @@ export interface CustomerProfile {
   artisanProfile?: ArtisanProfile;
   preferences?: UserPreference;
   createdAt: string;
+  /** False until an email/password account opens its verification link. */
+  emailVerified?: boolean;
   /**
    * True when the UI is showing a Clerk session before (or without) a MOE
    * backend token. Authenticated MOE features still need `/auth/clerk-verify`.

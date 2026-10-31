@@ -31,9 +31,11 @@ const AuthCallback = () => {
     }
 
     loginWithTokens(token, refreshToken)
-      .then(() => {
+      .then((profile) => {
         toast.success("Signed in with Google");
-        navigate("/marketplace");
+        if (profile?.role === "artisan") navigate("/artisan/dashboard");
+        else if (profile?.role === "admin") navigate("/admin");
+        else navigate("/marketplace");
       })
       .catch(() => {
         toast.error("Could not complete sign-in");

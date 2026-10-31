@@ -4,6 +4,7 @@ import {
   CustomerProfile,
   UserRole,
   artisanService,
+  type RegisterResult,
 } from "@/lib/apiServices";
 import { clearNotificationCache } from "@/lib/notificationCache";
 
@@ -21,9 +22,9 @@ interface AuthContextType {
     role?: UserRole,
     serviceCategories?: string[],
     acceptedTerms?: boolean,
-  ) => Promise<void>;
+  ) => Promise<RegisterResult>;
   /** Persist tokens + hydrate profile (used by OTP verify + Google OAuth callback). */
-  loginWithTokens: (token: string, refreshToken: string) => Promise<void>;
+  loginWithTokens: (token: string, refreshToken: string) => Promise<CustomerProfile | null>;
   /**
    * Show a signed-in UI immediately from a Clerk session, before (or if)
    * POST /auth/clerk-verify has issued MOE tokens. Does not write tokens.
@@ -31,7 +32,7 @@ interface AuthContextType {
   setProvisionalUser: (profile: CustomerProfile) => void;
   logout: () => void;
   updateUser: (updates: Partial<CustomerProfile>) => void;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: () => Promise<CustomerProfile | null>;
 }
 
 // Keep a single context instance across hot reloads. Without this, editing
@@ -72,10 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try { localStorage.setItem("moe_self_artisan_id", String(profile.artisanProfile.id)); } catch { /* noop */ }
       }
       setUser(profile);
+      return profile;
     } catch {
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       setUser(null);
+      return null;
     }
   }, []);
 
@@ -107,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearNotificationCache();
     localStorage.setItem(ACCESS_TOKEN_KEY, token);
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    await refreshProfile();
+    return refreshProfile();
   }, [refreshProfile]);
 
   const setProvisionalUser = useCallback((profile: CustomerProfile) => {
@@ -140,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role?: UserRole,
     serviceCategories?: string[],
     acceptedTerms?: boolean,
-  ) => {
+  ): Promise<RegisterResult> => {
     const res = await authService.register({
       name,
       email,
@@ -149,11 +152,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serviceCategories,
       acceptedTerms,
     });
-    clearArtisanStash();
-    clearNotificationCache();
-    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
-    localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
-    setUser(res.user);
+    if ("token" in res && res.token && res.refreshToken) {
+      clearArtisanStash();
+      clearNotificationCache();
+      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+      setUser(res.user);
+    }
+    return res;
   }, []);
 
   const logout = useCallback(() => {

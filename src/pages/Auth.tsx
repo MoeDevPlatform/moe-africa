@@ -10,12 +10,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, authService, metaService, ServiceCategoryOption } from "@/lib/apiServices";
 import { MoeApiError } from "@/lib/moeApi";
-import { User, Palette, Eye, EyeOff, Mail } from "lucide-react";
+import { User, Palette, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect } from "react";
 import logo from "@/assets/logo.png";
 import { isClerkEnabled } from "@/lib/clerk";
 import ClerkGoogleButton from "@/components/auth/ClerkGoogleButton";
+import GoogleContinueButton from "@/components/auth/GoogleContinueButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 import { Check, X as XIcon } from "lucide-react";
@@ -55,6 +56,7 @@ const Auth = () => {
   const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const { login, register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [googleRedirecting, setGoogleRedirecting] = useState(false);
   const [authError, setAuthError] = useState("");
   const signInRateLimit = useAuthRateLimitCooldown();
   const signUpRateLimit = useAuthRateLimitCooldown();
@@ -82,6 +84,16 @@ const Auth = () => {
   const [consentError, setConsentError] = useState("");
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [availableServiceCategories, setAvailableServiceCategories] = useState<ServiceCategoryOption[]>([]);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendNotice, setResendNotice] = useState("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldown]);
 
   // Load canonical service categories for the artisan signup chips.
   useEffect(() => {
@@ -104,20 +116,33 @@ const Auth = () => {
   };
 
   useEffect(() => {
-    if (searchParams.get("error") === "consent") {
+    const error = searchParams.get("error");
+    if (error === "consent") {
       setConsentError("Agree to the Terms of Service and Privacy Policy to create an account.");
+    }
+    if (error === "google_unavailable") {
+      setAuthError("Google sign-in is temporarily unavailable. Please use email and password.");
     }
   }, [searchParams]);
 
   const handleGoogle = async (purpose: "signIn" | "signUp" = "signIn") => {
     if (purpose === "signUp" && !consentGranted()) return;
-    let url = authService.googleOAuthUrl();
-    if (purpose === "signUp") {
-      const ticket = await authService.issueOAuthConsent();
-      url += `?state=${encodeURIComponent(ticket.state)}`;
+    setAuthError("");
+    setGoogleRedirecting(true);
+    try {
+      let url = authService.googleOAuthUrl();
+      if (purpose === "signUp") {
+        const ticket = await authService.issueOAuthConsent();
+        url += `?state=${encodeURIComponent(ticket.state)}`;
+      }
+      // Full-page redirect — backend handles the OAuth dance and bounces back to /auth/callback.
+      window.location.href = url;
+    } catch (err: unknown) {
+      setGoogleRedirecting(false);
+      const message = err instanceof Error ? err.message : "Could not start Google sign-in";
+      setAuthError(message);
+      toast.error(message);
     }
-    // Full-page redirect — backend handles the OAuth dance and bounces back to /auth/callback.
-    window.location.href = url;
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -133,6 +158,11 @@ const Auth = () => {
         const msg = rateLimitMessage(err);
         setAuthError(msg);
         toast.error(msg);
+      } else if (err instanceof MoeApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        setPendingVerificationEmail(signInEmail.trim());
+        setResendCooldown(0);
+        setResendNotice("");
+        setAuthError("");
       } else {
         const e = err as MoeApiError;
         const msg = e?.message || "Invalid email or password";
@@ -164,6 +194,27 @@ const Auth = () => {
     setResetSuccess(true);
   };
 
+  const handleResendVerification = async () => {
+    if (!pendingVerificationEmail || resendCooldown > 0 || resendBusy) return;
+    setResendBusy(true);
+    setResendCooldown(60);
+    setAuthError("");
+    try {
+      await authService.resendVerification(pendingVerificationEmail);
+      setResendNotice("If an unverified account exists for that email, a verification link has been sent.");
+    } catch (err: unknown) {
+      if (signUpRateLimit.applyRateLimit(err)) {
+        const msg = rateLimitMessage(err);
+        setAuthError(msg);
+        toast.error(msg);
+        return;
+      }
+      setResendNotice("If an unverified account exists for that email, a verification link has been sent.");
+    } finally {
+      setResendBusy(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (signUpPassword !== confirmPassword) {
@@ -188,7 +239,7 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
-      await register(
+      const res = await register(
         name,
         signUpEmail,
         signUpPassword,
@@ -196,8 +247,15 @@ const Auth = () => {
         role === "artisan" ? serviceCategories : undefined,
         true,
       );
-      toast.success("Account created successfully!");
-      navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
+      if (res && "token" in res && res.token) {
+        toast.success("Account created successfully!");
+        navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
+        return;
+      }
+      setPendingVerificationEmail(signUpEmail.trim());
+      setResendCooldown(60);
+      setResendNotice("");
+      toast.success("Account created. Check your email to verify it.");
     } catch (err: unknown) {
       if (signUpRateLimit.applyRateLimit(err)) {
         const msg = rateLimitMessage(err);
@@ -228,6 +286,56 @@ const Auth = () => {
           </CardHeader>
 
           <CardContent>
+            {pendingVerificationEmail ? (
+              <div className="space-y-4 text-center py-2" data-testid="verify-email-pending">
+                <h2 className="text-lg font-display">Check your email</h2>
+                <p className="text-sm text-muted-foreground">
+                  We sent a verification link to{" "}
+                  <span className="font-medium text-foreground">{pendingVerificationEmail}</span>.
+                  It expires in 24 hours and can only be used once.
+                </p>
+                {resendNotice && (
+                  <p className="text-sm text-muted-foreground" data-testid="resend-notice">
+                    {resendNotice}
+                  </p>
+                )}
+                {authError && (
+                  <p className="text-sm text-destructive" data-testid="auth-error" role="alert">
+                    {authError}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  data-testid="resend-verification"
+                  disabled={resendCooldown > 0 || resendBusy}
+                  onClick={handleResendVerification}
+                >
+                  {resendCooldown > 0
+                    ? `Resend verification email (${resendCooldown}s)`
+                    : "Resend verification email"}
+                </Button>
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline"
+                  data-testid="back-to-sign-in"
+                  onClick={() => {
+                    setPendingVerificationEmail(null);
+                    setResendNotice("");
+                    setAuthError("");
+                  }}
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+            <>
+            {searchParams.get("verify") === "required" && (
+              <p className="text-sm text-center text-muted-foreground mb-4" data-testid="verify-required-banner">
+                Verify your email before using your account.
+              </p>
+            )}
             <Tabs
               defaultValue={defaultTab}
               className="w-full"
@@ -372,16 +480,12 @@ const Auth = () => {
                             <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                             <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full gap-2"
+                          <GoogleContinueButton
                             onClick={() => handleGoogle("signIn")}
                             data-testid="signin-google"
                             disabled={isLoading}
-                          >
-                            <Mail className="h-4 w-4" /> Continue with Google
-                          </Button>
+                            loading={googleRedirecting}
+                          />
                         </>
                       )}
                       <div className="text-center">
@@ -422,16 +526,12 @@ const Auth = () => {
                           <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                           <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full gap-2"
+                        <GoogleContinueButton
                           onClick={() => handleGoogle("signUp")}
                           data-testid="signup-google"
                           disabled={isLoading}
-                        >
-                          <Mail className="h-4 w-4" /> Continue with Google
-                        </Button>
+                          loading={googleRedirecting}
+                        />
                       </>
                     )}
                   </>
@@ -657,6 +757,8 @@ const Auth = () => {
                 </form>
               </TabsContent>
             </Tabs>
+            </>
+            )}
           </CardContent>
         </Card>
 
