@@ -35,6 +35,7 @@ import ProviderDetail from "./pages/marketplace/ProviderDetail";
 import ProductDetail from "./pages/marketplace/ProductDetail";
 import Cart from "./pages/marketplace/Cart";
 import Checkout from "./pages/marketplace/Checkout";
+import PaymentCallback from "./pages/marketplace/PaymentCallback";
 import OrderConfirmation from "./pages/marketplace/OrderConfirmation";
 import Messages from "./pages/marketplace/Messages";
 import MessageThread from "./pages/marketplace/MessageThread";
@@ -135,6 +136,7 @@ const App = () => (
                   <Route path="/marketplace/product/:id" element={<ProductDetail />} />
                   <Route path="/marketplace/cart" element={<Cart />} />
                   <Route path="/marketplace/checkout" element={<Checkout />} />
+                  <Route path="/marketplace/payment/callback" element={<PaymentCallback />} />
                   <Route path="/marketplace/order-confirmation/:orderId" element={<OrderConfirmation />} />
                   <Route path="/marketplace/messages" element={<Messages />} />
                   <Route path="/marketplace/messages/:conversationId" element={<MessageThread />} />

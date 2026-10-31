@@ -1062,16 +1062,21 @@ export const productReviewsService = {
 // ─── Orders ───────────────────────────────────────────────
 
 export interface OrderItem {
-  productId: number;
+  productId: number | string;
   customizationId?: number;
   quantity: number;
-  finalPrice: number;
+  finalPrice?: number;
+  rushOrder?: boolean;
+  selectedVariations?: Record<string, string>;
+  selectedVariants?: Record<string, string>;
+  customisation?: Record<string, string | string[]>;
 }
 
 export interface ShippingAddress {
   firstName: string;
   lastName: string;
   phone: string;
+  address?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
@@ -1115,10 +1120,12 @@ export interface Order {
   paymentMethod:
     | "paystack"
     | "flutterwave"
+    | "card"
     | "bank_transfer"
+    | "cod"
     | "pay_on_delivery";
   paymentReference?: string;
-  paymentStatus: "unpaid" | "paid" | "refunded";
+  paymentStatus: "unpaid" | "pending" | "paid" | "failed" | "refunded";
   estimatedDelivery?: string;
   statusHistory?: OrderStatusHistoryEntry[];
   createdAt: string;
@@ -1132,7 +1139,9 @@ export interface CreateOrderRequest {
   paymentMethod:
     | "paystack"
     | "flutterwave"
+    | "card"
     | "bank_transfer"
+    | "cod"
     | "pay_on_delivery";
   currency: string;
 }
@@ -1524,31 +1533,41 @@ export const customOrderService = {
 
 export interface PaymentInitRequest {
   orderId: string;
-  amount: number;
-  currency: string;
-  email: string;
-  callbackUrl: string;
   gateway: "paystack" | "flutterwave";
-  metadata?: Record<string, unknown>;
+  saveCard?: boolean;
+  cardOnly?: boolean;
 }
 
 export interface PaymentInitResponse {
-  paymentUrl: string;
-  reference: string;
+  paymentUrl?: string | null;
+  reference?: string | null;
   accessCode?: string;
   txRef?: string;
+  amount?: number;
+  currency?: string;
+  orderId?: string;
+  alreadyPaid?: boolean;
+  status?: "success" | "failed" | "pending" | "cancelled";
 }
 
 export interface PaymentVerifyResponse {
   reference: string;
-  status: "success" | "failed" | "pending";
+  status: "success" | "failed" | "pending" | "cancelled";
   amount: number;
   currency: string;
-  paidAt?: string;
+  paidAt?: string | null;
   orderId: string;
+  alreadyPaid?: boolean;
+}
+
+export interface PaymentGatewayAvailability {
+  paystack: boolean;
+  flutterwave: boolean;
+  mode: "test" | "live";
 }
 
 export const paymentsService = {
+  gateways: () => apiGet<PaymentGatewayAvailability>("/payments/gateways"),
   initialize: (data: PaymentInitRequest) =>
     apiPost<PaymentInitResponse>("/payments/initialize", data),
   verify: (data: { reference: string; gateway: "paystack" | "flutterwave" }) =>
@@ -1713,6 +1732,7 @@ export interface CartItemApi {
   measurements: Record<string, string>;
   notes?: string;
   quantity: number;
+  rushOrder?: boolean;
   /** Issue #7 — primary product image, echoed back so cart can render it. */
   imageUrl?: string;
 }

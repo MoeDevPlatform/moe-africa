@@ -12,11 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { countries, getStatesByCountry } from "@/data/countryStateData";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
-import { ordersService, paymentsService, paymentMethodsService, type PaymentMethodApi } from "@/lib/apiServices";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CreditCard, Plus } from "lucide-react";
+import { ordersService, paymentsService, paymentMethodsService, type PaymentGatewayAvailability, type PaymentMethodApi } from "@/lib/apiServices";
 
 const checkoutSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(60),
@@ -34,14 +35,36 @@ const checkoutSchema = z.object({
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+type CheckoutPaymentChoice = "card" | "paystack" | "flutterwave" | "bank_transfer" | "cod";
+
+function isGatewayCheckoutUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname;
+    return (
+      host === "paystack.com" ||
+      host.endsWith(".paystack.com") ||
+      host === "flutterwave.com" ||
+      host.endsWith(".flutterwave.com")
+    );
+  } catch {
+    return false;
+  }
+}
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentChoice>("paystack");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedCards, setSavedCards] = useState<PaymentMethodApi[]>([]);
-  const [selectedCardId, setSelectedCardId] = useState<string>("new");
   const [cardsLoading, setCardsLoading] = useState(false);
+  const [saveCard, setSaveCard] = useState(false);
+  const [unpaidOrderId, setUnpaidOrderId] = useState<string | null>(null);
+  const [gateways, setGateways] = useState<PaymentGatewayAvailability>({
+    paystack: false,
+    flutterwave: false,
+    mode: "test",
+  });
+  const [gatewaysLoaded, setGatewaysLoaded] = useState(false);
   const { items: cartItems, getTotalPrice, clearCart } = useCart();
   const { toast } = useToast();
 
@@ -71,6 +94,46 @@ const Checkout = () => {
     [selectedCountry],
   );
 
+  const cardGateway: "paystack" | "flutterwave" | null = gateways.paystack
+    ? "paystack"
+    : gateways.flutterwave
+      ? "flutterwave"
+      : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    paymentsService
+      .gateways()
+      .then((availability) => {
+        if (!cancelled) setGateways(availability);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGateways({ paystack: false, flutterwave: false, mode: "test" });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGatewaysLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!gatewaysLoaded) return;
+    setPaymentMethod((current) => {
+      if (current === "paystack" && !gateways.paystack) {
+        return gateways.flutterwave ? "flutterwave" : "bank_transfer";
+      }
+      if (current === "flutterwave" && !gateways.flutterwave) {
+        return gateways.paystack ? "paystack" : "bank_transfer";
+      }
+      if (current === "card" && !cardGateway) return "bank_transfer";
+      return current;
+    });
+  }, [gatewaysLoaded, gateways.paystack, gateways.flutterwave, cardGateway]);
+
   useEffect(() => {
     if (paymentMethod !== "card") return;
     let cancelled = false;
@@ -78,10 +141,7 @@ const Checkout = () => {
     paymentMethodsService
       .list()
       .then((cards) => {
-        if (cancelled) return;
-        setSavedCards(cards);
-        const def = cards.find((c) => c.isDefault) ?? cards[0];
-        setSelectedCardId(def ? def.id : "new");
+        if (!cancelled) setSavedCards(cards);
       })
       .catch(() => {
         if (!cancelled) setSavedCards([]);
@@ -97,39 +157,101 @@ const Checkout = () => {
   const subtotal = getTotalPrice();
   const deliveryFee = 2500;
   const total = subtotal + deliveryFee;
+  const onlineChoice =
+    paymentMethod === "paystack" || paymentMethod === "flutterwave" || paymentMethod === "card";
 
-  const onSubmit = async (values: CheckoutFormValues) => {
+  const placeOrder = async (
+    values: CheckoutFormValues,
+    gatewayOverride?: "paystack" | "flutterwave",
+  ) => {
     if (cartItems.length === 0) {
       toast({ title: "Your cart is empty", variant: "destructive" });
       return;
     }
+    const choice: CheckoutPaymentChoice = gatewayOverride ?? paymentMethod;
+    const onlineGateway: "paystack" | "flutterwave" | null =
+      choice === "paystack"
+        ? "paystack"
+        : choice === "flutterwave"
+          ? "flutterwave"
+          : choice === "card"
+            ? cardGateway
+            : null;
+    if ((choice === "paystack" || choice === "flutterwave" || choice === "card") && !onlineGateway) {
+      toast({ title: "That payment method is unavailable", variant: "destructive" });
+      return;
+    }
+    if (onlineGateway === "paystack" && !gateways.paystack) {
+      toast({ title: "Paystack is unavailable", variant: "destructive" });
+      return;
+    }
+    if (onlineGateway === "flutterwave" && !gateways.flutterwave) {
+      toast({ title: "Flutterwave is unavailable", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const paymentMap = {
-        card: "paystack" as const,
-        bank: "bank_transfer" as const,
-        delivery: "pay_on_delivery" as const,
-      };
-      const order = await ordersService.create({
-        items: cartItems.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          finalPrice: item.finalPrice,
-        })),
-        shippingAddress: {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          phone: values.phone,
-          addressLine1: values.address,
-          city: values.city,
-          state: values.state,
-          country: values.country,
-        },
-        paymentMethod: paymentMap[paymentMethod as keyof typeof paymentMap] ?? "pay_on_delivery",
-        currency: "NGN",
+      let orderId = unpaidOrderId;
+      if (!orderId) {
+        const order = await ordersService.create({
+          items: cartItems.map((item) => ({
+            productId: String(item.productId),
+            quantity: item.quantity,
+            selectedVariations: item.selectedVariations ?? item.selectedVariants,
+            selectedVariants: item.selectedVariants,
+            customisation: item.customisation,
+            rushOrder: item.rushOrder === true,
+          })),
+          shippingAddress: {
+            firstName: values.firstName,
+            lastName: values.lastName,
+            phone: values.phone,
+            address: values.address,
+            addressLine1: values.address,
+            city: values.city,
+            state: values.state,
+            country: values.country,
+          },
+          paymentMethod: onlineGateway ?? (choice === "bank_transfer" ? "bank_transfer" : "cod"),
+          currency: "NGN",
+        });
+        orderId = String(order.id);
+        if (onlineGateway) setUnpaidOrderId(orderId);
+      }
+
+      if (!onlineGateway) {
+        clearCart();
+        navigate(`/marketplace/order-confirmation/${orderId}`);
+        return;
+      }
+
+      const started = await paymentsService.initialize({
+        orderId,
+        gateway: onlineGateway,
+        saveCard,
+        cardOnly: choice === "card" || gatewayOverride != null,
       });
+      if (started.alreadyPaid || started.status === "success") {
+        clearCart();
+        setUnpaidOrderId(null);
+        navigate(`/marketplace/order-confirmation/${orderId}`);
+        return;
+      }
+      if (!started.paymentUrl || !isGatewayCheckoutUrl(started.paymentUrl)) {
+        setUnpaidOrderId(orderId);
+        throw new Error("Secure checkout link was not returned.");
+      }
+      sessionStorage.setItem(
+        "moe_payment",
+        JSON.stringify({
+          orderId,
+          gateway: onlineGateway,
+          reference: started.reference ?? "",
+        }),
+      );
       clearCart();
-      navigate(`/marketplace/order-confirmation/${order.id}`);
+      window.location.assign(started.paymentUrl);
     } catch (err: unknown) {
       toast({
         title: "Checkout failed",
@@ -148,7 +270,7 @@ const Checkout = () => {
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-4xl font-display font-bold mb-8">Checkout</h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <form onSubmit={handleSubmit((values) => placeOrder(values))} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Checkout Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Information */}
@@ -252,85 +374,109 @@ const Checkout = () => {
                 <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} aria-label="Payment method options">
-                  <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card" className="flex-1 cursor-pointer">
+                <RadioGroup
+                  value={paymentMethod}
+                  onValueChange={(value) => {
+                    setUnpaidOrderId(null);
+                    setPaymentMethod(value as CheckoutPaymentChoice);
+                  }}
+                  aria-label="Payment method options"
+                >
+                  <div className={`flex items-center space-x-2 border rounded-lg p-4 ${!cardGateway ? "opacity-60" : ""}`} data-testid="payment-method-card">
+                    <RadioGroupItem value="card" id="card" disabled={!cardGateway} />
+                    <Label htmlFor="card" className={`flex-1 ${cardGateway ? "cursor-pointer" : "cursor-not-allowed"}`}>
                       Credit/Debit Card
+                      {!cardGateway && gatewaysLoaded ? <span className="block text-xs text-muted-foreground">Unavailable</span> : null}
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="paystack" id="paystack" />
-                    <Label htmlFor="paystack" className="flex-1 cursor-pointer">
+                  <div className={`flex items-center space-x-2 border rounded-lg p-4 ${!gateways.paystack ? "opacity-60" : ""}`} data-testid="payment-method-paystack">
+                    <RadioGroupItem value="paystack" id="paystack" disabled={!gateways.paystack} />
+                    <Label htmlFor="paystack" className={`flex-1 ${gateways.paystack ? "cursor-pointer" : "cursor-not-allowed"}`}>
                       Pay with Paystack
+                      {!gateways.paystack && gatewaysLoaded ? <span className="block text-xs text-muted-foreground">Unavailable</span> : null}
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="flutterwave" id="flutterwave" />
-                    <Label htmlFor="flutterwave" className="flex-1 cursor-pointer">
+                  <div className={`flex items-center space-x-2 border rounded-lg p-4 ${!gateways.flutterwave ? "opacity-60" : ""}`} data-testid="payment-method-flutterwave">
+                    <RadioGroupItem value="flutterwave" id="flutterwave" disabled={!gateways.flutterwave} />
+                    <Label htmlFor="flutterwave" className={`flex-1 ${gateways.flutterwave ? "cursor-pointer" : "cursor-not-allowed"}`}>
                       Pay with Flutterwave
+                      {!gateways.flutterwave && gatewaysLoaded ? <span className="block text-xs text-muted-foreground">Unavailable</span> : null}
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4">
+                  <div className="flex items-center space-x-2 border rounded-lg p-4" data-testid="payment-method-bank">
                     <RadioGroupItem value="bank_transfer" id="transfer" />
                     <Label htmlFor="transfer" className="flex-1 cursor-pointer">
                       Bank Transfer
+                      <span className="block text-xs text-muted-foreground font-normal">Order stays unpaid until the transfer is confirmed.</span>
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-4">
-                    <RadioGroupItem value="pay_on_delivery" id="delivery" />
+                  <div className="flex items-center space-x-2 border rounded-lg p-4" data-testid="payment-method-cod">
+                    <RadioGroupItem value="cod" id="delivery" />
                     <Label htmlFor="delivery" className="flex-1 cursor-pointer">
                       Pay on Delivery
+                      <span className="block text-xs text-muted-foreground font-normal">Pay when your order arrives.</span>
                     </Label>
                   </div>
                 </RadioGroup>
 
-                {paymentMethod === "card" && (
-                  <div className="border-t pt-4">
-                    <Label className="text-sm font-medium mb-2 block">Choose a card</Label>
+                {paymentMethod === "card" && cardGateway && (
+                  <div className="border-t pt-4 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Card details are entered on the secure {cardGateway === "paystack" ? "Paystack" : "Flutterwave"} page. MOE never sees the card number or CVV.
+                    </p>
                     {cardsLoading ? (
                       <p className="text-sm text-muted-foreground">Loading saved cards…</p>
-                    ) : (
-                      <RadioGroup
-                        value={selectedCardId}
-                        onValueChange={setSelectedCardId}
-                        aria-label="Saved cards"
-                        className="space-y-2"
-                      >
+                    ) : savedCards.length > 0 ? (
+                      <div className="space-y-2" aria-label="Saved cards">
                         {savedCards.map((card) => (
                           <div
                             key={card.id}
-                            className="flex items-center space-x-3 border rounded-lg p-3"
+                            className="flex items-center gap-3 border rounded-lg p-3 opacity-60"
+                            aria-disabled="true"
                           >
-                            <RadioGroupItem value={card.id} id={`card-${card.id}`} />
-                            <Label
-                              htmlFor={`card-${card.id}`}
-                              className="flex-1 cursor-pointer flex items-center gap-3"
-                            >
-                              <CreditCard className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">
-                                {card.brand} •••• {card.last4}
-                              </span>
-                              <span className="text-xs text-muted-foreground ml-auto">
-                                exp {card.expiry}
-                                {card.isDefault ? " · default" : ""}
-                              </span>
-                            </Label>
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">
+                              {card.brand} •••• {card.last4}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              Not available for this checkout
+                            </span>
                           </div>
                         ))}
-                        <div className="flex items-center space-x-3 border border-dashed rounded-lg p-3">
-                          <RadioGroupItem value="new" id="card-new" />
-                          <Label
-                            htmlFor="card-new"
-                            className="flex-1 cursor-pointer flex items-center gap-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add new card
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    )}
+                      </div>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      data-testid="pay-with-new-card"
+                      disabled={isSubmitting || cartItems.length === 0}
+                      onClick={() => {
+                        if (!cardGateway) return;
+                        void handleSubmit((values) => placeOrder(values, cardGateway))();
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Pay with a new card
+                    </Button>
                   </div>
+                )}
+
+                {onlineChoice && (paymentMethod === "card" ? !!cardGateway : true) && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="save-card"
+                      checked={saveCard}
+                      onCheckedChange={(checked) => setSaveCard(checked === true)}
+                    />
+                    <Label htmlFor="save-card" className="text-sm font-normal leading-snug">
+                      Save this card for future payments after a successful payment. Only the provider token is stored.
+                    </Label>
+                  </div>
+                )}
+
+                {gatewaysLoaded && gateways.mode === "test" && onlineChoice && (
+                  <p className="text-xs text-muted-foreground">Test mode — no live charge will be made.</p>
                 )}
               </CardContent>
             </Card>
@@ -377,11 +523,28 @@ const Checkout = () => {
 
                 <Button
                   type="submit"
-                  disabled={isSubmitting || cartItems.length === 0}
+                  disabled={
+                    isSubmitting ||
+                    cartItems.length === 0 ||
+                    (paymentMethod === "paystack" && !gateways.paystack) ||
+                    (paymentMethod === "flutterwave" && !gateways.flutterwave) ||
+                    (paymentMethod === "card" && !cardGateway)
+                  }
                   className="w-full bg-primary hover:bg-primary-dark mt-4"
                   aria-label="Place your order"
+                  data-testid="checkout-submit"
                 >
-                  {isSubmitting ? "Placing order…" : "Place Order"}
+                  {isSubmitting
+                    ? onlineChoice
+                      ? "Redirecting to secure checkout…"
+                      : "Placing order…"
+                    : paymentMethod === "card"
+                      ? "Pay with a new card"
+                      : paymentMethod === "paystack"
+                        ? "Continue to Paystack"
+                        : paymentMethod === "flutterwave"
+                          ? "Continue to Flutterwave"
+                          : "Place Order"}
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground">

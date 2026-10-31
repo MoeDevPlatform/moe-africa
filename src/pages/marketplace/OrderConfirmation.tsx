@@ -26,6 +26,12 @@ const OrderConfirmation = () => {
   }, [orderId]);
 
   const ref = order?.orderNumber ?? order?.id ?? orderId ?? "—";
+  const awaitingGatewayPayment =
+    !!order &&
+    order.paymentStatus !== "paid" &&
+    (order.paymentMethod === "paystack" ||
+      order.paymentMethod === "flutterwave" ||
+      order.paymentMethod === "card");
   const estimated =
     order?.estimatedDelivery ??
     (order?.createdAt
@@ -47,10 +53,12 @@ const OrderConfirmation = () => {
                 <CheckCircle className="h-10 w-10 text-green-600" />
               </div>
               <CardTitle className="text-2xl md:text-3xl font-display">
-                Order Placed Successfully
+                {awaitingGatewayPayment ? "Payment not completed" : "Order Placed Successfully"}
               </CardTitle>
               <p className="text-muted-foreground mt-2">
-                Thank you! We&apos;ve received your order and notified the artisan.
+                {awaitingGatewayPayment
+                  ? "We received the order, but the payment provider has not confirmed it as paid."
+                  : "Thank you! We've received your order and notified the artisan."}
               </p>
             </CardHeader>
             <CardContent className="space-y-6">

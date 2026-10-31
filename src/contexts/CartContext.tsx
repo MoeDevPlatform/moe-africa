@@ -19,6 +19,7 @@ export interface CartItem {
   measurements: Record<string, string>;
   notes: string;
   quantity: number;
+  rushOrder?: boolean;
   /** Issue #7 — primary product image stashed at add-time so cart can render it. */
   imageUrl?: string;
   /** Dynamic schema-driven customisation payload keyed by field.key. */
@@ -108,6 +109,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             measurements: i.measurements || {},
             notes: i.notes || "",
             quantity: i.quantity,
+            rushOrder: i.rushOrder === true,
             imageUrl: i.imageUrl,
           }));
           setItems(mapped);

@@ -235,6 +235,7 @@ const ProductDetail = () => {
       measurements: {},
       notes: "",
       quantity: 1,
+      rushOrder: rushOrderCost > 0,
       imageUrl: product.images?.[0],
       customisation: variations,
     });
