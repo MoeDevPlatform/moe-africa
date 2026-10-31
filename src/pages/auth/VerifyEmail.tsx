@@ -100,7 +100,7 @@ const VerifyEmail = () => {
               {view === "loading" ? "Verifying your email" : shown?.title}
             </CardTitle>
             <CardDescription>
-              {view === "loading" ? "This only takes a moment." : shown?.body}
+              {view === "loading" ? "This only takes a moment." : "MOE Africa"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-center">
