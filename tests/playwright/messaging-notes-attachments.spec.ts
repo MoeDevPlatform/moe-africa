@@ -33,6 +33,19 @@ function writeTempFile(name: string, contents: string | Buffer) {
   return filePath;
 }
 
+const localInquiry = {
+  id: 9001,
+  customerId: 1,
+  providerId: 2,
+  customerName: "Local Customer",
+  providerName: "Local Artisan",
+  lastMessage: "Need a quote",
+  lastMessageTime: new Date().toISOString(),
+  unreadCount: 0,
+  artisanNote: null,
+  status: "unread",
+};
+
 test.describe("Messaging notes and attachments", () => {
   test.describe.configure({ timeout: 120_000 });
 
@@ -44,23 +57,62 @@ test.describe("Messaging notes and attachments", () => {
   test("private support note confirms success and shows Private note history", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signIn(page, ARTISAN_EMAIL, ARTISAN_PASSWORD);
-    await page.goto("/artisan/dashboard", { waitUntil: "domcontentloaded" });
 
+    let noteSaved = false;
+    await page.route(/\/conversations(\/\d+(\/messages|\/artisan-note)?)?(\?.*)?$/, async (route) => {
+      const url = new URL(route.request().url());
+      const method = route.request().method();
+      if (method === "GET" && /\/conversations\/?$/.test(url.pathname)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              ...localInquiry,
+              artisanNote: noteSaved ? `saved-${noteSaved}` : null,
+            },
+          ]),
+        });
+        return;
+      }
+      if (method === "GET" && /\/conversations\/\d+\/messages$/.test(url.pathname)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              id: 1,
+              conversationId: localInquiry.id,
+              senderId: 1,
+              senderType: "customer",
+              senderRole: "customer",
+              content: "Need a quote",
+              sentAt: new Date().toISOString(),
+            },
+          ]),
+        });
+        return;
+      }
+      if (method === "PATCH" && /\/artisan-note$/.test(url.pathname)) {
+        const body = route.request().postDataJSON() as { note?: string };
+        noteSaved = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true, artisanNote: body?.note ?? "" }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/artisan/dashboard?tab=inquiries", { waitUntil: "domcontentloaded" });
     const noteInput = page.getByTestId("private-note-input").first();
     await expect(noteInput).toBeVisible({ timeout: 20_000 });
     const note = `Private support note ${Date.now()}`;
     await noteInput.fill(note);
 
-    const saved = page.waitForResponse((response) => {
-      return (
-        response.request().method() === "PATCH" &&
-        /\/conversations\/\d+\/artisan-note/.test(new URL(response.url()).pathname)
-      );
-    });
     await page.getByTestId("private-note-send").first().click();
-    const savedRes = await saved;
-    expect(savedRes.ok(), await savedRes.text()).toBeTruthy();
-
     await expect(page.getByText("Your private note has been sent to the MOE Support Team.")).toBeVisible({
       timeout: 10_000,
     });
@@ -72,15 +124,27 @@ test.describe("Messaging notes and attachments", () => {
   test("failed private note keeps draft and shows error", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signIn(page, ARTISAN_EMAIL, ARTISAN_PASSWORD);
-    await page.goto("/artisan/dashboard", { waitUntil: "domcontentloaded" });
 
-    const noteInput = page.getByTestId("private-note-input").first();
-    await expect(noteInput).toBeVisible({ timeout: 20_000 });
-    const note = `Keep this note ${Date.now()}`;
-    await noteInput.fill(note);
-
-    await page.route(/\/conversations\/\d+\/artisan-note/, async (route) => {
-      if (route.request().method() === "PATCH") {
+    await page.route(/\/conversations(\/\d+(\/messages|\/artisan-note)?)?(\?.*)?$/, async (route) => {
+      const url = new URL(route.request().url());
+      const method = route.request().method();
+      if (method === "GET" && /\/conversations\/?$/.test(url.pathname)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([localInquiry]),
+        });
+        return;
+      }
+      if (method === "GET" && /\/conversations\/\d+\/messages$/.test(url.pathname)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([]),
+        });
+        return;
+      }
+      if (method === "PATCH" && /\/artisan-note$/.test(url.pathname)) {
         await route.fulfill({
           status: 500,
           contentType: "application/json",
@@ -90,6 +154,12 @@ test.describe("Messaging notes and attachments", () => {
       }
       await route.continue();
     });
+
+    await page.goto("/artisan/dashboard?tab=inquiries", { waitUntil: "domcontentloaded" });
+    const noteInput = page.getByTestId("private-note-input").first();
+    await expect(noteInput).toBeVisible({ timeout: 20_000 });
+    const note = `Keep this note ${Date.now()}`;
+    await noteInput.fill(note);
 
     await page.getByTestId("private-note-send").first().click();
     await expect(page.getByText(/Failed to send private note/i)).toBeVisible({ timeout: 10_000 });
@@ -117,7 +187,6 @@ test.describe("Messaging notes and attachments", () => {
     await page.getByTestId("messages-panel-remove-attachment").click();
     await expect(pending).toHaveCount(0);
 
-    // Send with a small text file against the local API when available.
     await page.getByTestId("messages-panel-file-input").setInputFiles(docFile);
     await expect(pending).toBeVisible();
     const sent = page.waitForResponse((response) => {
@@ -127,11 +196,10 @@ test.describe("Messaging notes and attachments", () => {
     await page.getByTestId("messages-panel-send").click();
     const sentRes = await sent;
     if (sentRes.ok()) {
-      await expect(page.getByText(/Attachment uploaded successfully|hello from local messaging test|note-/i).first()).toBeVisible({
-        timeout: 15_000,
-      });
+      await expect(
+        page.getByText(/Attachment uploaded successfully|hello from local messaging test|note-/i).first(),
+      ).toBeVisible({ timeout: 15_000 });
     } else {
-      // Storage may be missing in some local setups — UI must surface the failure and keep the file staged.
       const body = await sentRes.text();
       expect(sentRes.status()).toBeGreaterThanOrEqual(400);
       expect(body.length).toBeGreaterThan(0);

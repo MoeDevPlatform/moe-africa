@@ -334,9 +334,9 @@ const FloatingMessagesButton = () => {
           data-testid="messages-panel"
           data-view-mode={viewMode}
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden border border-border bg-card shadow-lg",
+            "fixed z-[80] flex flex-col overflow-hidden border border-border bg-card shadow-lg",
             expanded
-              ? "top-16 left-3 right-3 bottom-3 sm:top-20 sm:left-6 sm:right-6 sm:bottom-6 rounded-2xl"
+              ? "top-20 left-3 right-3 bottom-3 sm:top-24 sm:left-6 sm:right-6 sm:bottom-6 rounded-2xl"
               : "rounded-2xl bottom-4 right-4 w-[min(22.5rem,calc(100vw-1.5rem))] h-[min(36rem,calc(100dvh-6.5rem))] max-sm:left-3 max-sm:right-3 max-sm:bottom-3 max-sm:w-auto max-sm:h-[min(32rem,calc(100dvh-8.5rem))]",
           )}
         >

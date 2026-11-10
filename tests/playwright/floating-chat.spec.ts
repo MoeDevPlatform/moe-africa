@@ -227,7 +227,10 @@ test.describe("Floating expandable messages panel", () => {
     expect(box!.y + box!.height).toBeLessThanOrEqual(844 + 1);
     await expect(page.getByTestId("messages-panel-input")).toHaveValue(draft);
 
-    await page.getByTestId("messages-panel-close").click();
+    // Escape minimizes when expanded, then closes — avoids navbar search intercepting the close hit-target.
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveAttribute("data-view-mode", "compact");
+    await page.getByTestId("messages-panel-close").click({ force: true });
     await expect(page.getByTestId("messages-panel")).toHaveCount(0);
   });
 });
