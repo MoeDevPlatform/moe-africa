@@ -158,6 +158,61 @@ function lastMessagePreview(message: ChatMessage): string {
   return "";
 }
 
+function newClientKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+/** Collapse rows that share the same server-assigned id (keeps the last). */
+function dedupeByServerId(messages: ChatMessage[]): ChatMessage[] {
+  const seen = new Map<number, number>();
+  messages.forEach((m, i) => {
+    if (m.serverId != null) seen.set(m.serverId, i);
+  });
+  if (seen.size === 0) return messages;
+  return messages.filter((m, i) => m.serverId == null || seen.get(m.serverId) === i);
+}
+
+/**
+ * Match an in-flight optimistic bubble to a server message.
+ * Image/file optimistic text is often the filename while the API stores "📷 Image" /
+ * "📎 name", so text equality alone is not enough.
+ */
+function matchesOptimisticLocal(
+  existing: ChatMessage,
+  mapped: ChatMessage,
+): boolean {
+  if (existing.serverId != null || existing.isCustomer !== mapped.isCustomer) {
+    return false;
+  }
+  if (existing.clientKey && mapped.clientKey && existing.clientKey === mapped.clientKey) {
+    return true;
+  }
+  if (existing.text && mapped.text && existing.text === mapped.text) {
+    return true;
+  }
+  if (
+    existing.type !== "text" &&
+    existing.type === mapped.type &&
+    (existing.status === "sending" || existing.status === "failed")
+  ) {
+    if (
+      existing.attachmentName &&
+      mapped.attachmentName &&
+      existing.attachmentName === mapped.attachmentName
+    ) {
+      return true;
+    }
+    // Caption-less image/file/voice: single in-flight bubble of that type.
+    if (!existing.text || existing.text === existing.attachmentName) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Chat surface used by the floating dock and /marketplace/messages/:conversationId.
  */
@@ -191,6 +246,8 @@ const ChatThread = ({
   const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "preview" | "error">("idle");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const voiceDraftsRef = useRef<Map<string, VoiceDraft>>(new Map());
+  /** Sync guard — React state alone cannot block a rapid second Send click. */
+  const sendingLockRef = useRef(false);
   const { user } = useAuth();
   const voiceComposerActive =
     voicePhase === "recording" || voicePhase === "preview";
@@ -223,14 +280,16 @@ const ChatThread = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         setMessages(
-          parsed.map((m: ChatMessage & { timestamp: string }) => ({
-            ...m,
-            timestamp: new Date(m.timestamp),
-            type: m.type || "text",
-            readAt: m.readAt ?? null,
-            deliveredAt: m.deliveredAt ?? null,
-            status: m.status ?? "sent",
-          })),
+          dedupeByServerId(
+            parsed.map((m: ChatMessage & { timestamp: string }) => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+              type: m.type || "text",
+              readAt: m.readAt ?? null,
+              deliveredAt: m.deliveredAt ?? null,
+              status: m.status ?? "sent",
+            })),
+          ),
         );
       } else {
         setMessages([]);
@@ -300,6 +359,7 @@ const ChatThread = ({
                 isCustomer: m.senderType === "customer",
                 ...mappedAttachment,
                 durationMs: mappedAttachment.durationMs ?? m.durationMs ?? null,
+                clientKey: m.clientKey ?? undefined,
                 deliveredAt: null,
                 readAt: m.readAt ?? null,
                 status: "sent",
@@ -318,18 +378,22 @@ const ChatThread = ({
                   changed = true;
                 }
               } else {
-                const localIdx = next.findIndex(
-                  (existing) =>
-                    existing.serverId == null &&
-                    existing.text === mapped.text &&
-                    existing.isCustomer === mapped.isCustomer,
+                const localIdx = next.findIndex((existing) =>
+                  matchesOptimisticLocal(existing, mapped),
                 );
-                if (localIdx >= 0) next[localIdx] = mapped;
-                else next.push(mapped);
+                if (localIdx >= 0) {
+                  next[localIdx] = { ...next[localIdx], ...mapped };
+                  byServerId.set(sid, localIdx);
+                } else {
+                  byServerId.set(sid, next.length);
+                  next.push(mapped);
+                }
                 changed = true;
               }
             }
-            return changed ? next : prev;
+            const deduped = dedupeByServerId(next);
+            if (deduped.length !== next.length) changed = true;
+            return changed ? deduped : prev;
           });
           setHistoryStatus("ready");
         })
@@ -418,34 +482,40 @@ const ChatThread = ({
     setMessages((prev) => prev.map((m) => (m.id === localId ? { ...m, status: "failed" } : m)));
   };
 
-  const persistLocalSuccess = (localId: string, serverMsg: { id?: number; sentAt?: string; readAt?: string | null; content?: string; attachment?: MessageAttachment | null }) => {
+  const persistLocalSuccess = (localId: string, serverMsg: { id?: number; sentAt?: string; readAt?: string | null; content?: string; attachment?: MessageAttachment | null; clientKey?: string | null }) => {
     const mappedAttachment = mapServerAttachment(serverMsg.attachment);
-    setMessages((prev) =>
-      prev.map((m) =>
+    const serverId = serverMsg?.id != null ? Number(serverMsg.id) : undefined;
+    setMessages((prev) => {
+      const updated = prev.map((m) =>
         m.id === localId
           ? {
               ...m,
               ...mappedAttachment,
-              status: "sent",
-              serverId: serverMsg?.id ? Number(serverMsg.id) : m.serverId,
-              id: serverMsg?.id ? `srv_${serverMsg.id}` : m.id,
+              status: "sent" as const,
+              serverId: serverId ?? m.serverId,
+              id: serverId != null ? `srv_${serverId}` : m.id,
               text: serverMsg?.content ?? m.text,
               timestamp: serverMsg?.sentAt ? new Date(serverMsg.sentAt) : m.timestamp,
               readAt: serverMsg?.readAt ?? null,
               uploadProgress: undefined,
+              clientKey: m.clientKey,
             }
           : m,
-      ),
-    );
+      );
+      // Drop a poll-inserted twin that arrived before this reconciliation.
+      return dedupeByServerId(updated);
+    });
   };
 
   const handleSendMessage = async (retry?: ChatMessage) => {
     const content = (retry?.text ?? newMessage).trim();
     const file = retry ? undefined : pending?.file;
     if (!content && !file) return;
-    if (sending) return;
+    if (sending || sendingLockRef.current || sendingVoice) return;
+    sendingLockRef.current = true;
 
     const localId = retry?.id ?? `local_${Date.now()}`;
+    const clientKey = retry?.clientKey ?? newClientKey();
     const type: ChatMessage["type"] = file
       ? file.type.startsWith("image/")
         ? "image"
@@ -465,6 +535,7 @@ const ChatThread = ({
         attachmentName: file?.name,
         attachmentMimeType: file?.type,
         attachmentBytes: file?.size ?? null,
+        clientKey,
         deliveredAt: null,
         readAt: null,
         status: "sending",
@@ -474,7 +545,9 @@ const ChatThread = ({
       setNewMessage("");
     } else {
       setMessages((prev) =>
-        prev.map((m) => (m.id === localId ? { ...m, status: "sending" } : m)),
+        prev.map((m) =>
+          m.id === localId ? { ...m, status: "sending", clientKey: m.clientKey ?? clientKey } : m,
+        ),
       );
     }
 
@@ -489,6 +562,7 @@ const ChatThread = ({
         serverMsg = await messagingService.sendMessageWithAttachment(cid, {
           content,
           file,
+          clientKey,
           onProgress: (percent) => {
             setUploadProgress(percent);
             setMessages((prev) =>
@@ -537,6 +611,7 @@ const ChatThread = ({
       if (file) toast.error(message || "Attachment upload failed");
       else toast.error(message || "Message failed to send");
     } finally {
+      sendingLockRef.current = false;
       setSending(false);
       setUploadProgress(null);
     }

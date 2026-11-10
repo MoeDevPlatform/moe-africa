@@ -1616,6 +1616,8 @@ export interface Message {
   sentAt: string;
   readAt?: string;
   durationMs?: number | null;
+  /** Idempotency key — used to reconcile optimistic UI with polled history. */
+  clientKey?: string | null;
   attachment?: MessageAttachment | null;
 }
 
