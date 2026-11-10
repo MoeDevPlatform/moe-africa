@@ -152,19 +152,27 @@ test.describe("Messaging classification + admin management", () => {
     await expect(page.getByTestId("artisan-inquiry-body")).toHaveCount(0);
   });
 
-  test("admin messages search, select all, and bulk archive confirmation", async ({ page }) => {
+  test("admin messages selection, search, cancel, single and bulk archive", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/admin/login", { waitUntil: "domcontentloaded" });
-    const email = page.locator("#signin-email, input[type='email']").first();
-    if (await email.isVisible().catch(() => false)) {
-      await email.fill(ADMIN_EMAIL);
-      await page.locator("#signin-password, input[type='password']").first().fill(ADMIN_PASSWORD);
-      await page.getByRole("button", { name: /sign in|log in/i }).first().click();
-    } else {
-      await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    }
+    await page.locator("#email").fill(ADMIN_EMAIL);
+    await page.locator("#password").fill(ADMIN_PASSWORD);
+    await Promise.all([
+      page.waitForURL(/\/admin(\/dashboard)?\/?$/, { timeout: 60_000 }),
+      page.getByRole("button", { name: /^Sign In$/i }).click(),
+    ]);
+    await expect(page.getByText(/Dashboard|Marketplace activity|Pending/i).first()).toBeVisible({
+      timeout: 30_000,
+    });
 
-    let listed: typeof inboundInquiry[] = [
+    type AdminRow = typeof inboundInquiry & {
+      customerEmail?: string;
+      artisanName?: string;
+      unreadCount?: number;
+      status?: string;
+    };
+
+    let listed: AdminRow[] = [
       {
         ...inboundInquiry,
         id: 701,
@@ -172,6 +180,8 @@ test.describe("Messaging classification + admin management", () => {
         customerEmail: "searchable@example.com",
         artisanName: "Searchable Artisan",
         providerName: "Searchable Artisan",
+        unreadCount: 1,
+        status: "unread",
       },
       {
         ...inboundInquiry,
@@ -180,8 +190,21 @@ test.describe("Messaging classification + admin management", () => {
         artisanName: "Other Artisan",
         providerName: "Other Artisan",
         lastMessage: "Unrelated",
+        unreadCount: 0,
+        status: "resolved",
+      },
+      {
+        ...inboundInquiry,
+        id: 703,
+        customerName: "Resolved Buyer",
+        artisanName: "Quiet Studio",
+        providerName: "Quiet Studio",
+        lastMessage: "All set",
+        unreadCount: 0,
+        status: "resolved",
       },
     ];
+    let unauthorizedDeleteStatus = 0;
 
     await page.route(/\/admin\/conversations.*/, async (route) => {
       const url = new URL(route.request().url());
@@ -230,34 +253,100 @@ test.describe("Messaging classification + admin management", () => {
     });
 
     await page.route(/\/admin\/support\/contact|\/support\/tickets|\/admin\/messages/, async (route) => {
-      if (route.request().url().includes("/admin/conversations")) {
+      const req = route.request();
+      // Do not intercept the SPA document navigation to /admin/messages.
+      if (req.resourceType() === "document") {
         await route.continue();
         return;
       }
-      if (route.request().method() === "GET" && /contact|tickets/i.test(route.request().url())) {
+      if (req.url().includes("/admin/conversations")) {
+        await route.continue();
+        return;
+      }
+      if (req.method() === "GET" && /contact|tickets|\/admin\/messages/i.test(req.url())) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify([]),
+          body: JSON.stringify({ data: [] }),
         });
         return;
       }
       await route.continue();
     });
 
+    // Unauthorized delete probe (no admin token) against the local API.
+    const unauth = await page.request.delete("http://127.0.0.1:3000/admin/conversations/701");
+    unauthorizedDeleteStatus = unauth.status();
+    expect([401, 403]).toContain(unauthorizedDeleteStatus);
+
     await page.goto("/admin/messages", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("admin-messages-search")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("admin-message-row")).toHaveCount(3, { timeout: 10_000 });
 
+    // 1. Select one conversation
+    await page.getByTestId("admin-message-select").first().click();
+    await expect(page.getByTestId("admin-messages-selection-bar")).toContainText("1 selected");
+
+    // 2. Select All on current page
+    await page.getByTestId("admin-messages-select-all").click();
+    await expect(page.getByTestId("admin-messages-selected-count")).toHaveText("3 selected");
+
+    // 3. Deselect one after Select All
+    await page.getByTestId("admin-message-select").nth(1).click();
+    await expect(page.getByTestId("admin-messages-selected-count")).toHaveText("2 selected");
+    await expect(page.getByTestId("admin-messages-select-all")).toHaveAttribute(
+      "data-state",
+      "indeterminate",
+    );
+
+    // 6. Change filters and confirm selection resets
+    await page.getByRole("tab", { name: /Resolved/i }).click();
+    await expect(page.getByTestId("admin-messages-selection-bar")).toHaveCount(0);
+    await page.getByRole("tab", { name: /^All/i }).click();
+
+    // 4–5. Search, select one, Select All within search results
     await page.getByLabel("Search conversations").fill("Searchable");
     await page.getByRole("button", { name: /^search$/i }).click();
     await expect(page.getByTestId("admin-message-row")).toHaveCount(1, { timeout: 10_000 });
-    await expect(page.getByText("Searchable Customer")).toBeVisible();
-
+    await expect(page.getByTestId("admin-messages-selection-bar")).toHaveCount(0);
+    await page.getByTestId("admin-message-select").click();
+    await expect(page.getByTestId("admin-messages-selected-count")).toHaveText("1 selected");
+    await page.getByTestId("admin-messages-clear-selection").click();
     await page.getByTestId("admin-messages-select-all").click();
-    await expect(page.getByTestId("admin-messages-selection-bar")).toContainText("1 selected");
-    await page.getByRole("button", { name: /bulk delete/i }).click();
-    await expect(page.getByText(/Archive 1 conversations/i)).toBeVisible();
-    await page.getByRole("button", { name: /archive selected/i }).click();
+    await expect(page.getByTestId("admin-messages-selected-count")).toHaveText("1 selected");
+
+    // 9. Cancel deletion — nothing changes
+    const beforeCancel = listed.map((c) => c.id);
+    await page.getByTestId("admin-messages-bulk-delete").click();
+    await expect(page.getByTestId("admin-messages-bulk-delete-dialog")).toBeVisible();
+    await page.getByRole("button", { name: /^cancel$/i }).click();
+    await expect(page.getByTestId("admin-messages-bulk-delete-dialog")).toHaveCount(0);
+    await expect(page.getByTestId("admin-messages-selected-count")).toHaveText("1 selected");
+    expect(listed.map((c) => c.id)).toEqual(beforeCancel);
+
+    // 8. Bulk-delete selected (search result)
+    await page.getByTestId("admin-messages-bulk-delete").click();
+    await expect(page.getByText(/Archive 1 conversation\?/i)).toBeVisible();
+    await page.getByTestId("admin-messages-bulk-delete-confirm").click();
     await expect(page.getByText(/Archived 1 conversation/i)).toBeVisible({ timeout: 10_000 });
+
+    // Clear search and confirm deleted row stays gone (10)
+    await page.getByRole("button", { name: /clear search/i }).click();
+    await expect(page.getByTestId("admin-message-row")).toHaveCount(2, { timeout: 10_000 });
+    await expect(page.getByText("Searchable Customer")).toHaveCount(0);
+
+    // 7. Delete one via action menu after confirmation
+    const row = page.getByTestId("admin-message-row").first();
+    await row.getByRole("button", { name: /conversation actions/i }).click();
+    await page.getByRole("menuitem", { name: /^delete$/i }).click();
+    await expect(page.getByTestId("admin-messages-delete-dialog")).toBeVisible();
+    await page.getByTestId("admin-messages-delete-confirm").click();
+    await expect(page.getByText(/Conversation archived/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("admin-message-row")).toHaveCount(1, { timeout: 10_000 });
+
+    // Refresh — deleted conversations remain absent
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("admin-message-row")).toHaveCount(1, { timeout: 10_000 });
+    expect(listed.map((c) => c.id)).toEqual([703]);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
@@ -47,6 +47,9 @@ import type { VoiceDraft } from "@/lib/voiceRecording";
 
 type InboxRow = AdminConversation & { ticketId?: number };
 
+const isSelectableConversation = (c: Pick<InboxRow, "id" | "source">) =>
+  c.source !== "contact_us" && Number.isFinite(c.id) && c.id > 0;
+
 const ticketToRow = (t: SupportTicket): InboxRow => ({
   id: -t.id,
   ticketId: t.id,
@@ -94,7 +97,7 @@ const AdminMessages = () => {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<InboxRow | null>(null);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [category, setCategory] = useState<CategoryKey>("all");
@@ -102,22 +105,36 @@ const AdminMessages = () => {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const deletingLockRef = useRef(false);
   const activeTab = CATEGORY_TABS.find((t) => t.key === category) ?? CATEGORY_TABS[0];
   const filtered = useMemo(
     () => conversations.filter(activeTab.match),
     [conversations, activeTab],
   );
-  const visibleRows = filtered.slice(0, visibleCount);
-  const visibleSelectableIds = visibleRows
-    .filter((c) => c.source !== "contact_us" && c.id > 0)
-    .map((c) => c.id);
+  const visibleRows = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
+  const visibleSelectableIds = useMemo(
+    () => visibleRows.filter(isSelectableConversation).map((c) => c.id),
+    [visibleRows],
+  );
   const allVisibleSelected =
     visibleSelectableIds.length > 0 &&
     visibleSelectableIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleSelectableIds.some((id) => selectedIds.has(id));
+  const selectAllChecked: boolean | "indeterminate" = allVisibleSelected
+    ? true
+    : someVisibleSelected
+      ? "indeterminate"
+      : false;
 
-  const loadList = (q?: string) => {
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const loadList = (q?: string, opts?: { clearSelection?: boolean }) => {
     setIsLoading(true);
     const query = (q ?? searchQuery).trim();
+    const shouldClearSelection = opts?.clearSelection !== false;
     Promise.all([
       adminMessagingService.listConversations({
         pageSize: 100,
@@ -150,7 +167,18 @@ const AdminMessages = () => {
           return tb - ta;
         });
         setConversations(merged);
-        setSelectedIds(new Set());
+        if (shouldClearSelection) clearSelection();
+        else {
+          // Drop ids that are no longer in the active list (e.g. soft-deleted elsewhere).
+          const alive = new Set(
+            merged.filter(isSelectableConversation).map((c) => c.id),
+          );
+          setSelectedIds((prev) => {
+            const next = new Set<number>();
+            for (const id of prev) if (alive.has(id)) next.add(id);
+            return next;
+          });
+        }
       })
       .catch((e: Error) => toast.error(e.message || "Failed to load conversations"))
       .finally(() => setIsLoading(false));
@@ -162,8 +190,8 @@ const AdminMessages = () => {
   }, []);
 
   useEffect(() => {
-    // Clear selection when tab changes so hidden rows are never bulk-acted.
-    setSelectedIds(new Set());
+    // Clear selection when tab/filter changes so hidden rows are never bulk-acted.
+    clearSelection();
     setVisibleCount(PAGE_SIZE);
   }, [category]);
 
@@ -253,6 +281,7 @@ const AdminMessages = () => {
   };
 
   const toggleSelect = (id: number, checked: boolean) => {
+    if (!Number.isFinite(id) || id <= 0) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id);
@@ -272,58 +301,76 @@ const AdminMessages = () => {
     });
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     const next = searchInput.trim();
     setSearchQuery(next);
     setVisibleCount(PAGE_SIZE);
-    loadList(next);
+    // Search context changed — clear prior selection to avoid deleting hidden rows.
+    loadList(next, { clearSelection: true });
   };
 
-  const handleDeleteConversation = async () => {
-    if (!pendingDelete) return;
-    if (pendingDelete.id <= 0 || pendingDelete.source === "contact_us") {
+  const handleDeleteConversation = async (e?: MouseEvent) => {
+    e?.preventDefault();
+    if (deletingLockRef.current) return;
+    const removed = pendingDelete;
+    if (!removed) return;
+    if (!isSelectableConversation(removed)) {
       toast.error("Contact Us submissions cannot be deleted here");
       setPendingDelete(null);
       return;
     }
-    const removed = pendingDelete;
+    deletingLockRef.current = true;
     setDeleting(true);
-    setConversations((prev) => prev.filter((c) => c.id !== removed.id));
-    setPendingDelete(null);
     try {
       await adminMessagingService.deleteConversation(removed.id);
+      setConversations((prev) => prev.filter((c) => c.id !== removed.id));
+      setSelectedIds((prev) => {
+        if (!prev.has(removed.id)) return prev;
+        const next = new Set(prev);
+        next.delete(removed.id);
+        return next;
+      });
+      setPendingDelete(null);
       toast.success("Conversation archived");
       if (conversationId && Number(conversationId) === removed.id) {
         navigate("/admin/messages");
       }
-    } catch (e: unknown) {
-      setConversations((prev) => [removed, ...prev]);
-      toast.error(e instanceof Error ? e.message : "Failed to delete conversation");
+      loadList(undefined, { clearSelection: false });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete conversation");
+      // Keep dialog open / selection intact for retry.
     } finally {
+      deletingLockRef.current = false;
       setDeleting(false);
     }
   };
 
-  const handleBulkDelete = async () => {
-    const ids = [...selectedIds].filter((id) => id > 0);
+  const handleBulkDelete = async (e?: MouseEvent) => {
+    e?.preventDefault();
+    if (deletingLockRef.current) return;
+    const ids = [...selectedIds].filter((id) => Number.isFinite(id) && id > 0);
     if (ids.length === 0) return;
+    deletingLockRef.current = true;
     setDeleting(true);
-    setPendingBulkDelete(false);
     try {
       const res = await adminMessagingService.bulkDeleteConversations(ids);
+      const deletedCount = res.deleted ?? ids.length;
       setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
-      setSelectedIds(new Set());
+      clearSelection();
+      setPendingBulkDelete(false);
       toast.success(
-        `Archived ${res.deleted ?? ids.length} conversation${(res.deleted ?? ids.length) === 1 ? "" : "s"}`,
+        `Archived ${deletedCount} conversation${deletedCount === 1 ? "" : "s"}`,
       );
       if (conversationId && ids.includes(Number(conversationId))) {
         navigate("/admin/messages");
       }
-      loadList();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Bulk delete failed");
+      loadList(undefined, { clearSelection: true });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Bulk delete failed");
+      // Preserve selection for retry; leave confirmation dialog open.
     } finally {
+      deletingLockRef.current = false;
       setDeleting(false);
     }
   };
@@ -499,7 +546,8 @@ const AdminMessages = () => {
               onClick={() => {
                 setSearchInput("");
                 setSearchQuery("");
-                loadList("");
+                setVisibleCount(PAGE_SIZE);
+                loadList("", { clearSelection: true });
               }}
             >
               Clear search
@@ -537,12 +585,15 @@ const AdminMessages = () => {
             className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2"
             data-testid="admin-messages-selection-bar"
           >
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <span className="text-sm font-medium" data-testid="admin-messages-selected-count">
+              {selectedIds.size} selected
+            </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setSelectedIds(new Set())}
+              onClick={clearSelection}
+              data-testid="admin-messages-clear-selection"
             >
               Clear Selection
             </Button>
@@ -552,6 +603,7 @@ const AdminMessages = () => {
               size="sm"
               onClick={() => setPendingBulkDelete(true)}
               disabled={deleting}
+              data-testid="admin-messages-bulk-delete"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Bulk Delete
@@ -573,7 +625,7 @@ const AdminMessages = () => {
               <div className="flex items-center gap-2 px-1">
                 <Checkbox
                   id="admin-messages-select-all"
-                  checked={allVisibleSelected}
+                  checked={selectAllChecked}
                   onCheckedChange={(v) => toggleSelectAllVisible(v === true)}
                   aria-label="Select all on this page"
                   data-testid="admin-messages-select-all"
@@ -584,25 +636,32 @@ const AdminMessages = () => {
               </div>
             ) : null}
             {visibleRows.map((c) => {
-              const selectable = c.source !== "contact_us" && c.id > 0;
+              const selectable = isSelectableConversation(c);
               return (
                 <Card
                   key={c.id}
                   className="p-4 hover:border-primary transition-colors"
                   data-testid="admin-message-row"
+                  data-conversation-id={c.id}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
                       {selectable ? (
-                        <Checkbox
-                          checked={selectedIds.has(c.id)}
-                          onCheckedChange={(v) => toggleSelect(c.id, v === true)}
-                          aria-label={`Select conversation ${c.id}`}
-                          className="mt-1"
-                          data-testid="admin-message-select"
-                        />
+                        <div
+                          className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center"
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedIds.has(c.id)}
+                            onCheckedChange={(v) => toggleSelect(c.id, v === true)}
+                            aria-label={`Select conversation ${c.id}`}
+                            data-testid="admin-message-select"
+                            data-conversation-id={c.id}
+                          />
+                        </div>
                       ) : (
-                        <span className="w-4" />
+                        <span className="w-8" />
                       )}
                       <div
                         className="min-w-0 flex-1 cursor-pointer"
@@ -682,8 +741,13 @@ const AdminMessages = () => {
         )}
       </div>
 
-      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => {
+          if (!o && !deleting) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent data-testid="admin-messages-delete-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>Archive this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -693,17 +757,28 @@ const AdminMessages = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleDeleteConversation()} disabled={deleting}>
+            <AlertDialogAction
+              onClick={(e) => void handleDeleteConversation(e)}
+              disabled={deleting}
+              data-testid="admin-messages-delete-confirm"
+            >
               {deleting ? "Archiving..." : "Archive"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={pendingBulkDelete} onOpenChange={setPendingBulkDelete}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={pendingBulkDelete}
+        onOpenChange={(o) => {
+          if (!deleting) setPendingBulkDelete(o);
+        }}
+      >
+        <AlertDialogContent data-testid="admin-messages-bulk-delete-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive {selectedIds.size} conversations?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Archive {selectedIds.size} conversation{selectedIds.size === 1 ? "" : "s"}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Selected conversations will leave active lists. Related user accounts, orders, and
               products are not affected. Message history is retained for audit.
@@ -711,7 +786,11 @@ const AdminMessages = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleBulkDelete()} disabled={deleting}>
+            <AlertDialogAction
+              onClick={(e) => void handleBulkDelete(e)}
+              disabled={deleting}
+              data-testid="admin-messages-bulk-delete-confirm"
+            >
               {deleting ? "Archiving..." : "Archive selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
