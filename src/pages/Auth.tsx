@@ -35,6 +35,16 @@ const passwordSchema = z
   .regex(/[0-9]/, "Must contain at least one number")
   .regex(/[^A-Za-z0-9]/, "Must contain at least one special character");
 
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Enter a valid email address")
+  .max(254, "Enter a valid email address");
+
+const VERIFICATION_SENT_COPY =
+  "We've sent a verification link to your email. Please check your inbox or spam folder.";
+
 const PASSWORD_RULES = [
   { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
   { label: "One uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
@@ -88,6 +98,10 @@ const Auth = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState("");
+  const [showCorrectEmail, setShowCorrectEmail] = useState(false);
+  const [correctEmailValue, setCorrectEmailValue] = useState("");
+  const [correctEmailPassword, setCorrectEmailPassword] = useState("");
+  const [correctEmailBusy, setCorrectEmailBusy] = useState(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -217,6 +231,11 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const emailParsed = emailSchema.safeParse(signUpEmail);
+    if (!emailParsed.success) {
+      toast.error(emailParsed.error.issues[0]?.message || "Enter a valid email address");
+      return;
+    }
     if (signUpPassword !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -239,9 +258,10 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const name = `${firstName} ${lastName}`.trim();
+      const normalizedEmail = emailParsed.data;
       const res = await register(
         name,
-        signUpEmail,
+        normalizedEmail,
         signUpPassword,
         role,
         role === "artisan" ? serviceCategories : undefined,
@@ -252,10 +272,15 @@ const Auth = () => {
         navigate(role === "artisan" ? "/artisan/dashboard" : "/marketplace");
         return;
       }
-      setPendingVerificationEmail(signUpEmail.trim());
+      setPendingVerificationEmail(
+        (res && "email" in res && typeof res.email === "string" && res.email) || normalizedEmail,
+      );
+      setShowCorrectEmail(false);
+      setCorrectEmailValue("");
+      setCorrectEmailPassword("");
       setResendCooldown(60);
       setResendNotice("");
-      toast.success("Account created. Check your email to verify it.");
+      toast.success(VERIFICATION_SENT_COPY);
     } catch (err: unknown) {
       if (signUpRateLimit.applyRateLimit(err)) {
         const msg = rateLimitMessage(err);
@@ -268,6 +293,47 @@ const Auth = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCorrectSignupEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingVerificationEmail) return;
+    const next = emailSchema.safeParse(correctEmailValue);
+    if (!next.success) {
+      toast.error(next.error.issues[0]?.message || "Enter a valid email address");
+      return;
+    }
+    if (!correctEmailPassword) {
+      toast.error("Enter your password to confirm the change");
+      return;
+    }
+    setCorrectEmailBusy(true);
+    setAuthError("");
+    try {
+      const res = await authService.correctSignupEmail({
+        email: pendingVerificationEmail,
+        password: correctEmailPassword,
+        newEmail: next.data,
+      });
+      setPendingVerificationEmail(res.email);
+      setCorrectEmailPassword("");
+      setCorrectEmailValue("");
+      setShowCorrectEmail(false);
+      setResendCooldown(60);
+      setResendNotice(res.message || VERIFICATION_SENT_COPY);
+      toast.success(VERIFICATION_SENT_COPY);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof MoeApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Could not update email";
+      setAuthError(msg);
+      toast.error(msg);
+    } finally {
+      setCorrectEmailBusy(false);
     }
   };
 
@@ -289,10 +355,13 @@ const Auth = () => {
             {pendingVerificationEmail ? (
               <div className="space-y-4 text-center py-2" data-testid="verify-email-pending">
                 <h2 className="text-lg font-display">Check your email</h2>
+                <p className="text-sm text-muted-foreground" data-testid="verification-sent-copy">
+                  {VERIFICATION_SENT_COPY}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  We sent a verification link to{" "}
+                  Sent to{" "}
                   <span className="font-medium text-foreground">{pendingVerificationEmail}</span>.
-                  It expires in 24 hours and can only be used once.
+                  The link expires in 24 hours and can only be used once.
                 </p>
                 {resendNotice && (
                   <p className="text-sm text-muted-foreground" data-testid="resend-notice">
@@ -316,6 +385,78 @@ const Auth = () => {
                     ? `Resend verification email (${resendCooldown}s)`
                     : "Resend verification email"}
                 </Button>
+                {!showCorrectEmail ? (
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline"
+                    data-testid="wrong-email-toggle"
+                    onClick={() => {
+                      setShowCorrectEmail(true);
+                      setCorrectEmailValue("");
+                      setCorrectEmailPassword("");
+                      setAuthError("");
+                    }}
+                  >
+                    Wrong email address?
+                  </button>
+                ) : (
+                  <form
+                    onSubmit={(e) => void handleCorrectSignupEmail(e)}
+                    className="space-y-3 text-left border rounded-lg p-3"
+                    data-testid="correct-signup-email-form"
+                  >
+                    <p className="text-sm text-muted-foreground">
+                      Confirm your password, then enter the correct email. We&apos;ll send a new
+                      verification link.
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="correct-email">Correct email</Label>
+                      <Input
+                        id="correct-email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={correctEmailValue}
+                        onChange={(e) => setCorrectEmailValue(e.target.value)}
+                        data-testid="correct-email-input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="correct-email-password">Password</Label>
+                      <Input
+                        id="correct-email-password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={correctEmailPassword}
+                        onChange={(e) => setCorrectEmailPassword(e.target.value)}
+                        data-testid="correct-email-password"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        className="flex-1"
+                        disabled={correctEmailBusy}
+                        data-testid="correct-email-submit"
+                      >
+                        {correctEmailBusy ? "Updating..." : "Update email"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={correctEmailBusy}
+                        onClick={() => {
+                          setShowCorrectEmail(false);
+                          setCorrectEmailPassword("");
+                          setAuthError("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
                 <button
                   type="button"
                   className="text-sm text-primary hover:underline"
@@ -324,6 +465,8 @@ const Auth = () => {
                     setPendingVerificationEmail(null);
                     setResendNotice("");
                     setAuthError("");
+                    setShowCorrectEmail(false);
+                    setCorrectEmailPassword("");
                   }}
                 >
                   Back to sign in

@@ -83,7 +83,8 @@ export const authService = {
       return {
         verificationRequired: true,
         email: data.email,
-        message: "Check your email to verify your account before signing in.",
+        message:
+          "We've sent a verification link to your email. Please check your inbox or spam folder.",
       };
     }
   },
@@ -117,6 +118,11 @@ export const authService = {
     apiPost<{ verified: boolean; message: string }>("/auth/verify-email", { token }),
   resendVerification: (email: string) =>
     apiPost<{ message: string }>("/auth/resend-verification", { email }),
+  correctSignupEmail: (data: { email: string; password: string; newEmail: string }) =>
+    apiPost<{ verificationRequired: true; email: string; message: string }>(
+      "/auth/correct-signup-email",
+      data,
+    ),
   uploadAvatar: async (file: File) => {
     validateUploadFile(file);
     const formData = new FormData();
