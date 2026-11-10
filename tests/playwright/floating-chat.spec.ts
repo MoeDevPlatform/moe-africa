@@ -188,4 +188,46 @@ test.describe("Floating expandable messages panel", () => {
     await expect(page.getByTestId("messages-panel")).toBeVisible();
     await expect(page.getByTestId("messages-panel").getByRole("heading", { name: "Messages" })).toBeVisible();
   });
+
+  test("expand and minimize preserve selected conversation and draft", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, CUSTOMER_EMAIL, CUSTOMER_PASSWORD);
+    await page.goto("/marketplace/product/1", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "Message Us" }).first()).toBeVisible({ timeout: 20_000 });
+    const artisanName = (
+      await page.locator("a[href*='/marketplace/provider/'] span.font-medium").first().innerText()
+    ).trim();
+
+    await page.getByRole("button", { name: "Message Us" }).first().click();
+    const panel = page.getByTestId("messages-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("heading", { name: `Re: ${artisanName}` })).toBeVisible();
+
+    const draft = `Draft keep ${Date.now()}`;
+    await page.getByTestId("messages-panel-input").fill(draft);
+    await page.getByTestId("messages-panel-expand").click();
+    await expect(panel).toHaveAttribute("data-view-mode", "expanded");
+    await expect(page.getByTestId("messages-panel-list")).toBeVisible();
+    await expect(page.getByTestId("messages-panel-input")).toHaveValue(draft);
+    await expect(panel.getByText(`Re: ${artisanName}`).first()).toBeVisible();
+
+    await page.getByTestId("messages-panel-minimize").click();
+    await expect(panel).toHaveAttribute("data-view-mode", "compact");
+    await expect(page.getByTestId("messages-panel-input")).toHaveValue(draft);
+    await expect(panel.getByRole("heading", { name: `Re: ${artisanName}` })).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByTestId("messages-panel-expand").click();
+    await expect(panel).toHaveAttribute("data-view-mode", "expanded");
+    const box = await panel.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390 + 1);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(844 + 1);
+    await expect(page.getByTestId("messages-panel-input")).toHaveValue(draft);
+
+    await page.getByTestId("messages-panel-close").click();
+    await expect(page.getByTestId("messages-panel")).toHaveCount(0);
+  });
 });

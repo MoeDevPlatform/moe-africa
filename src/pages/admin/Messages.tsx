@@ -34,10 +34,14 @@ import {
 import {
   adminMessagingService,
   adminService,
+  messagingService,
   type AdminConversation,
   type Message,
   type SupportTicket,
 } from "@/lib/apiServices";
+import VoiceComposer from "@/components/marketplace/VoiceComposer";
+import VoiceMessagePlayer from "@/components/marketplace/VoiceMessagePlayer";
+import type { VoiceDraft } from "@/lib/voiceRecording";
 
 type InboxRow = AdminConversation & { ticketId?: number };
 
@@ -87,6 +91,7 @@ const AdminMessages = () => {
   } | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendingVoice, setSendingVoice] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [category, setCategory] = useState<CategoryKey>("all");
@@ -154,7 +159,7 @@ const AdminMessages = () => {
   }, [conversationId, conversations]);
 
   const handleSendReply = async () => {
-    if (!conversationId || !reply.trim()) return;
+    if (!conversationId || !reply.trim() || sendingVoice) return;
     setSending(true);
     try {
       await adminMessagingService.reply(Number(conversationId), reply.trim());
@@ -167,6 +172,29 @@ const AdminMessages = () => {
       toast.error(e instanceof Error ? e.message : "Failed to send reply");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSendVoice = async (draft: VoiceDraft) => {
+    if (!conversationId || sending || sendingVoice) {
+      throw new Error("Send already in progress");
+    }
+    setSendingVoice(true);
+    try {
+      await adminMessagingService.replyWithVoice(Number(conversationId), {
+        file: draft.file,
+        durationMs: draft.durationMs,
+        clientKey: draft.clientKey,
+      });
+      const updated = await adminMessagingService.getConversation(Number(conversationId));
+      setThread(updated);
+      loadList();
+      toast.success("Voice note saved");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Voice note failed to send");
+      throw e;
+    } finally {
+      setSendingVoice(false);
     }
   };
 
@@ -229,11 +257,14 @@ const AdminMessages = () => {
               </div>
 
               {thread.conversation.artisanNote && (
-                <Card className="p-4 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+                <Card className="p-4 border-amber-300 bg-amber-50 dark:bg-amber-950/30" data-testid="admin-private-note">
                   <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                    Artisan&apos;s private note (not visible to customer):
+                    Private note
                   </p>
-                  <p className="text-sm mt-1">{thread.conversation.artisanNote}</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    From artisan — not visible to customer
+                  </p>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{thread.conversation.artisanNote}</p>
                 </Card>
               )}
 
@@ -252,7 +283,32 @@ const AdminMessages = () => {
                         ? "MoE Support"
                         : thread.conversation.customerName}
                     </p>
-                    <p>{m.content}</p>
+                    {m.content ? <p>{m.content}</p> : null}
+                    {m.attachment?.kind === "voice" ? (
+                      <div className="mt-2">
+                        <VoiceMessagePlayer
+                          attachmentPath={m.attachment.url}
+                          durationMs={m.attachment.durationMs ?? m.durationMs}
+                        />
+                      </div>
+                    ) : m.attachment ? (
+                      <button
+                        type="button"
+                        className="text-xs underline mt-1 inline-block text-left"
+                        onClick={async () => {
+                          try {
+                            const blobUrl = await messagingService.fetchAttachmentBlobUrl(
+                              m.attachment!.url,
+                            );
+                            window.open(blobUrl, "_blank", "noopener,noreferrer");
+                          } catch {
+                            toast.error("Could not open attachment");
+                          }
+                        }}
+                      >
+                        {m.attachment.kind === "image" ? "View image" : "Download"}: {m.attachment.name}
+                      </button>
+                    ) : null}
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(m.sentAt).toLocaleString()}
                     </p>
@@ -268,9 +324,19 @@ const AdminMessages = () => {
                     onChange={(e) => setReply(e.target.value)}
                     placeholder="Type your reply to the customer..."
                     rows={4}
+                    disabled={sending || sendingVoice}
+                  />
+                  <VoiceComposer
+                    disabled={sending}
+                    sending={sendingVoice}
+                    onSend={handleSendVoice}
+                    className="w-full"
                   />
                   <div className="flex flex-wrap gap-3 items-center">
-                    <Button onClick={handleSendReply} disabled={sending || !reply.trim()}>
+                    <Button
+                      onClick={handleSendReply}
+                      disabled={sending || sendingVoice || !reply.trim()}
+                    >
                       <Send className="h-4 w-4 mr-2" />
                       Send Reply
                     </Button>

@@ -1591,6 +1591,16 @@ export interface Conversation {
   unreadCount: number;
 }
 
+export interface MessageAttachment {
+  name: string;
+  mimeType: string;
+  bytes: number | null;
+  kind: "image" | "document" | "voice";
+  durationMs?: number | null;
+  /** Auth-gated API path (not a public CDN URL). */
+  url: string;
+}
+
 export interface Message {
   id: number;
   conversationId: number;
@@ -1600,6 +1610,8 @@ export interface Message {
   content: string;
   sentAt: string;
   readAt?: string;
+  durationMs?: number | null;
+  attachment?: MessageAttachment | null;
 }
 
 export interface AdminConversation extends Conversation {
@@ -1609,6 +1621,80 @@ export interface AdminConversation extends Conversation {
   status: string;
   source?: "conversation" | "contact_us";
   contactEmail?: string;
+}
+
+/** Messaging attachments: images + common documents, max 5MB. */
+export const MESSAGE_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+export const MESSAGE_VOICE_MAX_BYTES = 10 * 1024 * 1024;
+export const MESSAGE_ATTACHMENT_ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+] as const;
+export const MESSAGE_VOICE_ACCEPTED_TYPES = [
+  "audio/webm",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/aac",
+  "audio/x-m4a",
+  "audio/wav",
+  "audio/wave",
+  "audio/x-wav",
+  "video/webm",
+] as const;
+export const MESSAGE_ATTACHMENT_ACCEPT_ATTR = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".txt",
+].join(",");
+
+function normalizeUploadMime(type: string): string {
+  return (type || "").split(";")[0].trim().toLowerCase();
+}
+
+export function isVoiceAttachmentFile(file: File): boolean {
+  const base = normalizeUploadMime(file.type);
+  return (
+    base.startsWith("audio/") ||
+    (MESSAGE_VOICE_ACCEPTED_TYPES as readonly string[]).includes(base as (typeof MESSAGE_VOICE_ACCEPTED_TYPES)[number])
+  );
+}
+
+export function validateMessageAttachment(file: File): void {
+  const base = normalizeUploadMime(file.type);
+  if (isVoiceAttachmentFile(file)) {
+    if (file.size < 256) {
+      throw new MoeApiError("Voice recording is empty or too short", 400);
+    }
+    if (file.size > MESSAGE_VOICE_MAX_BYTES) {
+      throw new MoeApiError("Voice recording exceeds the 10MB upload limit", 400);
+    }
+    return;
+  }
+  if (!(MESSAGE_ATTACHMENT_ACCEPTED_TYPES as readonly string[]).includes(base as (typeof MESSAGE_ATTACHMENT_ACCEPTED_TYPES)[number])) {
+    throw new MoeApiError(
+      "Unsupported file format. Allowed: JPEG, PNG, WebP, PDF, DOC, DOCX, TXT, or browser audio",
+      400,
+    );
+  }
+  if (file.size > MESSAGE_ATTACHMENT_MAX_BYTES) {
+    throw new MoeApiError("File exceeds the 5MB upload limit", 400);
+  }
+}
+
+function getMessagingApiBase() {
+  return (import.meta.env?.VITE_API_BASE_URL ??
+    import.meta.env?.VITE_MOE_API_BASE_URL ??
+    "https://moe-backend.duckdns.org") as string;
 }
 
 export const messagingService = {
@@ -1645,6 +1731,106 @@ export const messagingService = {
   },
   sendMessage: (conversationId: number, content: string) =>
     apiPost<Message>(`/conversations/${conversationId}/messages`, { content }),
+  sendMessageWithAttachment: (
+    conversationId: number,
+    {
+      content,
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }: {
+      content?: string;
+      file: File;
+      durationMs?: number;
+      clientKey?: string;
+      onProgress?: (percent: number) => void;
+    },
+  ): Promise<Message> =>
+    new Promise((resolve, reject) => {
+      try {
+        validateMessageAttachment(file);
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      const formData = new FormData();
+      if (content?.trim()) formData.append("content", content.trim());
+      if (durationMs != null && Number.isFinite(durationMs)) {
+        formData.append("durationMs", String(Math.round(durationMs)));
+      }
+      if (clientKey?.trim()) formData.append("clientKey", clientKey.trim());
+      formData.append("file", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open(
+        "POST",
+        `${getMessagingApiBase()}/conversations/${conversationId}/messages`,
+      );
+      const token = localStorage.getItem("moe_access_token");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onload = () => {
+        let body: unknown = {};
+        try {
+          body = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          body = {};
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as Message);
+          return;
+        }
+        const message =
+          typeof (body as { message?: string })?.message === "string"
+            ? (body as { message: string }).message
+            : "Attachment upload failed";
+        reject(new MoeApiError(message, xhr.status));
+      };
+      xhr.onerror = () =>
+        reject(new MoeApiError("Upload failed — check your connection and retry", 0));
+      xhr.send(formData);
+    }),
+  sendVoiceMessage: (
+    conversationId: number,
+    {
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }: {
+      file: File;
+      durationMs: number;
+      clientKey: string;
+      onProgress?: (percent: number) => void;
+    },
+  ) =>
+    messagingService.sendMessageWithAttachment(conversationId, {
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }),
+  /** Absolute URL for an auth-gated attachment path (browser navigates with cookies/headers via fetch blob). */
+  attachmentAbsoluteUrl: (path: string) => {
+    if (/^https?:\/\//i.test(path)) return path;
+    const base = getMessagingApiBase().replace(/\/$/, "");
+    return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  },
+  fetchAttachmentBlobUrl: async (path: string): Promise<string> => {
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(messagingService.attachmentAbsoluteUrl(path), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      redirect: "follow",
+    });
+    if (!res.ok) {
+      throw new MoeApiError("Could not open attachment", res.status);
+    }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
   startConversation: (providerId: number, initialMessage: string) =>
     apiPost<Conversation>("/conversations", { providerId, initialMessage }),
   markRead: (conversationId: number) =>
@@ -1654,7 +1840,10 @@ export const messagingService = {
   deleteAllConversations: () =>
     apiDelete<{ deleted: number }>(`/conversations`),
   updateArtisanNote: (conversationId: number, note: string) =>
-    apiPatch<{ success: boolean }>(`/conversations/${conversationId}/artisan-note`, { note }),
+    apiPatch<{ success: boolean; artisanNote?: string }>(
+      `/conversations/${conversationId}/artisan-note`,
+      { note },
+    ),
 };
 
 export const adminMessagingService = {
@@ -1667,6 +1856,85 @@ export const adminMessagingService = {
     apiGet<{ conversation: AdminConversation; messages: Message[] }>(`/admin/conversations/${id}`),
   reply: (id: number, content: string) =>
     apiPost<Message>(`/admin/conversations/${id}/reply`, { content }),
+  replyWithAttachment: (
+    id: number,
+    {
+      content,
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }: {
+      content?: string;
+      file: File;
+      durationMs?: number;
+      clientKey?: string;
+      onProgress?: (percent: number) => void;
+    },
+  ): Promise<Message> =>
+    new Promise((resolve, reject) => {
+      try {
+        validateMessageAttachment(file);
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      const formData = new FormData();
+      if (content?.trim()) formData.append("content", content.trim());
+      if (durationMs != null && Number.isFinite(durationMs)) {
+        formData.append("durationMs", String(Math.round(durationMs)));
+      }
+      if (clientKey?.trim()) formData.append("clientKey", clientKey.trim());
+      formData.append("file", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${getMessagingApiBase()}/admin/conversations/${id}/reply`);
+      const token = localStorage.getItem("moe_access_token");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onload = () => {
+        let body: unknown = {};
+        try {
+          body = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          body = {};
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as Message);
+          return;
+        }
+        const message =
+          typeof (body as { message?: string })?.message === "string"
+            ? (body as { message: string }).message
+            : "Attachment upload failed";
+        reject(new MoeApiError(message, xhr.status));
+      };
+      xhr.onerror = () =>
+        reject(new MoeApiError("Upload failed — check your connection and retry", 0));
+      xhr.send(formData);
+    }),
+  replyWithVoice: (
+    id: number,
+    {
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }: {
+      file: File;
+      durationMs: number;
+      clientKey: string;
+      onProgress?: (percent: number) => void;
+    },
+  ) =>
+    adminMessagingService.replyWithAttachment(id, {
+      file,
+      durationMs,
+      clientKey,
+      onProgress,
+    }),
   updateStatus: (id: number, status: string) =>
     apiPatch<{ success: boolean }>(`/admin/conversations/${id}/status`, { status }),
   unreadCount: async (): Promise<number> => {
