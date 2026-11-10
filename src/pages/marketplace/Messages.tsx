@@ -92,7 +92,7 @@ const Messages = () => {
     const loadConversations = async () => {
       const local = readLocal();
       try {
-        const res = await messagingService.listConversations();
+        const res = await messagingService.listConversations({ as: "customer" });
         if (cancelled) return;
         const tombstones = readTombstones();
         const clearedAt = readClearedAt();
@@ -178,7 +178,7 @@ const Messages = () => {
   const handleClearAll = async () => {
     setClearing(true);
     try {
-      const res = await messagingService.deleteAllConversations();
+      const res = await messagingService.deleteAllConversations({ as: "customer" });
       clearLocalConversationCache();
       try { localStorage.setItem(clearedAtKey, String(Date.now())); } catch { /* noop */ }
       // Also tombstone every currently-known server id in case the backend

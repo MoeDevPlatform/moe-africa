@@ -247,7 +247,7 @@ const ChatThread = ({
     }
     let cancelled = false;
     messagingService
-      .listConversations()
+      .listConversations({ as: "customer" })
       .then((res) => {
         if (cancelled) return;
         const match = (res?.data ?? []).find((c) => c.providerId === providerId);
@@ -405,7 +405,7 @@ const ChatThread = ({
     } catch {
       /* fall through to lookup */
     }
-    const listed = await messagingService.listConversations();
+    const listed = await messagingService.listConversations({ as: "customer" });
     const match = (listed?.data ?? []).find((c) => c.providerId === providerId);
     if (match?.id) {
       setConversationId(match.id);

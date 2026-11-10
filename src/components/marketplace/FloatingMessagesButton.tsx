@@ -79,7 +79,8 @@ const FloatingMessagesButton = () => {
     let cancelled = false;
     const load = () => {
       messagingService
-        .listConversations()
+        // Personal inbox only — never inbound provider inquiries.
+        .listConversations({ as: "customer" })
         .then((res) => {
           if (cancelled) return;
           const total = (res.data ?? []).reduce(
@@ -132,7 +133,7 @@ const FloatingMessagesButton = () => {
 
     setListStatus("loading");
     messagingService
-      .listConversations()
+      .listConversations({ as: "customer" })
       .then((res) => {
         if (cancelled) return;
         const rows = [...(res.data ?? [])].sort(

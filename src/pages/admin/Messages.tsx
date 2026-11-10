@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Send, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, MoreHorizontal, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -93,16 +95,34 @@ const AdminMessages = () => {
   const [sending, setSending] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminConversation | null>(null);
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [category, setCategory] = useState<CategoryKey>("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const activeTab = CATEGORY_TABS.find((t) => t.key === category) ?? CATEGORY_TABS[0];
-  const filtered = conversations.filter(activeTab.match);
+  const filtered = useMemo(
+    () => conversations.filter(activeTab.match),
+    [conversations, activeTab],
+  );
+  const visibleRows = filtered.slice(0, visibleCount);
+  const visibleSelectableIds = visibleRows
+    .filter((c) => c.source !== "contact_us" && c.id > 0)
+    .map((c) => c.id);
+  const allVisibleSelected =
+    visibleSelectableIds.length > 0 &&
+    visibleSelectableIds.every((id) => selectedIds.has(id));
 
-  const loadList = () => {
+  const loadList = (q?: string) => {
     setIsLoading(true);
+    const query = (q ?? searchQuery).trim();
     Promise.all([
-      adminMessagingService.listConversations({ pageSize: 50 }),
+      adminMessagingService.listConversations({
+        pageSize: 100,
+        ...(query ? { q: query } : {}),
+      }),
       adminService.listContactMessages(),
     ])
       .then(([convRes, tickets]) => {
@@ -110,13 +130,27 @@ const AdminMessages = () => {
           ...c,
           source: c.source ?? "conversation",
         }));
-        const contactRows = tickets.map(ticketToRow);
+        const contactRows = tickets
+          .map(ticketToRow)
+          .filter((row) => {
+            if (!query) return true;
+            const hay = [
+              row.customerName,
+              row.contactEmail,
+              row.lastMessage,
+              String(row.ticketId ?? ""),
+            ]
+              .join(" ")
+              .toLowerCase();
+            return hay.includes(query.toLowerCase());
+          });
         const merged = [...contactRows, ...convRows].sort((a, b) => {
           const ta = new Date(a.lastMessageAt ?? a.lastMessageTime).getTime();
           const tb = new Date(b.lastMessageAt ?? b.lastMessageTime).getTime();
           return tb - ta;
         });
         setConversations(merged);
+        setSelectedIds(new Set());
       })
       .catch((e: Error) => toast.error(e.message || "Failed to load conversations"))
       .finally(() => setIsLoading(false));
@@ -124,7 +158,14 @@ const AdminMessages = () => {
 
   useEffect(() => {
     loadList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // Clear selection when tab changes so hidden rows are never bulk-acted.
+    setSelectedIds(new Set());
+    setVisibleCount(PAGE_SIZE);
+  }, [category]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -211,21 +252,77 @@ const AdminMessages = () => {
     }
   };
 
+  const toggleSelect = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of visibleSelectableIds) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const next = searchInput.trim();
+    setSearchQuery(next);
+    setVisibleCount(PAGE_SIZE);
+    loadList(next);
+  };
+
   const handleDeleteConversation = async () => {
     if (!pendingDelete) return;
+    if (pendingDelete.id <= 0 || pendingDelete.source === "contact_us") {
+      toast.error("Contact Us submissions cannot be deleted here");
+      setPendingDelete(null);
+      return;
+    }
     const removed = pendingDelete;
     setDeleting(true);
     setConversations((prev) => prev.filter((c) => c.id !== removed.id));
     setPendingDelete(null);
     try {
       await adminMessagingService.deleteConversation(removed.id);
-      toast.success("Conversation deleted");
+      toast.success("Conversation archived");
       if (conversationId && Number(conversationId) === removed.id) {
         navigate("/admin/messages");
       }
     } catch (e: unknown) {
       setConversations((prev) => [removed, ...prev]);
       toast.error(e instanceof Error ? e.message : "Failed to delete conversation");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds].filter((id) => id > 0);
+    if (ids.length === 0) return;
+    setDeleting(true);
+    setPendingBulkDelete(false);
+    try {
+      const res = await adminMessagingService.bulkDeleteConversations(ids);
+      setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
+      setSelectedIds(new Set());
+      toast.success(
+        `Archived ${res.deleted ?? ids.length} conversation${(res.deleted ?? ids.length) === 1 ? "" : "s"}`,
+      );
+      if (conversationId && ids.includes(Number(conversationId))) {
+        navigate("/admin/messages");
+      }
+      loadList();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Bulk delete failed");
     } finally {
       setDeleting(false);
     }
@@ -377,7 +474,40 @@ const AdminMessages = () => {
           </p>
         </div>
 
-        {!isLoading && conversations.length > 0 && (
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-wrap gap-2 items-center"
+          data-testid="admin-messages-search"
+        >
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search name, email, artisan, subject, ID, message…"
+              className="pl-9"
+              aria-label="Search conversations"
+            />
+          </div>
+          <Button type="submit" variant="secondary" disabled={isLoading}>
+            Search
+          </Button>
+          {searchQuery ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSearchInput("");
+                setSearchQuery("");
+                loadList("");
+              }}
+            >
+              Clear search
+            </Button>
+          ) : null}
+        </form>
+
+        {!isLoading && (
           <div role="tablist" aria-label="Message types" className="flex flex-wrap gap-2 border-b border-border">
             {CATEGORY_TABS.map((t) => {
               const count = conversations.filter(t.match).length;
@@ -387,7 +517,7 @@ const AdminMessages = () => {
                   key={t.key}
                   role="tab"
                   aria-selected={active}
-                  onClick={() => { setCategory(t.key); setVisibleCount(PAGE_SIZE); }}
+                  onClick={() => setCategory(t.key)}
                   className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                     active
                       ? "border-primary text-primary"
@@ -402,74 +532,145 @@ const AdminMessages = () => {
           </div>
         )}
 
+        {selectedIds.size > 0 ? (
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2"
+            data-testid="admin-messages-selection-bar"
+          >
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear Selection
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setPendingBulkDelete(true)}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Bulk Delete
+            </Button>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : conversations.length === 0 ? (
-          <Card className="p-8 text-center text-muted-foreground">No conversations yet</Card>
+          <Card className="p-8 text-center text-muted-foreground">
+            {searchQuery ? "No conversations match your search" : "No conversations yet"}
+          </Card>
         ) : filtered.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No messages in this category</Card>
         ) : (
           <div className="space-y-2">
-            {filtered.slice(0, visibleCount).map((c) => (
-              <Card
-                key={c.id}
-                className="p-4 hover:border-primary transition-colors"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div
-                    className="min-w-0 flex-1 cursor-pointer"
-                    onClick={() => navigate(`/admin/messages/${c.id}`)}
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold">{c.customerName}</h3>
-                      {c.source === "contact_us" ? (
-                        <Badge variant="secondary" className="text-xs">
-                          Contact Us
-                        </Badge>
+            {visibleSelectableIds.length > 0 ? (
+              <div className="flex items-center gap-2 px-1">
+                <Checkbox
+                  id="admin-messages-select-all"
+                  checked={allVisibleSelected}
+                  onCheckedChange={(v) => toggleSelectAllVisible(v === true)}
+                  aria-label="Select all on this page"
+                  data-testid="admin-messages-select-all"
+                />
+                <label htmlFor="admin-messages-select-all" className="text-sm text-muted-foreground">
+                  Select all on this page
+                </label>
+              </div>
+            ) : null}
+            {visibleRows.map((c) => {
+              const selectable = c.source !== "contact_us" && c.id > 0;
+              return (
+                <Card
+                  key={c.id}
+                  className="p-4 hover:border-primary transition-colors"
+                  data-testid="admin-message-row"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {selectable ? (
+                        <Checkbox
+                          checked={selectedIds.has(c.id)}
+                          onCheckedChange={(v) => toggleSelect(c.id, v === true)}
+                          aria-label={`Select conversation ${c.id}`}
+                          className="mt-1"
+                          data-testid="admin-message-select"
+                        />
                       ) : (
-                        <Badge variant="outline" className="text-xs">
-                          Re: {c.artisanName ?? c.providerName}
-                        </Badge>
+                        <span className="w-4" />
                       )}
-                      {c.unreadCount > 0 && <Badge>New</Badge>}
+                      <div
+                        className="min-w-0 flex-1 cursor-pointer"
+                        onClick={() => navigate(`/admin/messages/${c.id}`)}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold">{c.customerName}</h3>
+                          {c.source === "contact_us" ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Contact Us
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Re: {c.artisanName ?? c.providerName}
+                            </Badge>
+                          )}
+                          {c.unreadCount > 0 && <Badge>New</Badge>}
+                          {c.id > 0 ? (
+                            <span className="text-[10px] text-muted-foreground">#{c.id}</span>
+                          ) : null}
+                        </div>
+                        {(c.customerEmail || c.contactEmail) && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {c.customerEmail || c.contactEmail}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground truncate mt-1">
+                          {c.lastMessage}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate mt-1">
-                      {c.lastMessage}
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2 shrink-0">
-                    <div className="text-right">
-                      <Badge variant="secondary">
-                        {STATUS_LABELS[c.status ?? "unread"] ?? c.status}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(c.lastMessageAt ?? c.lastMessageTime).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-start gap-2 shrink-0">
+                      <div className="text-right">
+                        <Badge variant="secondary">
+                          {STATUS_LABELS[c.status ?? "unread"] ?? c.status}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(c.lastMessageAt ?? c.lastMessageTime).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {selectable ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="Conversation actions"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setPendingDelete(c)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setPendingDelete(c)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
             {filtered.length > visibleCount && (
               <div className="flex justify-center pt-2">
                 <Button variant="outline" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
@@ -484,15 +685,34 @@ const AdminMessages = () => {
       <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+            <AlertDialogTitle>Archive this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This cannot be undone. All messages in this thread will be permanently removed.
+              The conversation will be removed from active lists. Messages and attachments are
+              retained for audit history and are not permanently destroyed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConversation} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
+            <AlertDialogAction onClick={() => void handleDeleteConversation()} disabled={deleting}>
+              {deleting ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingBulkDelete} onOpenChange={setPendingBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedIds.size} conversations?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selected conversations will leave active lists. Related user accounts, orders, and
+              products are not affected. Message history is retained for audit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleBulkDelete()} disabled={deleting}>
+              {deleting ? "Archiving..." : "Archive selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

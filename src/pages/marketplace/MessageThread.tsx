@@ -60,7 +60,7 @@ const MessageThread = () => {
       }
       if (!resolved && !cancelled) {
         try {
-          const res = await messagingService.listConversations();
+          const res = await messagingService.listConversations({ as: "customer" });
           const match = (res?.data ?? []).find((c) => c.id === numericConversationId);
           if (!cancelled && match?.providerId) {
             setProviderId(match.providerId);

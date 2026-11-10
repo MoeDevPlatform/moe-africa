@@ -1582,14 +1582,19 @@ export interface Conversation {
   providerId: number;
   providerName: string;
   customerName?: string;
+  customerEmail?: string;
   artisanName?: string;
   lastMessage: string;
   lastMessageTime: string;
   lastMessageAt?: string;
   status?: string;
   artisanNote?: string | null;
+  /** Role of the viewer in this conversation (not global account role). */
+  viewerContext?: "as_customer" | "as_provider";
   unreadCount: number;
 }
+
+export type ConversationListAs = "customer" | "provider";
 
 export interface MessageAttachment {
   name: string;
@@ -1701,7 +1706,7 @@ export const messagingService = {
   // Backend returns a raw array for both list endpoints (no { data, pagination } wrapper).
   // We normalize here so callers can rely on a consistent { data } shape.
   listConversations: async (
-    params?: { page?: number; pageSize?: number },
+    params?: { page?: number; pageSize?: number; as?: ConversationListAs },
   ): Promise<{ data: Conversation[] }> => {
     const res = await apiGet<Conversation[] | { data?: Conversation[]; items?: Conversation[] }>(
       "/conversations",
@@ -1837,8 +1842,8 @@ export const messagingService = {
     apiPatch<void>(`/conversations/${conversationId}/read`),
   deleteConversation: (conversationId: number) =>
     apiDelete<void>(`/conversations/${conversationId}`),
-  deleteAllConversations: () =>
-    apiDelete<{ deleted: number }>(`/conversations`),
+  deleteAllConversations: (params?: { as?: ConversationListAs }) =>
+    apiDelete<{ deleted: number }>("/conversations", params as Record<string, unknown>),
   updateArtisanNote: (conversationId: number, note: string) =>
     apiPatch<{ success: boolean; artisanNote?: string }>(
       `/conversations/${conversationId}/artisan-note`,
@@ -1847,7 +1852,12 @@ export const messagingService = {
 };
 
 export const adminMessagingService = {
-  listConversations: (params?: { page?: number; pageSize?: number; status?: string }) =>
+  listConversations: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    q?: string;
+  }) =>
     apiGet<{ data: AdminConversation[]; pagination?: Pagination }>(
       "/admin/conversations",
       params as Record<string, unknown>,
@@ -1946,6 +1956,11 @@ export const adminMessagingService = {
   },
   deleteConversation: (id: number) =>
     apiDelete<{ success: boolean }>(`/admin/conversations/${id}`),
+  bulkDeleteConversations: (ids: number[]) =>
+    apiPost<{ success: boolean; deleted: number }>(
+      `/admin/conversations/bulk-delete`,
+      { ids },
+    ),
 };
 
 // ─── Wishlist (API sync for logged-in users) ──────────────

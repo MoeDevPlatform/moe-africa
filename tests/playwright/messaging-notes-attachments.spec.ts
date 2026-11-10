@@ -107,6 +107,9 @@ test.describe("Messaging notes and attachments", () => {
     });
 
     await page.goto("/artisan/dashboard?tab=inquiries", { waitUntil: "domcontentloaded" });
+    const card = page.getByTestId("artisan-inquiry-card").first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await card.getByTestId("artisan-inquiry-toggle").click();
     const noteInput = page.getByTestId("private-note-input").first();
     await expect(noteInput).toBeVisible({ timeout: 20_000 });
     const note = `Private support note ${Date.now()}`;
@@ -156,6 +159,9 @@ test.describe("Messaging notes and attachments", () => {
     });
 
     await page.goto("/artisan/dashboard?tab=inquiries", { waitUntil: "domcontentloaded" });
+    const card = page.getByTestId("artisan-inquiry-card").first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await card.getByTestId("artisan-inquiry-toggle").click();
     const noteInput = page.getByTestId("private-note-input").first();
     await expect(noteInput).toBeVisible({ timeout: 20_000 });
     const note = `Keep this note ${Date.now()}`;
