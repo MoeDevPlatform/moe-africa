@@ -56,6 +56,11 @@ function formatRemaining(ms: number | null | undefined) {
   return `${hours}h ${mins}m left`;
 }
 
+function productionRemaining(deadlineIso: string | null | undefined) {
+  if (!deadlineIso) return null;
+  return formatRemaining(new Date(deadlineIso).getTime() - Date.now());
+}
+
 type Props = {
   view?: ArtisanOrderView;
   onViewChange?: (view: ArtisanOrderView) => void;
@@ -126,6 +131,25 @@ const ArtisanOrdersPanel = ({
     }
   };
 
+  const handleStartWork = async (order: Order) => {
+    setUpdatingId(order.id);
+    try {
+      const res = await ordersService.startWork(order.id);
+      toast.success(
+        res.alreadyStarted
+          ? "Production already started"
+          : `Work started · deadline ${res.productionDeadline ? new Date(res.productionDeadline).toLocaleString() : "set"}`,
+      );
+      onViewChange?.("pending");
+      load();
+      onOrdersChanged?.();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Start Work failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const countFor = (id: ArtisanOrderView) => {
     if (!summary) return null;
     return id === "all" ? summary.all : summary[id];
@@ -189,6 +213,9 @@ const ArtisanOrdersPanel = ({
             );
             const rows = history[order.id];
             const remaining = formatRemaining(order.readiness?.msRemaining ?? null);
+            const prodRemaining = productionRemaining(order.production?.productionDeadline);
+            const productionLabel = order.production?.displayLabel;
+            const readyToStart = !!order.production?.readyToStart;
             return (
               <Card key={order.id} className="p-4 space-y-3" data-testid={`artisan-order-${order.id}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -220,12 +247,20 @@ const ArtisanOrdersPanel = ({
                         className="capitalize"
                         data-testid="artisan-readiness-status"
                       >
-                        {statusLabel(order.readiness.workflowStatus)}
+                        {productionLabel
+                          ? productionLabel
+                          : statusLabel(order.readiness.workflowStatus)}
                       </Badge>
                     ) : null}
-                    {remaining ? (
+                    {remaining && !order.production?.productionStartedAt ? (
                       <p className="text-xs text-muted-foreground" data-testid="artisan-readiness-deadline">
                         {remaining}
+                      </p>
+                    ) : null}
+                    {order.production?.productionDeadline ? (
+                      <p className="text-xs text-muted-foreground" data-testid="artisan-production-deadline">
+                        Due {new Date(order.production.productionDeadline).toLocaleString()}
+                        {prodRemaining ? ` · ${prodRemaining}` : ""}
                       </p>
                     ) : null}
                   </div>
@@ -242,10 +277,22 @@ const ArtisanOrdersPanel = ({
                   </Button>
                 ) : null}
 
-                {order.readiness?.workflowStatus === "approved" ? (
-                  <p className="text-xs text-muted-foreground">
-                    Approved — awaiting initial payout. Production start is not available in Phase 1.
+                {order.production?.awaitingInitialPayout ? (
+                  <p className="text-xs text-muted-foreground" data-testid="artisan-awaiting-payout">
+                    Approved — Awaiting Initial Payout. Start Work unlocks after verified funding.
                   </p>
+                ) : null}
+
+                {readyToStart ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={updatingId === order.id}
+                    data-testid={`artisan-start-work-${order.id}`}
+                    onClick={() => void handleStartWork(order)}
+                  >
+                    {updatingId === order.id ? "Starting…" : "Start Work"}
+                  </Button>
                 ) : null}
 
                 {nextStatuses.length > 0 && (

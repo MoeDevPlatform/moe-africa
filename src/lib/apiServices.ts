@@ -1208,9 +1208,103 @@ export interface Order {
   estimatedDelivery?: string;
   statusHistory?: OrderStatusHistoryEntry[];
   readiness?: OrderReadinessSummary | null;
+  production?: OrderProductionSummary | null;
   rushOrder?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ArtisanPayoutStatus =
+  | "requested"
+  | "amount_approved"
+  | "recorded"
+  | "verified"
+  | "rejected"
+  | "disputed"
+  | "reversed"
+  | "not_required";
+
+export interface OrderProductionSummary {
+  payoutStatus: ArtisanPayoutStatus | null;
+  fundingRequired: boolean;
+  requestedAmount: number | null;
+  approvedAmount: number | null;
+  currency: string | null;
+  verifiedTotal: number;
+  disputeFlag: boolean;
+  productionStartedAt: string | null;
+  productionDeadline: string | null;
+  productionDurationDays: number | null;
+  awaitingInitialPayout: boolean;
+  readyToStart: boolean;
+  displayLabel: string | null;
+}
+
+export interface ArtisanPayoutBundle {
+  orderId: number;
+  readinessWorkflowStatus: string | null;
+  productionStartedAt: string | null;
+  productionDeadline: string | null;
+  productionDurationDays: number | null;
+  customerPaymentStatus: string;
+  startWork: {
+    eligible: boolean;
+    reason: string | null;
+    code: string | null;
+    alreadyStarted: boolean;
+  };
+  limitPolicy: {
+    configured: boolean;
+    currencyRule: { maxAbsolute?: number | null; maxRatio?: number | null } | null;
+  };
+  payout: {
+    id: number;
+    status: ArtisanPayoutStatus;
+    currency: string;
+    requestedAmount: number | null;
+    approvedAmount: number | null;
+    amountApprovedById: number | null;
+    amountApprovedAt: string | null;
+    amountApprovalReason: string | null;
+    exceptionApproved: boolean;
+    exceptionReason: string | null;
+    limitPolicyStatus: string | null;
+    fundingRequired: boolean;
+    disputeFlag: boolean;
+    disputeNotes: string | null;
+    verifiedTotal: number;
+    transfers: Array<{
+      id: number;
+      amount: number;
+      currency: string;
+      transferDate: string;
+      payeeName: string;
+      payeeDetails: string | null;
+      externalReference: string;
+      status: string;
+      recordedById: number;
+      recordedAt: string;
+      verifiedById: number | null;
+      verifiedAt: string | null;
+      verificationNotes: string | null;
+      rejectionReason: string | null;
+      evidence: Array<{
+        id: number;
+        name: string;
+        mimeType: string;
+        bytes: number | null;
+        kind: string;
+        url: string;
+      }>;
+    }>;
+    events: Array<{
+      id: number;
+      action: string;
+      actorId: number | null;
+      detail: unknown;
+      createdAt: string;
+    }>;
+  } | null;
 }
 
 export interface CreateOrderRequest {
@@ -1273,6 +1367,7 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     customisationData: (r.customisationData as Record<string, unknown> | null) ?? null,
     rushOrder: Boolean(r.rushOrder ?? false),
     readiness: (r.readiness as OrderReadinessSummary | null) ?? null,
+    production: (r.production as OrderProductionSummary | null) ?? null,
     statusHistory: Array.isArray(r.statusHistory)
       ? (r.statusHistory as OrderStatusHistoryEntry[])
       : Array.isArray(r.history)
@@ -1348,6 +1443,16 @@ export const ordersService = {
     apiPatch<Order>(`/orders/${id}/status`, { status }),
   getReadiness: (id: string) =>
     apiGet<OrderReadinessBundle>(`/orders/${id}/readiness`),
+  getArtisanPayout: (id: string) =>
+    apiGet<ArtisanPayoutBundle>(`/orders/${id}/artisan-payout`),
+  startWork: (id: string) =>
+    apiPost<{
+      orderId: number;
+      alreadyStarted: boolean;
+      productionStartedAt: string;
+      productionDeadline: string | null;
+      status: string;
+    }>(`/orders/${id}/start-work`, {}),
   submitReadiness: async (
     id: string,
     body: {
@@ -3285,6 +3390,91 @@ export const adminOrdersService = {
       "/admin/orders/readiness/process-deadlines",
       now ? { now } : {},
     ),
+  approvePayoutAmount: (
+    orderId: number,
+    body: {
+      approvedAmount: number;
+      currency?: string;
+      reason?: string;
+      exceptionApproved?: boolean;
+      exceptionReason?: string;
+    },
+  ) =>
+    apiPost(`/admin/orders/${orderId}/artisan-payout/approve-amount`, body),
+  markPayoutNotRequired: (orderId: number, body: { reason: string }) =>
+    apiPost(`/admin/orders/${orderId}/artisan-payout/mark-not-required`, body),
+  recordPayoutTransfer: async (
+    orderId: number,
+    body: {
+      amount: number;
+      currency?: string;
+      transferDate: string;
+      payeeName: string;
+      payeeDetails?: string;
+      externalReference: string;
+    },
+    files: File[] = [],
+  ) => {
+    const form = new FormData();
+    form.append("amount", String(body.amount));
+    if (body.currency) form.append("currency", body.currency);
+    form.append("transferDate", body.transferDate);
+    form.append("payeeName", body.payeeName);
+    if (body.payeeDetails) form.append("payeeDetails", body.payeeDetails);
+    form.append("externalReference", body.externalReference);
+    for (const file of files) form.append("files", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/admin/orders/${orderId}/artisan-payout/transfers`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(
+        (json as { message?: string })?.message || "Failed to record transfer",
+        res.status,
+      );
+    }
+    return json;
+  },
+  verifyPayoutTransfer: async (
+    orderId: number,
+    transferId: number,
+    body: { notes: string },
+    files: File[] = [],
+  ) => {
+    const form = new FormData();
+    form.append("notes", body.notes);
+    for (const file of files) form.append("files", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(
+      `${base}/admin/orders/${orderId}/artisan-payout/transfers/${transferId}/verify`,
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(
+        (json as { message?: string })?.message || "Failed to verify transfer",
+        res.status,
+      );
+    }
+    return json;
+  },
+  disputePayout: (
+    orderId: number,
+    body: { notes: string; transferId?: number; reverse?: boolean },
+  ) => apiPost(`/admin/orders/${orderId}/artisan-payout/dispute`, body),
 };
 
 // ─── Public meta (signup) ─────────────────────────────────
