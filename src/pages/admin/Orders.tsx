@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreVertical, Calendar, User, Loader2 } from "lucide-react";
+import AdminReadinessPanel from "@/components/admin/AdminReadinessPanel";
 import {
   Select,
   SelectContent,
@@ -92,6 +94,8 @@ const formatPrice = (price: number, currency: string) =>
   }).format(price);
 
 const Orders = () => {
+  const [searchParams] = useSearchParams();
+  const readinessOrderId = Number(searchParams.get("orderId") || 0) || null;
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [page, setPage] = useState(1);
@@ -103,6 +107,9 @@ const Orders = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<AdminOrderStatus | "all">("all");
   const [paymentFilter, setPaymentFilter] = useState<AdminPaymentStatus | "all">("all");
+  const [section, setSection] = useState<"orders" | "readiness">(
+    searchParams.get("readiness") === "1" ? "readiness" : "orders",
+  );
 
   // Debounce search input
   useEffect(() => {
@@ -182,10 +189,37 @@ const Orders = () => {
               Review and manage customer orders
             </p>
           </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={section === "orders" ? "default" : "outline"}
+              onClick={() => setSection("orders")}
+              data-testid="admin-orders-section-orders"
+            >
+              All orders
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={section === "readiness" ? "default" : "outline"}
+              onClick={() => setSection("readiness")}
+              data-testid="admin-orders-section-readiness"
+            >
+              Readiness review
+            </Button>
+          </div>
         </div>
 
+        {section === "readiness" ? (
+          <AdminReadinessPanel initialOrderId={readinessOrderId} />
+        ) : null}
+
         {/* Search */}
-        <div className="flex flex-col gap-3 lg:flex-row" data-testid="admin-order-filters">
+        <div
+          className={`flex flex-col gap-3 lg:flex-row ${section === "readiness" ? "hidden" : ""}`}
+          data-testid="admin-order-filters"
+        >
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -250,11 +284,11 @@ const Orders = () => {
         </div>
 
         {/* States */}
-        {loading ? (
+        {section === "orders" && loading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading orders...
           </div>
-        ) : error ? (
+        ) : section === "orders" && error ? (
           <Card>
             <CardContent className="p-10 text-center">
               <p className="text-destructive">{error}</p>
@@ -263,13 +297,13 @@ const Orders = () => {
               </Button>
             </CardContent>
           </Card>
-        ) : orders.length === 0 ? (
+        ) : section === "orders" && orders.length === 0 ? (
           <Card>
             <CardContent className="p-10 text-center text-muted-foreground">
               No orders found.
             </CardContent>
           </Card>
-        ) : (
+        ) : section === "orders" ? (
           <div className="space-y-4">
             {orders.map((order) => (
               <Card
@@ -376,10 +410,10 @@ const Orders = () => {
               </Card>
             ))}
           </div>
-        )}
+        ) : null}
 
         {/* Pagination */}
-        {!loading && !error && totalPages > 1 && (
+        {section === "orders" && !loading && !error && totalPages > 1 && (
           <Pagination>
             <PaginationContent>
               <PaginationItem>

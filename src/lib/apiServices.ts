@@ -1097,6 +1097,78 @@ export interface OrderStatusHistoryEntry {
   createdAt: string;
 }
 
+export type ReadinessWorkflowStatus =
+  | "awaiting_response"
+  | "overdue"
+  | "submitted"
+  | "under_review"
+  | "changes_requested"
+  | "approved"
+  | "rejected"
+  | "cannot_fulfil";
+
+export interface OrderReadinessSummary {
+  workflowStatus: ReadinessWorkflowStatus;
+  assessmentType: "standard" | "detailed";
+  assignedAt: string | null;
+  responseDeadline: string | null;
+  msRemaining: number | null;
+  extendedAt?: string | null;
+  extensionHours?: number | null;
+  extensionReason?: string | null;
+  highValueThresholdNgn?: number;
+}
+
+export interface OrderReadinessBundle {
+  orderId: number;
+  readiness: OrderReadinessSummary | null;
+  customerRequirements: {
+    productName: string | null;
+    productImage: string | null;
+    quantity: number;
+    price: number | null;
+    currency: string;
+    isCustomOrder: boolean;
+    customisationData: unknown;
+    estimatedDelivery: string | null;
+    rushOrder: boolean;
+    shipping: { city: string | null; state: string | null; country: string | null };
+  };
+  assessments: Array<{
+    id: number;
+    version: number;
+    type: string;
+    status: string;
+    payload: Record<string, unknown>;
+    cannotFulfil: boolean;
+    cannotFulfilReason: string | null;
+    acknowledgedRequirements: boolean;
+    submittedAt: string | null;
+    evidence: Array<{
+      id: number;
+      name: string;
+      mimeType: string;
+      bytes: number | null;
+      kind: string;
+      url: string;
+    }>;
+    reviews: Array<{
+      id: number;
+      reviewerId: number;
+      decision: string;
+      reason: string | null;
+      createdAt: string;
+    }>;
+  }>;
+  events: Array<{
+    id: number;
+    action: string;
+    actorId: number | null;
+    detail: unknown;
+    createdAt: string;
+  }>;
+}
+
 export interface Order {
   id: string;
   orderNumber?: string;
@@ -1108,6 +1180,7 @@ export interface Order {
   providerName: string;
   customizationId?: number;
   isCustomOrder: boolean;
+  customisationData?: Record<string, unknown> | null;
   status:
     | "pending"
     | "confirmed"
@@ -1134,6 +1207,8 @@ export interface Order {
   paymentStatus: "unpaid" | "pending" | "paid" | "failed" | "refunded";
   estimatedDelivery?: string;
   statusHistory?: OrderStatusHistoryEntry[];
+  readiness?: OrderReadinessSummary | null;
+  rushOrder?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1195,6 +1270,9 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     paymentStatus: (r.paymentStatus as Order["paymentStatus"]) ?? "unpaid",
     orderNumber: (r.orderNumber as string) ?? undefined,
     estimatedDelivery: (r.estimatedDelivery as string) ?? undefined,
+    customisationData: (r.customisationData as Record<string, unknown> | null) ?? null,
+    rushOrder: Boolean(r.rushOrder ?? false),
+    readiness: (r.readiness as OrderReadinessSummary | null) ?? null,
     statusHistory: Array.isArray(r.statusHistory)
       ? (r.statusHistory as OrderStatusHistoryEntry[])
       : Array.isArray(r.history)
@@ -1268,6 +1346,46 @@ export const ordersService = {
   /** Artisan/admin status change. Customers stay on PATCH /orders/:id. */
   updateStatus: (id: string, status: string) =>
     apiPatch<Order>(`/orders/${id}/status`, { status }),
+  getReadiness: (id: string) =>
+    apiGet<OrderReadinessBundle>(`/orders/${id}/readiness`),
+  submitReadiness: async (
+    id: string,
+    body: {
+      cannotFulfil?: boolean;
+      cannotFulfilReason?: string;
+      acknowledgedRequirements?: boolean;
+      reviewedRequirementsAt?: string;
+      payload?: Record<string, unknown>;
+    },
+    files: File[] = [],
+  ) => {
+    const form = new FormData();
+    if (body.cannotFulfil) form.append("cannotFulfil", "true");
+    if (body.cannotFulfilReason) form.append("cannotFulfilReason", body.cannotFulfilReason);
+    if (body.acknowledgedRequirements) form.append("acknowledgedRequirements", "true");
+    if (body.reviewedRequirementsAt) {
+      form.append("reviewedRequirementsAt", body.reviewedRequirementsAt);
+    }
+    form.append("payload", JSON.stringify(body.payload ?? {}));
+    for (const file of files) form.append("files", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/orders/${id}/readiness/assessments`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(
+        (json as { message?: string })?.message || "Failed to submit readiness",
+        res.status,
+      );
+    }
+    return json;
+  },
   getTracking: async (id: string) => {
     try {
       return await apiGet<{
@@ -3139,6 +3257,34 @@ export const adminOrdersService = {
   get: (id: number) => apiGet<AdminOrderRow & Record<string, any>>(`/admin/orders/${id}`),
   update: (id: number, body: AdminOrderPatch) =>
     apiPatch<AdminOrderRow & Record<string, any>>(`/admin/orders/${id}`, body),
+  listReadiness: (params?: { filter?: string; page?: number; pageSize?: number }) =>
+    apiGet<{
+      data: Array<AdminOrderRow & { readiness?: OrderReadinessSummary | null; latestAssessment?: unknown }>;
+      pagination?: Pagination;
+      highValueThresholdNgn?: number;
+    }>("/admin/orders/readiness", params as Record<string, unknown>),
+  decideReadiness: (
+    orderId: number,
+    assessmentId: number,
+    body: { decision: "approve" | "request_changes" | "reject"; reason?: string },
+  ) =>
+    apiPost<{ workflowStatus: string }>(
+      `/admin/orders/${orderId}/readiness/assessments/${assessmentId}/decide`,
+      body,
+    ),
+  extendReadinessDeadline: (
+    orderId: number,
+    body: { extraHours: number; reason: string },
+  ) =>
+    apiPost<{ responseDeadline?: string; penaltyApplied: boolean }>(
+      `/admin/orders/${orderId}/readiness/extend`,
+      body,
+    ),
+  processReadinessDeadlines: (now?: string) =>
+    apiPost<{ scanned: number; reminders12: number; reminders20: number; overdue: number }>(
+      "/admin/orders/readiness/process-deadlines",
+      now ? { now } : {},
+    ),
 };
 
 // ─── Public meta (signup) ─────────────────────────────────

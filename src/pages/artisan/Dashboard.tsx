@@ -645,6 +645,7 @@ const ArtisanDashboard = () => {
               <CardContent>
                 <ArtisanOrdersPanel
                   view={orderView}
+                  initialReadinessOrderId={searchParams.get("readinessOrderId")}
                   onViewChange={(nextView) => {
                     const next = new URLSearchParams(searchParams);
                     next.set("tab", "orders");
