@@ -1234,7 +1234,13 @@ export interface OrderProductionSummary {
   disputeFlag: boolean;
   productionStartedAt: string | null;
   productionDeadline: string | null;
+  productionOriginalDeadline?: string | null;
   productionDurationDays: number | null;
+  msElapsed?: number | null;
+  msRemaining?: number | null;
+  overdue?: boolean;
+  qualityReviewStatus?: string | null;
+  fulfillmentStatus?: string | null;
   awaitingInitialPayout: boolean;
   readyToStart: boolean;
   displayLabel: string | null;
@@ -1453,6 +1459,76 @@ export const ordersService = {
       productionDeadline: string | null;
       status: string;
     }>(`/orders/${id}/start-work`, {}),
+  getProduction: (id: string) => apiGet(`/orders/${id}/production`),
+  submitProductionProgress: async (
+    id: string,
+    body: { note: string; percentComplete?: number },
+    files: File[] = [],
+  ) => {
+    const form = new FormData();
+    form.append("note", body.note);
+    if (body.percentComplete != null) {
+      form.append("percentComplete", String(body.percentComplete));
+    }
+    for (const file of files) form.append("files", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/orders/${id}/production/progress`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(
+        (json as { message?: string })?.message || "Failed to submit progress",
+        res.status,
+      );
+    }
+    return json;
+  },
+  getQuality: (id: string) => apiGet(`/orders/${id}/quality`),
+  submitQuality: async (
+    id: string,
+    body: {
+      description: string;
+      specsConfirmed: boolean;
+      outstandingIssues?: string;
+    },
+    files: File[] = [],
+  ) => {
+    const form = new FormData();
+    form.append("description", body.description);
+    form.append("specsConfirmed", body.specsConfirmed ? "true" : "false");
+    if (body.outstandingIssues) form.append("outstandingIssues", body.outstandingIssues);
+    for (const file of files) form.append("files", file);
+    const base = (import.meta.env?.VITE_API_BASE_URL ??
+      import.meta.env?.VITE_MOE_API_BASE_URL ??
+      "https://moe-backend.duckdns.org") as string;
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/orders/${id}/quality/submissions`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(
+        (json as { message?: string })?.message || "Failed to submit quality review",
+        res.status,
+      );
+    }
+    return json;
+  },
+  updateFulfillment: (id: string, status: string, note?: string) =>
+    apiPost(`/orders/${id}/fulfillment`, { status, note }),
+  acceptDelivery: (id: string, body: { rating?: number; review?: string }) =>
+    apiPost(`/orders/${id}/delivery/accept`, body),
+  disputeDelivery: (id: string, body: { description: string; issueType?: string }) =>
+    apiPost(`/orders/${id}/delivery/dispute`, body),
+  getMilestones: (id: string) => apiGet(`/orders/${id}/artisan-payout/milestones`),
   submitReadiness: async (
     id: string,
     body: {
@@ -3475,6 +3551,42 @@ export const adminOrdersService = {
     orderId: number,
     body: { notes: string; transferId?: number; reverse?: boolean },
   ) => apiPost(`/admin/orders/${orderId}/artisan-payout/dispute`, body),
+  listProduction: (params?: { page?: number; pageSize?: number }) =>
+    apiGet("/admin/orders/production", params as Record<string, unknown>),
+  extendProductionDeadline: (
+    orderId: number,
+    body: { extraHours: number; reason: string },
+  ) => apiPost(`/admin/orders/${orderId}/production/extend`, body),
+  decideQuality: (
+    orderId: number,
+    submissionId: number,
+    body: {
+      decision: "approve" | "request_rework" | "reject" | "escalate_dispute";
+      reason?: string;
+    },
+  ) =>
+    apiPost(
+      `/admin/orders/${orderId}/quality/submissions/${submissionId}/decide`,
+      body,
+    ),
+  setTotalPayable: (
+    orderId: number,
+    body: {
+      totalPayableAmount: number;
+      reason?: string;
+      exceptionApproved?: boolean;
+      exceptionReason?: string;
+    },
+  ) => apiPost(`/admin/orders/${orderId}/artisan-payout/total-payable`, body),
+  createMilestone: (
+    orderId: number,
+    body: Record<string, unknown>,
+  ) => apiPost(`/admin/orders/${orderId}/artisan-payout/milestones`, body),
+  markMilestoneEligible: (orderId: number, milestoneId: number) =>
+    apiPost(
+      `/admin/orders/${orderId}/artisan-payout/milestones/${milestoneId}/eligible`,
+      {},
+    ),
 };
 
 // ─── Public meta (signup) ─────────────────────────────────

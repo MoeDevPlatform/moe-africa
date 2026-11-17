@@ -17,6 +17,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ORDER_STATUS_TRANSITIONS,
   ordersService,
@@ -41,7 +43,11 @@ const FILTERS: Array<{ id: ArtisanOrderView; label: string; hint: string }> = [
     label: "Pending Orders",
     hint: "Open orders, including newly placed pending orders and confirmed, in progress, ready, shipped, or approved work.",
   },
-  { id: "completed", label: "Completed Orders", hint: "Delivered orders (status: delivered)." },
+  {
+    id: "completed",
+    label: "Completed Orders",
+    hint: "Quality-approved orders in fulfillment (ready, dispatched, delivered).",
+  },
 ];
 
 function formatRemaining(ms: number | null | undefined) {
@@ -81,6 +87,16 @@ const ArtisanOrdersPanel = ({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, OrderStatusHistoryEntry[]>>({});
   const [readinessOrder, setReadinessOrder] = useState<Order | null>(null);
+  const [progressNote, setProgressNote] = useState<Record<string, string>>({});
+  const [progressFiles, setProgressFiles] = useState<Record<string, File[]>>({});
+  const [qualityDesc, setQualityDesc] = useState<Record<string, string>>({});
+  const [qualityFiles, setQualityFiles] = useState<Record<string, File[]>>({});
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -150,6 +166,58 @@ const ArtisanOrdersPanel = ({
     }
   };
 
+  const handleProgress = async (order: Order) => {
+    const note = (progressNote[order.id] || "").trim();
+    if (!note) {
+      toast.error("Progress note is required");
+      return;
+    }
+    setUpdatingId(order.id);
+    try {
+      await ordersService.submitProductionProgress(
+        order.id,
+        { note },
+        progressFiles[order.id] ?? [],
+      );
+      toast.success("Progress submitted");
+      setProgressNote((p) => ({ ...p, [order.id]: "" }));
+      setProgressFiles((p) => ({ ...p, [order.id]: [] }));
+      load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Progress failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleQualitySubmit = async (order: Order) => {
+    const description = (qualityDesc[order.id] || "").trim();
+    const files = qualityFiles[order.id] ?? [];
+    if (!description) {
+      toast.error("Describe the completed work");
+      return;
+    }
+    if (!files.some((f) => f.type.startsWith("image/"))) {
+      toast.error("At least one final product photo is required");
+      return;
+    }
+    setUpdatingId(order.id);
+    try {
+      await ordersService.submitQuality(
+        order.id,
+        { description, specsConfirmed: true },
+        files,
+      );
+      toast.success("Submitted for quality review");
+      load();
+      onOrdersChanged?.();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Quality submit failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const countFor = (id: ArtisanOrderView) => {
     if (!summary) return null;
     return id === "all" ? summary.all : summary[id];
@@ -213,9 +281,23 @@ const ArtisanOrdersPanel = ({
             );
             const rows = history[order.id];
             const remaining = formatRemaining(order.readiness?.msRemaining ?? null);
-            const prodRemaining = productionRemaining(order.production?.productionDeadline);
+            void tick;
+            const prodRemaining =
+              order.production?.msRemaining != null
+                ? formatRemaining(order.production.msRemaining - (tick > 0 ? 0 : 0))
+                : productionRemaining(order.production?.productionDeadline);
+            const liveRemaining = order.production?.productionDeadline
+              ? formatRemaining(
+                  new Date(order.production.productionDeadline).getTime() - Date.now(),
+                )
+              : prodRemaining;
             const productionLabel = order.production?.displayLabel;
             const readyToStart = !!order.production?.readyToStart;
+            const inProduction =
+              !!order.production?.productionStartedAt &&
+              order.status === "in_progress" &&
+              order.production?.qualityReviewStatus !== "submitted" &&
+              order.production?.qualityReviewStatus !== "approved";
             return (
               <Card key={order.id} className="p-4 space-y-3" data-testid={`artisan-order-${order.id}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -258,9 +340,15 @@ const ArtisanOrdersPanel = ({
                       </p>
                     ) : null}
                     {order.production?.productionDeadline ? (
-                      <p className="text-xs text-muted-foreground" data-testid="artisan-production-deadline">
+                      <p
+                        className={`text-xs ${order.production.overdue ? "text-destructive" : "text-muted-foreground"}`}
+                        data-testid="artisan-production-countdown"
+                      >
                         Due {new Date(order.production.productionDeadline).toLocaleString()}
-                        {prodRemaining ? ` · ${prodRemaining}` : ""}
+                        {liveRemaining ? ` · ${liveRemaining}` : ""}
+                        {order.production.productionDurationDays
+                          ? ` · ${order.production.productionDurationDays}d planned`
+                          : ""}
                       </p>
                     ) : null}
                   </div>
@@ -293,6 +381,79 @@ const ArtisanOrdersPanel = ({
                   >
                     {updatingId === order.id ? "Starting…" : "Start Work"}
                   </Button>
+                ) : null}
+
+                {inProduction ? (
+                  <div className="space-y-2 rounded border p-3" data-testid={`artisan-production-panel-${order.id}`}>
+                    <p className="text-sm font-medium">Production progress</p>
+                    <Textarea
+                      placeholder="Progress note"
+                      value={progressNote[order.id] ?? ""}
+                      onChange={(e) =>
+                        setProgressNote((p) => ({ ...p, [order.id]: e.target.value }))
+                      }
+                      data-testid={`artisan-progress-note-${order.id}`}
+                    />
+                    <Input
+                      type="file"
+                      multiple
+                      accept="image/*,audio/*,.pdf,.doc,.docx"
+                      onChange={(e) =>
+                        setProgressFiles((p) => ({
+                          ...p,
+                          [order.id]: Array.from(e.target.files ?? []),
+                        }))
+                      }
+                      data-testid={`artisan-progress-files-${order.id}`}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={updatingId === order.id}
+                      onClick={() => void handleProgress(order)}
+                      data-testid={`artisan-production-progress-submit-${order.id}`}
+                    >
+                      Submit progress
+                    </Button>
+                    <div className="border-t pt-3 space-y-2">
+                      <p className="text-sm font-medium">Submit for Quality Review</p>
+                      <Textarea
+                        placeholder="Description of completed work"
+                        value={qualityDesc[order.id] ?? ""}
+                        onChange={(e) =>
+                          setQualityDesc((p) => ({ ...p, [order.id]: e.target.value }))
+                        }
+                        data-testid={`artisan-quality-description-${order.id}`}
+                      />
+                      <Input
+                        type="file"
+                        multiple
+                        accept="image/*,audio/*,.pdf"
+                        onChange={(e) =>
+                          setQualityFiles((p) => ({
+                            ...p,
+                            [order.id]: Array.from(e.target.files ?? []),
+                          }))
+                        }
+                        data-testid={`artisan-quality-files-${order.id}`}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={updatingId === order.id}
+                        onClick={() => void handleQualitySubmit(order)}
+                        data-testid={`artisan-quality-submit-${order.id}`}
+                      >
+                        Submit for Quality Review
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {order.production?.fulfillmentStatus ? (
+                  <p className="text-xs text-muted-foreground" data-testid={`artisan-fulfillment-${order.id}`}>
+                    Fulfillment: {statusLabel(order.production.fulfillmentStatus)}
+                  </p>
                 ) : null}
 
                 {nextStatuses.length > 0 && (

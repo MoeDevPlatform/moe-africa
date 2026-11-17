@@ -223,6 +223,29 @@ const OrderDetail = () => {
             <CardTitle className="text-lg">Need help with this order?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {order.production?.fulfillmentStatus === "delivered" ? (
+              <Button
+                type="button"
+                className="mr-2"
+                data-testid="customer-accept-delivery"
+                onClick={async () => {
+                  try {
+                    await ordersService.acceptDelivery(order.id, { rating: 5 });
+                    toast.success("Delivery confirmed");
+                    await load();
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "Failed to confirm");
+                  }
+                }}
+              >
+                Confirm delivery received
+              </Button>
+            ) : null}
+            {order.production?.fulfillmentStatus ? (
+              <p className="text-sm text-muted-foreground" data-testid="customer-fulfillment-status">
+                Delivery status: {order.production.fulfillmentStatus.replace(/_/g, " ")}
+              </p>
+            ) : null}
             {disputeSubmitted ? (
               <p className="text-sm text-muted-foreground">
                 Your report has been submitted. Our team will review it within 2 business days.
@@ -242,13 +265,21 @@ const OrderDetail = () => {
                   }
                   setSubmittingDispute(true);
                   try {
-                    await disputesService.create({
-                      orderId: Number(order.id),
-                      issueType,
-                      description: disputeDesc.trim(),
-                    });
+                    try {
+                      await ordersService.disputeDelivery(order.id, {
+                        description: disputeDesc.trim(),
+                        issueType,
+                      });
+                    } catch {
+                      await disputesService.create({
+                        orderId: Number(order.id),
+                        issueType,
+                        description: disputeDesc.trim(),
+                      });
+                    }
                     setDisputeSubmitted(true);
                     toast.success("Report submitted");
+                    await load();
                   } catch (err: unknown) {
                     toast.error(err instanceof Error ? err.message : "Failed to submit report");
                   } finally {

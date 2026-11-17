@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreVertical, Calendar, User, Loader2 } from "lucide-react";
 import AdminReadinessPanel from "@/components/admin/AdminReadinessPanel";
+import AdminProductionPanel from "@/components/admin/AdminProductionPanel";
 import {
   Select,
   SelectContent,
@@ -107,8 +108,12 @@ const Orders = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<AdminOrderStatus | "all">("all");
   const [paymentFilter, setPaymentFilter] = useState<AdminPaymentStatus | "all">("all");
-  const [section, setSection] = useState<"orders" | "readiness">(
-    searchParams.get("readiness") === "1" ? "readiness" : "orders",
+  const [section, setSection] = useState<"orders" | "readiness" | "production">(
+    searchParams.get("production") === "1" || searchParams.get("quality") === "1"
+      ? "production"
+      : searchParams.get("readiness") === "1"
+        ? "readiness"
+        : "orders",
   );
 
   // Debounce search input
@@ -208,16 +213,28 @@ const Orders = () => {
             >
               Readiness review
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={section === "production" ? "default" : "outline"}
+              onClick={() => setSection("production")}
+              data-testid="admin-orders-section-production"
+            >
+              Production & quality
+            </Button>
           </div>
         </div>
 
         {section === "readiness" ? (
           <AdminReadinessPanel initialOrderId={readinessOrderId} />
         ) : null}
+        {section === "production" ? (
+          <AdminProductionPanel initialOrderId={readinessOrderId} />
+        ) : null}
 
         {/* Search */}
         <div
-          className={`flex flex-col gap-3 lg:flex-row ${section === "readiness" ? "hidden" : ""}`}
+          className={`flex flex-col gap-3 lg:flex-row ${section === "orders" ? "" : "hidden"}`}
           data-testid="admin-order-filters"
         >
           <div className="relative flex-1">
