@@ -1,33 +1,28 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import {
+  authenticateOrderUi,
+  skipUnlessLocalOrCiApp,
+} from "../helpers/orderUiAuth";
 
 const ARTISAN_EMAIL = "phase3.artisan@local.test";
 const ARTISAN_PASSWORD = "password123";
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto("/auth", { waitUntil: "domcontentloaded" });
-  await page.locator("#signin-email").fill(email);
-  await page.locator("#signin-password").fill(password);
-  const login = page.waitForResponse(
-    (response) => response.url().includes("/auth/login") && response.request().method() === "POST",
-    { timeout: 30_000 },
-  );
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  const res = await login;
-  expect(res.ok()).toBeTruthy();
-  await page.waitForURL(/\/(marketplace|artisan|admin)/, { timeout: 30_000 });
-}
 
 test.describe("Production & quality UI", () => {
   test.describe.configure({ timeout: 120_000 });
 
   test.beforeEach(() => {
-    const base = process.env.PLAYWRIGHT_BASE_URL || "";
-    test.skip(!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base), "Local app only");
+    test.skip(skipUnlessLocalOrCiApp(), "Local/CI app only");
   });
 
-  test("artisan pending order shows countdown and quality submit controls", async ({ page }) => {
+  test("artisan pending order shows countdown and quality submit controls", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await signIn(page, ARTISAN_EMAIL, ARTISAN_PASSWORD);
+    await authenticateOrderUi(page, {
+      role: "artisan",
+      email: ARTISAN_EMAIL,
+      password: ARTISAN_PASSWORD,
+    });
 
     const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
     const started = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

@@ -1,6 +1,6 @@
 /**
- * Confirms the deployed frontend (and optionally API) are reachable
- * before any Playwright tests run.
+ * Confirms the frontend (and optionally API) are reachable before Playwright runs.
+ * When PLAYWRIGHT_MOCK_AUTH=1, order UI specs mock the API — only the frontend is required.
  */
 import { FullConfig } from '@playwright/test';
 import { loadEnvFile } from '../helpers/loadEnv';
@@ -15,6 +15,9 @@ const FRONTEND =
 const API =
   process.env.MOE_API_BASE_URL?.replace(/\/$/, '') ||
   'https://moe-backend.duckdns.org';
+
+const MOCK_AUTH =
+  process.env.PLAYWRIGHT_MOCK_AUTH === '1' || process.env.CI === 'true';
 
 async function waitForUrl(url: string, label: string, attempts = 12): Promise<void> {
   let lastError: unknown;
@@ -38,10 +41,15 @@ async function waitForUrl(url: string, label: string, attempts = 12): Promise<vo
 }
 
 async function globalSetup(_config: FullConfig): Promise<void> {
-  console.log('[global-setup] Waiting for deployment…');
+  console.log('[global-setup] Waiting for app…');
   await waitForUrl(FRONTEND, 'Frontend');
+  if (MOCK_AUTH) {
+    console.log(
+      '[global-setup] PLAYWRIGHT_MOCK_AUTH/CI — skipping live API reachability check.',
+    );
+    return;
+  }
   await waitForUrl(`${API}/health`, 'API').catch(async () => {
-    // Some deployments expose /health under a different path — try root.
     await waitForUrl(API, 'API root');
   });
   console.log('[global-setup] Deployment confirmed. Starting tests.');

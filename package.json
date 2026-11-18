@@ -12,6 +12,7 @@
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:report": "playwright show-report",
     "test:playwright": "playwright test tests/playwright --project=chromium --reporter=html",
+    "test:playwright:order-ui": "playwright test tests/playwright/order-rating-review.spec.ts tests/playwright/order-production-quality.spec.ts --project=desktop --reporter=list",
     "test:seed": "playwright test tests/seed-artisans-products.spec.ts --project=seed",
     "test:seed:report": "playwright show-report",
     "test:ui": "playwright test tests/playwright/ui-audit.spec.ts --project=desktop",

@@ -1,33 +1,27 @@
-import { test, expect, type Page } from "@playwright/test";
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto("/auth", { waitUntil: "domcontentloaded" });
-  await page.locator("#signin-email").fill(email);
-  await page.locator("#signin-password").fill(password);
-  const login = page.waitForResponse(
-    (response) => response.url().includes("/auth/login") && response.request().method() === "POST",
-    { timeout: 30_000 },
-  );
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  const res = await login;
-  expect(res.ok()).toBeTruthy();
-  await page.waitForURL(/\/(marketplace|artisan|admin)/, { timeout: 30_000 });
-}
+import { test, expect } from "@playwright/test";
+import {
+  authenticateOrderUi,
+  skipUnlessLocalOrCiApp,
+} from "../helpers/orderUiAuth";
 
 test.describe("Order ratings & reviews UI", () => {
   test.describe.configure({ timeout: 120_000 });
 
   test.beforeEach(() => {
-    const base = process.env.PLAYWRIGHT_BASE_URL || "";
-    test.skip(!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base), "Local app only");
+    test.skip(skipUnlessLocalOrCiApp(), "Local/CI app only");
   });
 
   test("customer sees Rate Your Order after acceptance and can submit stars + review", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await signIn(page, "phase3.customer@local.test", "password123");
+    await authenticateOrderUi(page, {
+      role: "customer",
+      email: "phase3.customer@local.test",
+      password: "password123",
+    });
 
+    let submitted = false;
     await page.route(/\/orders\/777(\/.*)?$/, async (route) => {
       const url = route.request().url();
       const method = route.request().method();
@@ -68,8 +62,8 @@ test.describe("Order ratings & reviews UI", () => {
               state: "LA",
               country: "NG",
             },
-            customerRating: null,
-            customerReview: null,
+            customerRating: submitted ? 5 : null,
+            customerReview: submitted ? "Loved it" : null,
             production: {
               payoutStatus: "verified",
               fundingRequired: true,
@@ -83,8 +77,8 @@ test.describe("Order ratings & reviews UI", () => {
               productionDurationDays: 3,
               qualityReviewStatus: "approved",
               fulfillmentStatus: "customer_accepted",
-              customerRating: null,
-              customerReview: null,
+              customerRating: submitted ? 5 : null,
+              customerReview: submitted ? "Loved it" : null,
               awaitingInitialPayout: false,
               readyToStart: false,
               displayLabel: "customer accepted",
@@ -94,6 +88,7 @@ test.describe("Order ratings & reviews UI", () => {
         return;
       }
       if (method === "POST" && url.includes("/review") && !url.includes("/update")) {
+        submitted = true;
         await route.fulfill({
           status: 201,
           contentType: "application/json",
@@ -116,12 +111,18 @@ test.describe("Order ratings & reviews UI", () => {
     await page.getByTestId("rate-star-5").click();
     await page.getByTestId("order-review-text").fill("Loved it");
     await page.getByTestId("submit-order-review").click();
-    await expect(page.getByText(/thanks for your review/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/thanks for your review/i)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("artisan completed orders show customer rating and comment", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await signIn(page, "phase3.artisan@local.test", "password123");
+    await authenticateOrderUi(page, {
+      role: "artisan",
+      email: "phase3.artisan@local.test",
+      password: "password123",
+    });
 
     await page.route(/\/orders(\?.*)?$/, async (route) => {
       if (route.request().method() !== "GET") {
@@ -186,10 +187,12 @@ test.describe("Order ratings & reviews UI", () => {
       });
     });
 
-    await page.goto("/artisan?tab=orders&orderView=completed", {
+    await page.goto("/artisan/dashboard?tab=orders&orderView=completed", {
       waitUntil: "domcontentloaded",
     });
-    await expect(page.getByTestId("artisan-order-review-888")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("artisan-order-review-888")).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByText(/Perfect finish/)).toBeVisible();
   });
 });
