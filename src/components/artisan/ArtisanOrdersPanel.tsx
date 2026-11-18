@@ -456,6 +456,27 @@ const ArtisanOrdersPanel = ({
                   </p>
                 ) : null}
 
+                {view === "completed" &&
+                (order.production?.customerRating != null || order.customerRating != null) ? (
+                  <div
+                    className="text-sm space-y-1"
+                    data-testid={`artisan-order-review-${order.id}`}
+                  >
+                    <p className="font-medium">
+                      Customer rating:{" "}
+                      {"★".repeat(order.production?.customerRating ?? order.customerRating ?? 0)}
+                      {"☆".repeat(
+                        5 - (order.production?.customerRating ?? order.customerRating ?? 0),
+                      )}
+                    </p>
+                    {(order.production?.customerReview ?? order.customerReview) ? (
+                      <p className="text-muted-foreground text-xs">
+                        {order.production?.customerReview ?? order.customerReview}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {nextStatuses.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-muted-foreground">Update status:</span>

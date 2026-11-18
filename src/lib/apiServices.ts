@@ -1209,6 +1209,8 @@ export interface Order {
   statusHistory?: OrderStatusHistoryEntry[];
   readiness?: OrderReadinessSummary | null;
   production?: OrderProductionSummary | null;
+  customerRating?: number | null;
+  customerReview?: string | null;
   rushOrder?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1241,6 +1243,8 @@ export interface OrderProductionSummary {
   overdue?: boolean;
   qualityReviewStatus?: string | null;
   fulfillmentStatus?: string | null;
+  customerRating?: number | null;
+  customerReview?: string | null;
   awaitingInitialPayout: boolean;
   readyToStart: boolean;
   displayLabel: string | null;
@@ -1374,6 +1378,8 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     rushOrder: Boolean(r.rushOrder ?? false),
     readiness: (r.readiness as OrderReadinessSummary | null) ?? null,
     production: (r.production as OrderProductionSummary | null) ?? null,
+    customerRating: (r.customerRating as number | null | undefined) ?? null,
+    customerReview: (r.customerReview as string | null | undefined) ?? null,
     statusHistory: Array.isArray(r.statusHistory)
       ? (r.statusHistory as OrderStatusHistoryEntry[])
       : Array.isArray(r.history)
@@ -1524,8 +1530,12 @@ export const ordersService = {
   },
   updateFulfillment: (id: string, status: string, note?: string) =>
     apiPost(`/orders/${id}/fulfillment`, { status, note }),
-  acceptDelivery: (id: string, body: { rating?: number; review?: string }) =>
+  acceptDelivery: (id: string, body: { rating?: number; review?: string } = {}) =>
     apiPost(`/orders/${id}/delivery/accept`, body),
+  submitOrderReview: (id: string, body: { rating: number; review?: string }) =>
+    apiPost(`/orders/${id}/review`, body),
+  updateOrderReview: (id: string, body: { rating: number; review?: string }) =>
+    apiPost(`/orders/${id}/review/update`, body),
   disputeDelivery: (id: string, body: { description: string; issueType?: string }) =>
     apiPost(`/orders/${id}/delivery/dispute`, body),
   getMilestones: (id: string) => apiGet(`/orders/${id}/artisan-payout/milestones`),

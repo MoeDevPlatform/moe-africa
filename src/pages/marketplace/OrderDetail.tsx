@@ -62,6 +62,10 @@ const OrderDetail = () => {
   const [disputeDesc, setDisputeDesc] = useState("");
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [ratingStars, setRatingStars] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [editingReview, setEditingReview] = useState(false);
 
   const load = async () => {
     if (!orderId) return;
@@ -230,7 +234,7 @@ const OrderDetail = () => {
                 data-testid="customer-accept-delivery"
                 onClick={async () => {
                   try {
-                    await ordersService.acceptDelivery(order.id, { rating: 5 });
+                    await ordersService.acceptDelivery(order.id);
                     toast.success("Delivery confirmed");
                     await load();
                   } catch (err: unknown) {
@@ -240,6 +244,112 @@ const OrderDetail = () => {
               >
                 Confirm delivery received
               </Button>
+            ) : null}
+            {order.production?.fulfillmentStatus === "customer_accepted" ? (
+              <div className="space-y-3 rounded-md border p-4" data-testid="rate-your-order">
+                <p className="font-medium">
+                  {(order.customerRating ?? order.production?.customerRating) != null && !editingReview
+                    ? "Your rating"
+                    : "Rate Your Order"}
+                </p>
+                {(order.customerRating ?? order.production?.customerRating) != null && !editingReview ? (
+                  <div className="space-y-2">
+                    <p className="text-sm" data-testid="order-rating-display">
+                      {"★".repeat(order.customerRating ?? order.production?.customerRating ?? 0)}
+                      {"☆".repeat(5 - (order.customerRating ?? order.production?.customerRating ?? 0))}
+                    </p>
+                    {(order.customerReview ?? order.production?.customerReview) ? (
+                      <p className="text-sm text-muted-foreground" data-testid="order-review-display">
+                        {order.customerReview ?? order.production?.customerReview}
+                      </p>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      data-testid="edit-order-review"
+                      onClick={() => {
+                        setRatingStars(order.customerRating ?? order.production?.customerRating ?? 5);
+                        setReviewText(order.customerReview ?? order.production?.customerReview ?? "");
+                        setEditingReview(true);
+                      }}
+                    >
+                      Edit review
+                    </Button>
+                  </div>
+                ) : (
+                  <form
+                    className="space-y-3"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setSubmittingReview(true);
+                      try {
+                        const body = {
+                          rating: ratingStars,
+                          review: reviewText.trim() || undefined,
+                        };
+                        if (editingReview || (order.customerRating ?? order.production?.customerRating) != null) {
+                          await ordersService.updateOrderReview(String(order.id), body);
+                          toast.success("Review updated");
+                        } else {
+                          await ordersService.submitOrderReview(String(order.id), body);
+                          toast.success("Thanks for your review");
+                        }
+                        setEditingReview(false);
+                        await load();
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "Failed to submit review");
+                      } finally {
+                        setSubmittingReview(false);
+                      }
+                    }}
+                  >
+                    <div className="flex gap-1" role="group" aria-label="Star rating">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          className="text-2xl leading-none"
+                          aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                          data-testid={`rate-star-${n}`}
+                          onClick={() => setRatingStars(n)}
+                        >
+                          {n <= ratingStars ? "★" : "☆"}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="order-review-text">Review (optional)</Label>
+                      <Textarea
+                        id="order-review-text"
+                        data-testid="order-review-text"
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        placeholder="Share your experience with this order"
+                        maxLength={500}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        disabled={submittingReview}
+                        data-testid="submit-order-review"
+                      >
+                        {submittingReview ? "Saving…" : editingReview ? "Update review" : "Submit rating"}
+                      </Button>
+                      {editingReview ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setEditingReview(false)}
+                        >
+                          Cancel
+                        </Button>
+                      ) : null}
+                    </div>
+                  </form>
+                )}
+              </div>
             ) : null}
             {order.production?.fulfillmentStatus ? (
               <p className="text-sm text-muted-foreground" data-testid="customer-fulfillment-status">
