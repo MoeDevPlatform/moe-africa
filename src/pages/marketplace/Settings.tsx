@@ -19,7 +19,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import {
   User, Shield, Bell, Settings as SettingsIcon, MapPin, CreditCard,
-  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff, AlertCircle, Loader2, ChevronsUpDown
+  ArrowLeft, Mail, Phone, MessageSquare, Plus, Pencil, Trash2, Check, Eye, EyeOff,
+  AlertCircle, Loader2, ChevronsUpDown, Globe, Instagram, Facebook, Linkedin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -603,6 +604,103 @@ const SecurityTabContent = () => {
 };
 
 // ─── Payment Terms Section (artisan-only) ─────────────────────────────────────
+const SocialProfilesSection = () => {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [links, setLinks] = useState({
+    websiteUrl: "",
+    instagramUrl: "",
+    facebookUrl: "",
+    xUrl: "",
+    linkedinUrl: "",
+  });
+
+  useEffect(() => {
+    artisanService.getMyProfile().then((profile) => {
+      setLinks({
+        websiteUrl: profile.websiteUrl ?? "",
+        instagramUrl: profile.instagramUrl ?? "",
+        facebookUrl: profile.facebookUrl ?? "",
+        xUrl: profile.xUrl ?? "",
+        linkedinUrl: profile.linkedinUrl ?? "",
+      });
+    }).catch(() => undefined);
+  }, []);
+
+  const setLink = (key: keyof typeof links, value: string) =>
+    setLinks((current) => ({ ...current, [key]: value }));
+
+  const save = async () => {
+    for (const value of Object.values(links)) {
+      if (!value.trim()) continue;
+      try {
+        const url = new URL(value);
+        if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error();
+      } catch {
+        toast({
+          title: "Invalid social profile URL",
+          description: "Use a complete public URL beginning with https:// or http://.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      await artisanService.updateProfile(
+        Object.fromEntries(
+          Object.entries(links).map(([key, value]) => [key, value.trim() || null]),
+        ),
+      );
+      toast({ title: "Social profiles saved" });
+    } catch (err) {
+      toast({
+        title: "Could not save social profiles",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fields = [
+    { key: "websiteUrl" as const, label: "Website", icon: <Globe className="h-4 w-4" /> },
+    { key: "instagramUrl" as const, label: "Instagram", icon: <Instagram className="h-4 w-4" /> },
+    { key: "facebookUrl" as const, label: "Facebook", icon: <Facebook className="h-4 w-4" /> },
+    { key: "xUrl" as const, label: "X", icon: <span className="text-sm font-bold">X</span> },
+    { key: "linkedinUrl" as const, label: "LinkedIn", icon: <Linkedin className="h-4 w-4" /> },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Public social profiles</CardTitle>
+        <CardDescription>Add public profile links only. MOE will never ask for social passwords.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {fields.map(({ key, label, icon }) => (
+          <div className="space-y-2" key={key}>
+            <Label htmlFor={key} className="flex items-center gap-2">{icon}{label}</Label>
+            <Input
+              id={key}
+              type="url"
+              inputMode="url"
+              value={links[key]}
+              onChange={(event) => setLink(key, event.target.value)}
+              placeholder={`https://${label === "X" ? "x.com" : label.toLowerCase() + ".com"}/your-profile`}
+            />
+          </div>
+        ))}
+        <Button type="button" onClick={() => void save()} disabled={saving}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          Save social profiles
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 const PaymentTermsSection = () => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -1117,6 +1215,7 @@ const Settings = () => {
                 }}>Save Changes</Button>
               </CardContent>
             </Card>
+            {isArtisan && <SocialProfilesSection />}
           </TabsContent>
 
           {/* Security */}
@@ -1359,7 +1458,7 @@ const Settings = () => {
 
           {/* Payment Methods — full CRUD + Payment Terms for artisans */}
           <TabsContent value="payment">
-            <Card>
+            {!isArtisan && <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -1425,7 +1524,7 @@ const Settings = () => {
                   Your payment information is securely stored and encrypted.
                 </p>
               </CardContent>
-            </Card>
+            </Card>}
 
             {/* Payment Terms — artisan only */}
             {isArtisan && <PaymentTermsSection />}

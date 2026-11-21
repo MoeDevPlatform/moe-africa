@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Star, MapPin, CheckCircle2, Share2, Clock, MessageCircle, ArrowLeft } from "lucide-react";
+import { Star, MapPin, CheckCircle2, Share2, Clock, MessageCircle, ArrowLeft, Globe, Instagram, Facebook, Linkedin } from "lucide-react";
 import { productsService, providersService } from "@/lib/apiServices";
 import { pushRecentArtisan } from "@/lib/recentArtisans";
 import { artisanReviewsService, type ArtisanReviewApi } from "@/lib/apiServices";
@@ -354,6 +354,23 @@ const ProviderDetail = () => {
                     <MapPin className="h-5 w-5 text-primary" />
                     <span>{provider.city}, {provider.state}</span>
                   </div>
+                  {[provider.websiteUrl, provider.instagramUrl, provider.facebookUrl, provider.xUrl, provider.linkedinUrl].some(Boolean) ? (
+                    <div className="flex flex-wrap gap-2" aria-label="Artisan social profiles">
+                      {[
+                        { href: provider.websiteUrl, label: "Website", icon: <Globe className="h-4 w-4" /> },
+                        { href: provider.instagramUrl, label: "Instagram", icon: <Instagram className="h-4 w-4" /> },
+                        { href: provider.facebookUrl, label: "Facebook", icon: <Facebook className="h-4 w-4" /> },
+                        { href: provider.xUrl, label: "X", icon: <span className="text-sm font-bold">X</span> },
+                        { href: provider.linkedinUrl, label: "LinkedIn", icon: <Linkedin className="h-4 w-4" /> },
+                      ].filter((item) => Boolean(item.href)).map((item) => (
+                        <Button key={item.label} asChild type="button" variant="outline" size="icon">
+                          <a href={item.href!} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.label} profile`}>
+                            {item.icon}
+                          </a>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
                   {!isOwnStorefront && (
                     <Button
                       className="w-full h-auto whitespace-normal"

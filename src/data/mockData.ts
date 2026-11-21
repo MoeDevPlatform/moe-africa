@@ -72,6 +72,11 @@ export interface Provider {
   description?: string | null;
   businessName?: string | null;
   productPreviews?: { imageUrl: string; name: string }[];
+  websiteUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  xUrl?: string | null;
+  linkedinUrl?: string | null;
 }
 
 export const providers: Provider[] = [

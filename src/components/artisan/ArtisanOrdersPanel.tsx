@@ -15,7 +15,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import {
   type OrderStatusHistoryEntry,
 } from "@/lib/apiServices";
 import ReadinessAssessmentDialog from "@/components/artisan/ReadinessAssessmentDialog";
+import OrderComplaintDialog from "@/components/artisan/OrderComplaintDialog";
 
 const statusLabel = (s: string) => s.replace(/_/g, " ");
 
@@ -81,6 +82,7 @@ const ArtisanOrdersPanel = ({
   initialReadinessOrderId,
 }: Props) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [complaintOrder, setComplaintOrder] = useState<Order | null>(null);
   const [summary, setSummary] = useState<ArtisanOrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -499,6 +501,17 @@ const ArtisanOrdersPanel = ({
                   </div>
                 )}
 
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setComplaintOrder(order)}
+                  data-testid={`artisan-order-support-${order.id}`}
+                >
+                  <LifeBuoy className="mr-2 h-4 w-4" />
+                  Contact MOE Support / Report a Problem
+                </Button>
+
                 <Collapsible onOpenChange={(open) => open && !rows && loadHistory(order.id)}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="gap-1 px-0">
@@ -535,6 +548,16 @@ const ArtisanOrdersPanel = ({
           onOrdersChanged?.();
         }}
       />
+      {complaintOrder ? (
+        <OrderComplaintDialog
+          orderId={complaintOrder.id}
+          orderReference={complaintOrder.orderNumber ?? complaintOrder.id}
+          open
+          onOpenChange={(next) => {
+            if (!next) setComplaintOrder(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 };

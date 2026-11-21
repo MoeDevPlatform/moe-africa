@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Send, MoreHorizontal, Trash2, Search } from "lucide-react";
+import { ArrowLeft, Send, MoreHorizontal, Trash2, Search, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -36,7 +36,9 @@ import {
 import {
   adminMessagingService,
   adminService,
+  MESSAGE_ATTACHMENT_ACCEPT_ATTR,
   messagingService,
+  validateMessageAttachment,
   type AdminConversation,
   type Message,
   type SupportTicket,
@@ -97,6 +99,8 @@ const AdminMessages = () => {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
+  const [replyAttachment, setReplyAttachment] = useState<File | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [pendingDelete, setPendingDelete] = useState<InboxRow | null>(null);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -228,11 +232,21 @@ const AdminMessages = () => {
   }, [conversationId, conversations]);
 
   const handleSendReply = async () => {
-    if (!conversationId || !reply.trim() || sendingVoice) return;
+    if (!conversationId || (!reply.trim() && !replyAttachment) || sendingVoice) return;
     setSending(true);
     try {
-      await adminMessagingService.reply(Number(conversationId), reply.trim());
+      if (replyAttachment) {
+        await adminMessagingService.replyWithAttachment(Number(conversationId), {
+          content: reply.trim() || undefined,
+          file: replyAttachment,
+          clientKey: crypto.randomUUID(),
+        });
+      } else {
+        await adminMessagingService.reply(Number(conversationId), reply.trim());
+      }
       setReply("");
+      setReplyAttachment(null);
+      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
       const updated = await adminMessagingService.getConversation(Number(conversationId));
       setThread(updated);
       loadList();
@@ -241,6 +255,17 @@ const AdminMessages = () => {
       toast.error(e instanceof Error ? e.message : "Failed to send reply");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleReplyAttachment = (file?: File) => {
+    if (!file) return;
+    try {
+      validateMessageAttachment(file);
+      setReplyAttachment(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unsupported attachment");
+      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
     }
   };
 
@@ -470,6 +495,32 @@ const AdminMessages = () => {
                     rows={4}
                     disabled={sending || sendingVoice}
                   />
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept={MESSAGE_ATTACHMENT_ACCEPT_ATTR}
+                    className="sr-only"
+                    onChange={(e) => handleReplyAttachment(e.target.files?.[0])}
+                    data-testid="admin-message-file-input"
+                  />
+                  {replyAttachment ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      <span className="min-w-0 truncate">{replyAttachment.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setReplyAttachment(null);
+                          if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+                        }}
+                        aria-label="Remove attachment"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : null}
                   <VoiceComposer
                     disabled={sending}
                     sending={sendingVoice}
@@ -478,8 +529,18 @@ const AdminMessages = () => {
                   />
                   <div className="flex flex-wrap gap-3 items-center">
                     <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => attachmentInputRef.current?.click()}
+                      disabled={sending || sendingVoice}
+                      data-testid="admin-message-attach"
+                    >
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Attach file
+                    </Button>
+                    <Button
                       onClick={handleSendReply}
-                      disabled={sending || sendingVoice || !reply.trim()}
+                      disabled={sending || sendingVoice || (!reply.trim() && !replyAttachment)}
                     >
                       <Send className="h-4 w-4 mr-2" />
                       Send Reply

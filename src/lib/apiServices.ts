@@ -182,6 +182,11 @@ export interface ArtisanProfile {
   rushOrderSurchargePercent?: number;
   customOrdersEnabled?: boolean;
   isCustomOrderEligible?: boolean;
+  websiteUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  xUrl?: string | null;
+  linkedinUrl?: string | null;
   createdAt: string;
 }
 
@@ -2384,6 +2389,24 @@ export interface SupportTicket {
   createdAt: string;
 }
 
+export interface OrderComplaint {
+  id: number;
+  orderId: number;
+  category: string;
+  subject: string;
+  description: string;
+  status: "open" | "in_review" | "awaiting_artisan" | "resolved" | "closed";
+  createdAt: string;
+  updatedAt: string;
+  attachments: Array<MessageAttachment & { id: number }>;
+  history: Array<{
+    id: number;
+    status: string;
+    note?: string | null;
+    createdAt: string;
+  }>;
+}
+
 export const supportService = {
   submitContact: async (data: {
     contactName: string;
@@ -2404,6 +2427,40 @@ export const supportService = {
   create: (data: Omit<SupportTicket, "id" | "status" | "createdAt">) =>
     apiPost<SupportTicket>("/support/tickets", data),
   list: () => apiGet<PaginatedResponse<SupportTicket>>("/support/tickets"),
+  listOrderComplaints: (orderId?: string | number) =>
+    apiGet<OrderComplaint[]>(
+      "/support/tickets/order-complaints",
+      orderId != null ? { orderId } : undefined,
+    ),
+  createOrderComplaint: async (data: {
+    orderId: string | number;
+    category: string;
+    description: string;
+    files?: File[];
+    voice?: { file: File; durationMs: number } | null;
+  }) => {
+    const form = new FormData();
+    form.append("orderId", String(data.orderId));
+    form.append("category", data.category);
+    form.append("description", data.description);
+    for (const file of data.files ?? []) form.append("files", file);
+    if (data.voice) {
+      form.append("durationMs", String(Math.round(data.voice.durationMs)));
+      form.append("files", data.voice.file);
+    }
+    const base = getMessagingApiBase().replace(/\/$/, "");
+    const token = localStorage.getItem("moe_access_token");
+    const res = await fetch(`${base}/support/tickets/order-complaints`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new MoeApiError(json?.message || "Failed to submit complaint", res.status, json?.code);
+    }
+    return json as OrderComplaint;
+  },
 };
 
 // ─── Product Variants ─────────────────────────────────────

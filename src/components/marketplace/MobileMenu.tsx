@@ -19,7 +19,8 @@ import {
   Palette,
   Gem,
   Home,
-  X
+  X,
+  MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -210,6 +211,7 @@ const quickLinks = [
   { name: "All Products", slug: "all-products", icon: <Package className="h-4 w-4" />, path: "/marketplace/products" },
   { name: "All Artisans", slug: "all-artisans", icon: <Users className="h-4 w-4" />, path: "/marketplace/artisans" },
   { name: "Custom Orders", slug: "custom-orders", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/custom-orders" },
+  { name: "Messages", slug: "messages", icon: <MessageSquare className="h-4 w-4" />, path: "/marketplace/messages" },
   { name: "Featured Picks", slug: "featured-picks", icon: <Sparkles className="h-4 w-4" />, path: "/marketplace/products?collection=featured_picks", badge: "New" },
   { name: "New Arrivals", slug: "new-arrivals", icon: <Clock className="h-4 w-4" />, path: "/marketplace/products?sort=newest" },
   { name: "Seasonal Picks", slug: "seasonal-picks", icon: <Star className="h-4 w-4" />, path: "/marketplace/products?collection=seasonal_picks" },

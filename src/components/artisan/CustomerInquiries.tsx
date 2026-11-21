@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { messagingService, type Conversation, type Message } from "@/lib/apiServices";
-import VoiceMessagePlayer from "@/components/marketplace/VoiceMessagePlayer";
+import MessageAttachmentView from "@/components/marketplace/MessageAttachmentView";
 import { cn } from "@/lib/utils";
 
 interface InquiryRow {
@@ -188,10 +188,10 @@ const CustomerInquiries = () => {
                     <div key={m.id} className="bg-muted rounded-lg p-3 text-sm space-y-2">
                       <p className="text-xs text-muted-foreground mb-1">Customer</p>
                       {m.content ? <p>{m.content}</p> : null}
-                      {m.attachment?.kind === "voice" ? (
-                        <VoiceMessagePlayer
-                          attachmentPath={m.attachment.url}
-                          durationMs={m.attachment.durationMs ?? m.durationMs}
+                      {m.attachment ? (
+                        <MessageAttachmentView
+                          attachment={m.attachment}
+                          durationMs={m.durationMs}
                           compact
                         />
                       ) : null}
@@ -203,10 +203,10 @@ const CustomerInquiries = () => {
                       <div key={m.id} className="bg-primary/10 rounded-lg p-3 text-sm space-y-2">
                         <p className="text-xs text-muted-foreground mb-1">MoE Support reply</p>
                         {m.content ? <p>{m.content}</p> : null}
-                        {m.attachment?.kind === "voice" ? (
-                          <VoiceMessagePlayer
-                            attachmentPath={m.attachment.url}
-                            durationMs={m.attachment.durationMs ?? m.durationMs}
+                        {m.attachment ? (
+                          <MessageAttachmentView
+                            attachment={m.attachment}
+                            durationMs={m.durationMs}
                             compact
                           />
                         ) : null}

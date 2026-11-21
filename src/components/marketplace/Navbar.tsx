@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store } from "lucide-react";
+import { ShoppingCart, User, Search, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store, MessageSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +90,11 @@ const UserAvatarMenu = ({
       <DropdownMenuItem asChild>
         <Link to="/marketplace/orders" className="cursor-pointer gap-2">
           <Package className="h-4 w-4" /> My Orders
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link to="/marketplace/messages" className="cursor-pointer gap-2">
+          <MessageSquare className="h-4 w-4" /> Messages
         </Link>
       </DropdownMenuItem>
       {isArtisan && (
@@ -303,6 +308,14 @@ const MarketplaceNavbar = () => {
               </Link>
             </IconTooltip>
 
+            <IconTooltip label="Messages">
+              <Link to="/marketplace/messages" className="hidden sm:block">
+                <Button variant="ghost" size="icon" aria-label="Open messages">
+                  <MessageSquare className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </Link>
+            </IconTooltip>
+
             {/* Support Dropdown */}
             <DropdownMenu>
               <IconTooltip label="Help & Support">
@@ -383,4 +396,3 @@ const MarketplaceNavbar = () => {
 };
 
 export default MarketplaceNavbar;
-
