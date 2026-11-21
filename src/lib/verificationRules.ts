@@ -27,7 +27,7 @@ export function groupDocuments(docs: VerificationDocument[]) {
   });
 }
 
-export type UploadDecision = { allowed: true; replace: boolean } | { allowed: false; reason: string };
+export type UploadDecision = { allowed: boolean; replace?: boolean; reason?: string };
 
 /** Not submitted → upload; pending/approved → blocked; rejected → replace. */
 export function uploadDecision(docs: VerificationDocument[], key: string): UploadDecision {
