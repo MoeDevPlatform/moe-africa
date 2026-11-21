@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ordersService, type ArtisanPayoutBundle } from "@/lib/apiServices";
 import PaymentTermsSection from "./PaymentTermsSection";
-import { summarisePayouts } from "@/lib/payoutSummary";
+import { genuinePayoutOrderIds, summarisePayouts } from "@/lib/payoutSummary";
 
 type Milestone = { id?: number; label?: string; name?: string; stage?: string; amount?: number; status?: string };
 
@@ -19,7 +19,9 @@ const ArtisanEarningsPanel = () => {
     (async () => {
       try {
         const res = await ordersService.list({ pageSize: 100 });
-        const ids = (res.data ?? []).map((o) => String(o.id));
+        // Simulated transfers remain visible on their TEST ORDER, but never
+        // contribute to the artisan's genuine earnings or payout history.
+        const ids = genuinePayoutOrderIds(res.data ?? []);
         const payouts = await Promise.allSettled(ids.map((id) => ordersService.getArtisanPayout(id)));
         const ms = await Promise.allSettled(ids.map((id) => ordersService.getMilestones(id)));
         if (!alive) return;

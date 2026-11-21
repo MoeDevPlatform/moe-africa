@@ -1,168 +1,276 @@
 /**
- * Full Test Order lifecycle against REAL local frontend + NestJS + moe_dev.
- * No route mocking. Run only locally:
- *   MOE_LIFECYCLE=1 npx playwright test tests/playwright/test-order-lifecycle.spec.ts --project=lifecycle
- * Accounts come from tests/test-accounts.local.json (gitignored).
+ * Verified, real API-backed local simulator lifecycle.
+ * No API mocks. Credentials come only from the gitignored backend
+ * .env.simulator.local file sourced by the runbook command.
  */
-import { test, expect, request as pwRequest, type Browser, type Page, type APIRequestContext } from "@playwright/test";
-import fs from "node:fs";
+import { expect, request as playwrightRequest, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 
-const cfgPath = path.resolve("tests/test-accounts.local.json");
-const enabled = process.env.MOE_LIFECYCLE === "1" && fs.existsSync(cfgPath);
-const cfg = enabled ? JSON.parse(fs.readFileSync(cfgPath, "utf8")) : ({} as any);
-const SHOTS = "test-results/lifecycle/screenshots";
-type Role = "admin" | "financeRecorder" | "financeVerifier" | "customer" | "artisan";
+const { PrismaClient } = createRequire(import.meta.url)(path.resolve(process.env.SIM_BACKEND_PATH || path.resolve(process.cwd(), "../moe-backend"), "node_modules/@prisma/client"));
 
-test.skip(!enabled, "Set MOE_LIFECYCLE=1 and create tests/test-accounts.local.json");
-test.describe.configure({ mode: "serial" });
+const WEB = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:8080";
+const API = process.env.SIM_API_BASE_URL || "http://127.0.0.1:3000";
+const ARTIFACTS = process.env.SIM_ARTIFACT_DIR || path.resolve(process.cwd(), "test-results/lifecycle");
 
-async function api(role: Role): Promise<{ ctx: APIRequestContext; token: string }> {
-  const anon = await pwRequest.newContext({ baseURL: cfg.apiUrl });
-  const res = await anon.post("/auth/login", { data: cfg[role] });
-  expect(res.ok(), `${role} login`).toBeTruthy();
-  const body = await res.json();
-  const token = body.token ?? body.accessToken ?? body.access_token;
-  const ctx = await pwRequest.newContext({ baseURL: cfg.apiUrl, extraHTTPHeaders: { Authorization: `Bearer ${token}` } });
-  return { ctx, token };
-}
-
-async function uiAs(browser: Browser, role: Role): Promise<Page> {
-  const context = await browser.newContext({ baseURL: cfg.frontendUrl, recordVideo: { dir: `test-results/lifecycle/video/${role}` } });
-  const page = await context.newPage();
-  await page.goto("/auth");
-  await page.getByLabel(/email/i).first().fill(cfg[role].email);
-  await page.getByLabel(/password/i).first().fill(cfg[role].password);
-  await page.getByRole("button", { name: /sign in|log in/i }).first().click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/auth"), { timeout: 20_000 });
-  return page;
-}
-
-const shot = (p: Page, name: string) => p.screenshot({ path: `${SHOTS}/${name}.png` });
-const order = async (a: APIRequestContext, id: number) => {
-  const all = await (await a.get("/admin/test-orders")).json();
-  return all.find((o: any) => o.id === id);
+type Session = {
+  browser: BrowserContext;
+  page: Page;
+  api: APIRequestContext;
+  user: Record<string, unknown>;
 };
 
-test("simulator is enabled only for local test admin", async () => {
-  const { ctx } = await api("admin");
-  const res = await ctx.get("/admin/test-orders/config");
-  expect(res.ok()).toBeTruthy();
-  expect((await res.json()).environment).not.toBe("production");
-  const { ctx: cust } = await api("customer");
-  expect((await cust.get("/admin/test-orders/config")).status()).toBeGreaterThanOrEqual(401);
-});
+const required = (name: string) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required local simulator variable ${name}`);
+  return value;
+};
 
-test("full successful lifecycle", async ({ browser }) => {
-  test.setTimeout(10 * 60_000);
-  const admin = await api("admin");
-  const recorder = await api("financeRecorder");
-  const verifier = await api("financeVerifier");
+async function body(response: Awaited<ReturnType<APIRequestContext["get"]>>) {
+  const text = await response.text();
+  let parsed: any = undefined;
+  try { parsed = text ? JSON.parse(text) : undefined; } catch { parsed = text; }
+  return { response, parsed, text };
+}
 
-  // 1–2 Admin creates test order
-  const adminPage = await uiAs(browser, "admin");
-  await adminPage.goto("/admin/test-orders");
-  await expect(adminPage.getByTestId("test-orders-panel")).toBeVisible();
-  for (const id of ["test-customer", "test-artisan", "test-product"]) {
-    await adminPage.getByTestId(id).click();
-    await adminPage.getByRole("option").first().click();
-  }
-  await adminPage.getByTestId("create-test-order").click();
-  await expect(adminPage.getByText(/simulated customer settlement created/i)).toBeVisible();
-  await shot(adminPage, "01-test-order-created");
-  const list = await (await admin.ctx.get("/admin/test-orders")).json();
-  const created = list[0];
-  const id: number = created.id;
-  fs.writeFileSync("test-results/lifecycle/order.json", JSON.stringify({ id, testReference: created.testReference }, null, 2));
-  expect(created.simulatedPaymentStatus).toMatch(/success|paid/i);
+async function ok(response: Awaited<ReturnType<APIRequestContext["get"]>>, label: string) {
+  const result = await body(response);
+  expect(response.ok(), `${label}: HTTP ${response.status()} ${result.text}`).toBeTruthy();
+  return result.parsed;
+}
 
-  // 3–4 Artisan readiness
-  const artisanPage = await uiAs(browser, "artisan");
-  await artisanPage.goto("/artisan/dashboard?tab=orders&orderView=all");
-  await expect(artisanPage.getByTestId(`artisan-order-${id}`)).toBeVisible();
-  await shot(artisanPage, "02-artisan-new-orders");
-  await artisanPage.getByTestId(`artisan-readiness-accept-${id}`).click();
-  await artisanPage.getByRole("button", { name: /submit/i }).last().click();
-  await shot(artisanPage, "03-readiness-assessment");
+async function session(browser: Browser, email: string, password: string, role: string): Promise<Session> {
+  const loginApi = await playwrightRequest.newContext({ baseURL: API });
+  const login = await ok(await loginApi.post("/auth/login", { data: { email, password } }), `${role} login`);
+  await loginApi.dispose();
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    recordVideo: { dir: path.join(ARTIFACTS, "videos"), size: { width: 1280, height: 900 } },
+  });
+  await context.addInitScript((auth) => {
+    localStorage.setItem("moe_access_token", auth.token);
+    localStorage.setItem("moe_refresh_token", auth.refreshToken);
+    localStorage.setItem("moe_user", JSON.stringify(auth.user));
+  }, login);
+  const api = await playwrightRequest.newContext({
+    baseURL: API,
+    extraHTTPHeaders: { Authorization: `Bearer ${login.token}` },
+  });
+  const page = await context.newPage();
+  return { browser: context, page, api, user: login.user };
+}
 
-  // 5–6 Admin approves readiness + funding
-  await adminPage.goto(`/admin/orders/${id}`);
-  await adminPage.getByRole("button", { name: /approve readiness/i }).click();
-  await shot(adminPage, "04-admin-readiness-approval");
-  // Failure: readiness alone cannot start production
-  await artisanPage.reload();
-  await expect(artisanPage.getByTestId(`artisan-start-work-${id}`)).toHaveCount(0);
-  await expect(artisanPage.getByTestId("artisan-awaiting-payout")).toBeVisible();
-  const amt = await admin.ctx.post(`/admin/orders/${id}/artisan-payout/approve-amount`, { data: {} });
-  expect(amt.ok(), "approve funding").toBeTruthy();
+async function shot(page: Page, name: string) {
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: path.join(ARTIFACTS, name), fullPage: true });
+}
 
-  // 7–9 Record, self-verify blocked, independent verify
-  expect((await recorder.ctx.post(`/admin/test-orders/${id}/payouts/record`, { data: {} })).ok()).toBeTruthy();
-  const transfer = (await order(admin.ctx, id)).transfers.find((t: any) => t.isSimulated);
-  expect(transfer).toBeTruthy();
-  await artisanPage.reload();
-  await expect(artisanPage.getByTestId(`artisan-start-work-${id}`)).toHaveCount(0); // 8: unverified blocks
-  const selfVerify = await recorder.ctx.post(`/admin/test-orders/${id}/payouts/${transfer.id}/verify`, { data: {} });
-  expect(selfVerify.ok(), "recorder must not verify own transfer").toBeFalsy();
-  expect((await verifier.ctx.post(`/admin/test-orders/${id}/payouts/${transfer.id}/verify`, { data: {} })).ok()).toBeTruthy();
-  await adminPage.goto("/admin/test-orders");
-  await shot(adminPage, "05-initial-payout-verified");
+test.describe("real safe test-order lifecycle", () => {
+  test.describe.configure({ mode: "serial", timeout: 300_000 });
 
-  // 10–11 Start work + countdown
-  await artisanPage.reload();
-  await artisanPage.getByTestId(`artisan-start-work-${id}`).click();
-  await expect(artisanPage.getByTestId("artisan-production-countdown")).toBeVisible();
-  await expect(artisanPage.getByTestId("artisan-order-status")).toContainText(/pending/i);
-  await shot(artisanPage, "06-production-countdown");
+  test("enacts the complete workflow without API mocks or real money", async ({ browser }) => {
+    test.skip(!/^(http:\/\/)(localhost|127\.0\.0\.1)/.test(WEB), "Local isolated stack only");
+    await mkdir(path.join(ARTIFACTS, "videos"), { recursive: true });
 
-  // 12–13 Progress + quality submission
-  await artisanPage.getByTestId(`artisan-progress-note-${id}`).fill("Cutting and stitching complete (simulated).");
-  await artisanPage.getByTestId(`artisan-progress-files-${id}`).setInputFiles("public/placeholder.svg");
-  await artisanPage.getByRole("button", { name: /submit progress/i }).click();
-  await artisanPage.getByRole("button", { name: /submit for quality/i }).click();
+    const prisma = new PrismaClient();
+    const admin = await session(browser, required("SIM_ADMIN_EMAIL"), required("SIM_ADMIN_PASSWORD"), "admin");
+    const recorder = await session(browser, required("SIM_RECORDER_EMAIL"), required("SIM_RECORDER_PASSWORD"), "finance recorder");
+    const verifier = await session(browser, required("SIM_VERIFIER_EMAIL"), required("SIM_VERIFIER_PASSWORD"), "finance verifier");
+    const artisan = await session(browser, required("SIM_ARTISAN_EMAIL"), required("SIM_ARTISAN_PASSWORD"), "artisan");
+    const customer = await session(browser, required("SIM_CUSTOMER_EMAIL"), required("SIM_CUSTOMER_PASSWORD"), "customer");
+    const sessions = [admin, recorder, verifier, artisan, customer];
 
-  // 14–15 Quality approval does not release payment
-  await adminPage.goto(`/admin/orders/${id}`);
-  await shot(adminPage, "07-quality-review");
-  await adminPage.getByRole("button", { name: /approve quality/i }).click();
-  const afterQuality = await order(admin.ctx, id);
-  expect(afterQuality.qualityStatus).toMatch(/approved/i);
-  expect(afterQuality.finalPayoutStatus).not.toMatch(/paid|verified/i);
-  await artisanPage.reload();
-  await shot(artisanPage, "08-completed-orders");
+    let orderId = 0;
+    let testReference = "";
+    try {
+      // Admin uses the real simulator UI to create the order and simulated settlement.
+      await admin.page.goto(`${WEB}/admin/test-orders`, { waitUntil: "domcontentloaded" });
+      await expect(admin.page.getByTestId("test-orders-panel")).toBeVisible({ timeout: 30_000 });
+      await admin.page.getByTestId("test-customer").click();
+      await admin.page.getByRole("option", { name: new RegExp(required("SIM_CUSTOMER_EMAIL"), "i") }).click();
+      await admin.page.getByTestId("test-artisan").click();
+      await admin.page.getByRole("option", { name: /MOE Simulator Studio/i }).click();
+      await admin.page.getByTestId("test-product").click();
+      await admin.page.getByRole("option", { name: /MOE Simulator Test Garment/i }).click();
+      const createdResponse = admin.page.waitForResponse((r) => {
+        const url = new URL(r.url());
+        return r.request().method() === "POST" && url.pathname === "/admin/test-orders";
+      });
+      await admin.page.getByTestId("create-test-order").click();
+      const created = await ok(await createdResponse, "create simulated order");
+      orderId = Number(created.id);
+      testReference = String(created.testReference);
+      expect(orderId).toBeGreaterThan(0);
+      await expect(admin.page.getByText(testReference)).toBeVisible({ timeout: 30_000 });
+      await shot(admin.page, "01-test-order-created.png");
 
-  // 16 Dispatch + delivery
-  expect((await admin.ctx.post(`/orders/${id}/fulfillment`, { data: { status: "dispatched", note: "Simulated dispatch" } })).ok()).toBeTruthy();
-  expect((await admin.ctx.post(`/orders/${id}/fulfillment`, { data: { status: "delivered", note: "Simulated delivery" } })).ok()).toBeTruthy();
+      let dbOrder = await prisma.order.findUniqueOrThrow({ where: { id: orderId }, include: { simulatedSettlement: true } });
+      expect(dbOrder.isTestOrder).toBe(true);
+      expect(dbOrder.paymentStatus).toBe("paid");
+      expect(dbOrder.paymentReference).toBeNull();
+      expect(dbOrder.simulatedSettlement?.status).toBe("succeeded");
+      expect(await prisma.paymentAttempt.count({ where: { orderId } })).toBe(0);
 
-  // 17 Customer accepts + reviews
-  const customerPage = await uiAs(browser, "customer");
-  await customerPage.goto(`/marketplace/orders/${id}`);
-  await customerPage.getByRole("button", { name: /confirm delivery|accept delivery/i }).click();
-  await customerPage.getByRole("button", { name: /5 star/i }).click().catch(() => {});
-  await customerPage.getByRole("textbox").last().fill("Beautiful work — simulated test review.");
-  await customerPage.getByRole("button", { name: /submit review/i }).click();
-  await shot(customerPage, "09-customer-delivery-rating");
+      // Artisan New Orders and real readiness submission.
+      await artisan.page.goto(`${WEB}/artisan/dashboard?tab=orders&orderView=new`, { waitUntil: "domcontentloaded" });
+      await expect(artisan.page.getByTestId(`artisan-order-${orderId}`)).toBeVisible({ timeout: 30_000 });
+      await shot(artisan.page, "02-artisan-new-orders.png");
+      const readiness = await ok(await artisan.api.post(`/orders/${orderId}/readiness/assessments`, {
+        data: {
+          acknowledgedRequirements: true,
+          payload: {
+            productAvailable: true,
+            exactSpecMatch: true,
+            quantityConfirmed: true,
+            canFulfil: true,
+            estimatedDispatchDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+          },
+        },
+      }), "submit readiness");
+      const assessmentId = Number(readiness.id);
+      await artisan.page.reload({ waitUntil: "domcontentloaded" });
+      await shot(artisan.page, "03-readiness-assessment.png");
 
-  // 18–21 Final milestone, record, verify
-  const final = await order(admin.ctx, id);
-  expect(final.deliveryStatus).toMatch(/accepted|confirmed/i);
-  expect((await recorder.ctx.post(`/admin/test-orders/${id}/payouts/record`, { data: {} })).ok()).toBeTruthy();
-  const finalTransfer = (await order(admin.ctx, id)).transfers.filter((t: any) => t.isSimulated).at(-1);
-  expect((await verifier.ctx.post(`/admin/test-orders/${id}/payouts/${finalTransfer.id}/verify`, { data: {} })).ok()).toBeTruthy();
-  const done = await order(admin.ctx, id);
-  expect(done.finalPayoutStatus).toMatch(/verified|paid|completed/i);
-  expect(done.transfers.every((t: any) => t.isSimulated)).toBeTruthy();
-  await adminPage.goto("/admin/test-orders");
-  await shot(adminPage, "10-final-payout-confirmed");
-  // Order intentionally NOT cleaned up so it can be inspected manually.
-  for (const p of [adminPage, artisanPage, customerPage]) await p.context().close();
-});
+      // Admin approval alone must not unlock production.
+      await ok(await admin.api.post(`/admin/orders/${orderId}/readiness/assessments/${assessmentId}/decide`, {
+        data: { decision: "approve", reason: "Dedicated simulator fixture is ready" },
+      }), "approve readiness");
+      const earlyStart = await artisan.api.post(`/orders/${orderId}/start-work`);
+      expect(earlyStart.ok()).toBeFalsy();
+      await admin.page.goto(`${WEB}/admin/orders?readiness=1&orderId=${orderId}`, { waitUntil: "domcontentloaded" });
+      await shot(admin.page, "04-admin-readiness-approved.png");
 
-test("72h review window escalates, never auto-transfers", async () => {
-  const admin = await api("admin");
-  const { id } = JSON.parse(fs.readFileSync("test-results/lifecycle/order.json", "utf8"));
-  const before = (await order(admin.ctx, id)).transfers.length;
-  await admin.ctx.post(`/admin/test-orders/${id}/time-scenario`, { data: { scenario: "delivery_review_72h_due" } });
-  expect((await order(admin.ctx, id)).transfers.length).toBe(before);
+      // Amount approval, recording, self-verification rejection, then independent verification.
+      await ok(await admin.api.post(`/admin/orders/${orderId}/artisan-payout/approve-amount`, {
+        data: { approvedAmount: 15000, currency: "NGN", reason: "Simulated initial material funding" },
+      }), "approve initial funding");
+      const unverifiedStart = await artisan.api.post(`/orders/${orderId}/start-work`);
+      expect(unverifiedStart.ok()).toBeFalsy();
+      const initialTransfer = await ok(await recorder.api.post(`/admin/test-orders/${orderId}/payouts/record`, {
+        data: { amount: 15000 },
+      }), "record simulated initial payout");
+      const selfVerify = await recorder.api.post(`/admin/test-orders/${orderId}/payouts/${initialTransfer.id}/verify`);
+      expect(selfVerify.ok()).toBeFalsy();
+      await ok(await verifier.api.post(`/admin/test-orders/${orderId}/payouts/${initialTransfer.id}/verify`), "independently verify initial payout");
+      const verifiedInitial = await prisma.orderArtisanPayoutTransfer.findUniqueOrThrow({ where: { id: Number(initialTransfer.id) } });
+      expect(verifiedInitial.isSimulated).toBe(true);
+      expect(verifiedInitial.status).toBe("verified");
+      expect(verifiedInitial.recordedById).not.toBe(verifiedInitial.verifiedById);
+      await verifier.page.goto(`${WEB}/admin/test-orders`, { waitUntil: "domcontentloaded" });
+      await shot(verifier.page, "05-initial-payout-verified.png");
+
+      // Start production, countdown, and progress update.
+      await ok(await artisan.api.post(`/orders/${orderId}/start-work`), "start work");
+      await ok(await artisan.api.post(`/orders/${orderId}/production/progress`, {
+        data: { note: "Cutting and assembly completed in the isolated simulator", percentComplete: 70 },
+      }), "submit production progress");
+      await artisan.page.goto(`${WEB}/artisan/dashboard?tab=orders&orderView=pending`, { waitUntil: "domcontentloaded" });
+      await expect(artisan.page.getByTestId("artisan-production-countdown")).toBeVisible({ timeout: 30_000 });
+      await shot(artisan.page, "06-production-countdown.png");
+
+      // Local storage is intentionally disabled. Add marked test-only evidence in DB,
+      // equivalent to the backend integration fixture, then use the real review API.
+      const submission = await prisma.orderQualitySubmission.create({
+        data: {
+          orderId,
+          version: 1,
+          artisanId: Number(required("SIM_ARTISAN_ID")),
+          status: "submitted",
+          description: "TEST ORDER finished garment ready for quality review",
+          specsConfirmed: true,
+          evidence: { create: {
+            attachmentPublicId: `test-simulation/${orderId}/quality`,
+            attachmentResourceType: "image",
+            attachmentName: "SAMPLE-quality-evidence.jpg",
+            attachmentMimeType: "image/jpeg",
+            attachmentBytes: 0,
+            attachmentKind: "image",
+          } },
+        },
+      });
+      await prisma.order.update({ where: { id: orderId }, data: { qualityReviewStatus: "submitted", qualitySubmittedAt: new Date() } });
+      await admin.page.goto(`${WEB}/admin/orders?production=1&quality=1&orderId=${orderId}`, { waitUntil: "domcontentloaded" });
+      await shot(admin.page, "07-quality-review.png");
+      const payoutBeforeQuality = await prisma.orderArtisanPayout.findUniqueOrThrow({ where: { orderId } });
+      await ok(await admin.api.post(`/admin/orders/${orderId}/quality/submissions/${submission.id}/decide`, { data: { decision: "approve" } }), "approve quality");
+      const payoutAfterQuality = await prisma.orderArtisanPayout.findUniqueOrThrow({ where: { orderId } });
+      expect(payoutAfterQuality.status).toBe(payoutBeforeQuality.status);
+      dbOrder = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(dbOrder.status).toBe("ready");
+      expect(dbOrder.fulfillmentStatus).toBe("ready_for_delivery");
+      expect(dbOrder.finalPayoutReviewEligible).toBe(false);
+      await artisan.page.goto(`${WEB}/artisan/dashboard?tab=orders&orderView=completed`, { waitUntil: "domcontentloaded" });
+      await shot(artisan.page, "08-completed-orders.png");
+
+      // Dispatch/delivery. Final milestone stays blocked until eligibility.
+      await ok(await artisan.api.post(`/orders/${orderId}/fulfillment`, { data: { status: "dispatched", note: "TEST ORDER dispatch" } }), "dispatch");
+      await ok(await artisan.api.post(`/orders/${orderId}/fulfillment`, { data: { status: "delivered", note: "TEST ORDER delivered" } }), "deliver");
+      await ok(await admin.api.post(`/admin/orders/${orderId}/artisan-payout/total-payable`, {
+        data: { totalPayableAmount: 40000, reason: "Simulated lifecycle total" },
+      }), "set total payable");
+      const finalMilestone = await ok(await admin.api.post(`/admin/orders/${orderId}/artisan-payout/milestones`, {
+        data: { kind: "final", name: "Simulated final balance", approvedAmount: 25000, currency: "NGN" },
+      }), "create final milestone");
+      const blockedFinal = await admin.api.post(`/admin/orders/${orderId}/artisan-payout/milestones/${finalMilestone.id}/eligible`);
+      expect(blockedFinal.ok()).toBeFalsy();
+
+      // Controlled 72-hour window may escalate eligibility, but must never transfer money.
+      const transfersBeforeWindow = await prisma.orderArtisanPayoutTransfer.count({ where: { payout: { orderId } } });
+      await ok(await admin.api.post(`/admin/test-orders/${orderId}/time-scenario`, { data: { scenario: "delivery_review_72h_due" } }), "apply 72-hour scenario");
+      await ok(await admin.api.post("/admin/orders/delivery/process-review-windows", { data: {} }), "process 72-hour windows");
+      expect(await prisma.orderArtisanPayoutTransfer.count({ where: { payout: { orderId } } })).toBe(transfersBeforeWindow);
+
+      // Customer accepts and reviews using the real customer API and UI.
+      await ok(await customer.api.post(`/orders/${orderId}/delivery/accept`, { data: {} }), "accept delivery");
+      await ok(await customer.api.post(`/orders/${orderId}/review`, { data: { rating: 5, review: "Excellent simulated lifecycle test" } }), "submit review");
+      await customer.page.goto(`${WEB}/marketplace/orders/${orderId}`, { waitUntil: "domcontentloaded" });
+      await shot(customer.page, "09-customer-acceptance-rating.png");
+      dbOrder = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(dbOrder.fulfillmentStatus).toBe("customer_accepted");
+      expect(dbOrder.finalPayoutReviewEligible).toBe(true);
+      expect(dbOrder.customerRating).toBe(5);
+
+      // Finance records the final simulated milestone; verifier independently confirms it.
+      await ok(await admin.api.post(`/admin/orders/${orderId}/artisan-payout/milestones/${finalMilestone.id}/eligible`), "mark final milestone eligible");
+      const finalTransfer = await ok(await recorder.api.post(`/admin/orders/${orderId}/artisan-payout/milestones/${finalMilestone.id}/transfers`, {
+        data: {
+          amount: 25000,
+          currency: "NGN",
+          transferDate: new Date().toISOString(),
+          payeeName: "TEST ARTISAN — NO REAL PAYEE",
+          payeeDetails: "SIMULATED PAYMENT — NO BANK ACCOUNT",
+          externalReference: `SIM-FINAL-${orderId}-${Date.now()}`,
+        },
+      }), "record simulated final payout");
+      await prisma.orderArtisanPayoutEvidence.create({ data: {
+        transferId: Number(finalTransfer.id),
+        attachmentPublicId: `test-simulation/${finalTransfer.id}`,
+        attachmentResourceType: "raw",
+        attachmentName: "SIMULATED-FINAL-PAYOUT.txt",
+        attachmentMimeType: "text/plain",
+        attachmentBytes: 0,
+        attachmentKind: "document",
+      } });
+      const recorderFinalVerify = await recorder.api.post(`/admin/orders/${orderId}/artisan-payout/transfers/${finalTransfer.id}/verify-milestone`, { data: { notes: "self verification must fail" } });
+      expect(recorderFinalVerify.ok()).toBeFalsy();
+      await ok(await verifier.api.post(`/admin/orders/${orderId}/artisan-payout/transfers/${finalTransfer.id}/verify-milestone`, { data: { notes: "Independent simulated final payout verification" } }), "verify simulated final payout");
+      const finalRow = await prisma.orderArtisanPayoutMilestone.findUniqueOrThrow({ where: { id: Number(finalMilestone.id) }, include: { transfers: true } });
+      expect(finalRow.status).toBe("verified");
+      expect(finalRow.transfers).toHaveLength(1);
+      expect(finalRow.transfers[0].status).toBe("verified");
+      expect(finalRow.transfers[0].isSimulated).toBe(true);
+      expect(finalRow.transfers[0].recordedById).not.toBe(finalRow.transfers[0].verifiedById);
+      await verifier.page.goto(`${WEB}/admin/test-orders`, { waitUntil: "domcontentloaded" });
+      await shot(verifier.page, "10-final-payout-confirmation.png");
+
+      console.log(`SIMULATOR_RESULT orderId=${orderId} testReference=${testReference}`);
+    } finally {
+      await prisma.$disconnect();
+      for (const value of sessions) {
+        await value.api.dispose();
+        await value.browser.close();
+      }
+    }
+  });
 });

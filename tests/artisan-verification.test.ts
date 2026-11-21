@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { documentKey, documentationScore, groupDocuments, uploadDecision } from "../src/lib/verificationRules";
 import { profileCompletion } from "../src/lib/profileCompletion";
-import { summarisePayouts } from "../src/lib/payoutSummary";
+import { genuinePayoutOrderIds, summarisePayouts } from "../src/lib/payoutSummary";
+
+test("simulated orders are excluded from genuine artisan earnings inputs", () => {
+  expect(
+    genuinePayoutOrderIds([
+      { id: 10, isTestOrder: false },
+      { id: 11, isTestOrder: true },
+      { id: 12 },
+    ]),
+  ).toEqual(["10", "12"]);
+});
 import type { VerificationDocument } from "../src/lib/apiServices";
 
 const doc = (id: number, type: VerificationDocument["type"], status: VerificationDocument["status"], at: string, documentName?: string): VerificationDocument =>

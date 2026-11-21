@@ -36,6 +36,6 @@ dist-ssr
 /playwright/.auth/
 
 src/Moe Images/
-# Local simulator test accounts
+# Local simulator credentials/artifacts
 tests/test-accounts.local.json
-test-results/lifecycle/
+.env.simulator.local

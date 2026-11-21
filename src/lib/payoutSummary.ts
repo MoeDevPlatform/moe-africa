@@ -1,5 +1,13 @@
 import type { ArtisanPayoutBundle } from "@/lib/apiServices";
 
+export function genuinePayoutOrderIds(
+  orders: Array<{ id: string | number; isTestOrder?: boolean }>,
+) {
+  return orders
+    .filter((order) => !order.isTestOrder)
+    .map((order) => String(order.id));
+}
+
 /** Aggregates existing per-order payout records; derives nothing that isn't in them. */
 export function summarisePayouts(bundles: ArtisanPayoutBundle[]) {
   let verified = 0, pending = 0, materialFunding = 0, outstanding = 0;

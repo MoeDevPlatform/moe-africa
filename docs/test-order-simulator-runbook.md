@@ -1,54 +1,143 @@
-# Test Order Simulator — Local run & staging setup
+# Test Order Simulator — local restart and fixture runbook
 
-Run on your machine (needs moe_dev Postgres + NestJS backend `c04521f`). No real money moves; all transfers `isSimulated=true`.
+This workflow is for an isolated local/staging database only. It never calls a
+payment gateway or bank-transfer API. Production must leave the feature flag
+unset/false.
 
-## 1. Local setup
+## Preserved successful run
+
+- Reference: `TEST-6D42230A-38D3-4465-BDD5-01528CE7D13E` (`Order.id=120`)
+- Local database: `moe_dev`
+- Screenshots and successful role videos:
+  `../test-artifacts/test-order-simulator/`
+
+Artifacts and credentials are intentionally gitignored and must not be moved
+into a repository.
+
+## Restart after reboot
+
+Start your installed PostgreSQL service first, verify the isolated database,
+then use three terminals from `MOE-WORSPACE`:
+
 ```bash
-# backend
-npx prisma migrate status            # expect 37 applied, "Database schema is up to date"
+pg_isready -d moe_dev
 ```
-Backend `.env.local` (never commit):
-```
-DATABASE_URL=postgresql://localhost:5432/moe_dev
-NODE_ENV=development
-TEST_ORDER_SIMULATOR_ENABLED=true
-TEST_ORDER_ADMIN_IDS=<id from query below>
-PAYMENTS_MODE=simulated
-NOTIFICATIONS_TRANSPORT=log
-CORS_ORIGINS=http://localhost:8080
-```
-Find/prepare accounts (SQL on moe_dev):
-```sql
-SELECT id,email,role FROM "User" WHERE email LIKE '%@moe.local';
-UPDATE "User" SET "isTestUser"=true WHERE email IN ('test-customer@moe.local','test-artisan@moe.local');
--- grant finance capabilities: recorder → record_payout only, verifier → verify_payout only
--- approve storefront + one product for test-artisan (status='approved')
-```
-Create the accounts via the normal signup if missing, then copy
-`tests/test-accounts.local.example.json` → `tests/test-accounts.local.json` (gitignored) and fill in passwords.
 
-Frontend `.env.local`: `VITE_API_BASE_URL=http://localhost:3000`, then `npm run dev`.
+Backend:
 
-## 2. Run
 ```bash
-MOE_LIFECYCLE=1 npx playwright test tests/playwright/test-order-lifecycle.spec.ts --project=lifecycle
-# macOS 12 Chromium problem? add: --browser=firefox is not valid with projects; instead set
-#   use: devices['Desktop Firefox'] in the lifecycle project, or run on the Linux CI runner.
+cd moe-backend
+npx prisma migrate deploy
+npx prisma migrate status
+
+# Only when the dedicated fixtures/config are missing or need rotating.
+npx ts-node scripts/setup-test-order-simulator.ts
+
+set -a
+source .env.simulator.local
+set +a
+RESEND_API_KEY= RESEND_FROM_EMAIL= \
+CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= \
+npm run start:dev
 ```
-Outputs:
-- Screenshots: `test-results/lifecycle/screenshots/01…10-*.png`
-- Video (per role): `test-results/lifecycle/video/<role>/*.webm`
-- Order reference: `test-results/lifecycle/order.json` (order is kept for manual inspection)
-- Report: `npx playwright show-report`
 
-Covered failure checks: readiness alone can't start work; unverified funding blocks Start Work; recorder can't self-verify; quality approval doesn't release payment; 72h window never auto-transfers; non-admin rejected from simulator. Still covered by existing specs: delivery dispute (`dispute.spec.ts`), production/disabled rejection (backend unit tests).
+The Nest config loader reads the normal gitignored `.env` for `DATABASE_URL`
+and JWT secrets. `.env.simulator.local` supplies only simulator overrides and
+generated test credentials. Never copy either file to source control.
 
-Manual access: sign in as test admin → `/admin/test-orders`.
+Frontend:
 
-## 3. Staging (do not deploy without approval)
-- Vercel: branch `staging` → Preview env only. `VITE_API_BASE_URL=https://staging-api.<domain>`.
-- NestJS: separate instance, `NODE_ENV=staging`, `TEST_ORDER_SIMULATOR_ENABLED=true`, `TEST_ORDER_ADMIN_IDS=<staging admin ids>`, `PAYMENTS_MODE=simulated`, no live Paystack/Flutterwave keys.
-- Postgres: separate database (e.g. `moe_staging`), own `DATABASE_URL`, `prisma migrate deploy`.
-- CORS: `CORS_ORIGINS=https://<project>-git-staging-<team>.vercel.app` only.
-- Notifications: `NOTIFICATIONS_TRANSPORT=log` (or sandbox mail inbox). Media: separate Cloudinary folder/account `moe-staging`.
-- Production keeps `TEST_ORDER_SIMULATOR_ENABLED` unset → simulator returns 403/404.
+```bash
+cd moe-africa
+VITE_API_BASE_URL=http://127.0.0.1:3000 \
+npm run dev -- --host 127.0.0.1 --port 8080
+```
+
+Open `http://127.0.0.1:8080/admin/test-orders`. Read the local account emails
+and passwords from `../moe-backend/.env.simulator.local`.
+
+Run the reusable lifecycle only when a new verification is actually needed:
+
+```bash
+cd moe-africa
+set -a
+source ../moe-backend/.env.simulator.local
+set +a
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 \
+MOE_API_BASE_URL=http://127.0.0.1:3000 \
+SIM_API_BASE_URL=http://127.0.0.1:3000 \
+SIM_BACKEND_PATH=../moe-backend \
+npx playwright test tests/playwright/test-order-lifecycle.spec.ts \
+  --project=lifecycle --reporter=list
+```
+
+The test deliberately keeps its successful order. New output goes under the
+gitignored `test-results/lifecycle/` directory.
+
+## Recreate dedicated fixtures
+
+`scripts/setup-test-order-simulator.ts` is idempotent. It creates or refreshes:
+
+- test admin with `payout_amount_approve`;
+- separate Finance Recorder with `payout_transfer_record`;
+- separate Finance Verifier with `payout_transfer_verify`;
+- customer and artisan users marked `isTestUser=true`;
+- an approved `MOE Simulator Studio` storefront;
+- an approved `MOE Simulator Test Garment` owned by that artisan.
+
+It generates a fresh shared local password, writes all IDs/emails/passwords to
+`.env.simulator.local` with mode `0600`, and prints only non-secret IDs. Reruns
+do not delete retained test orders.
+
+## Safe simulator configuration
+
+The authoritative safe template is the simulator block in
+`moe-backend/.env.example`. Required gates are:
+
+```dotenv
+APP_ENV=test
+NODE_ENV=test
+TEST_ORDER_SIMULATION_ENABLED=true
+TEST_ORDER_SIMULATION_DATABASE_NAMES=moe_dev
+TEST_ORDER_SIMULATION_ADMIN_IDS=<admin-id>,<recorder-id>,<verifier-id>
+PAYMENT_MODE=test
+PAYMENT_LIVE_ENABLED=false
+ORDER_SCHEDULERS_ENABLED=false
+INITIAL_PAYOUT_LIMITS_JSON='{"NGN":{"maxAbsolute":50000}}'
+```
+
+The **₦50,000 value is a local test ceiling**, chosen to exercise limit checks.
+It is not an approved MOE manual-funding policy. Production limits or ratios
+require an explicit Finance policy decision; if no policy is configured, the
+backend continues to fail closed unless an authorised exception and reason are
+recorded.
+
+## Genuine-data exclusions
+
+- Sales-ranked Best Sellers count only `Order.isTestOrder=false`.
+- Public product/artisan review aggregates exclude `isTestUser` customers and
+  reviews linked to test orders.
+- Admin marketplace totals and artisan order counts exclude test orders/users.
+- Earnings & Payouts excludes test-order IDs before requesting payout bundles,
+  so simulated transfers never enter verified earnings, pending payouts,
+  outstanding balances, milestones, or payment history.
+- Test orders remain visible in their dedicated customer, artisan, admin and
+  simulator views for lifecycle inspection.
+
+## Outstanding external-service verification
+
+The successful local lifecycle intentionally ran with Cloudinary and Resend
+disabled. Its quality/final-payment evidence was a clearly marked local test
+fixture; API state transitions remained real.
+
+Before staging sign-off, still verify:
+
+1. Multipart readiness, production, quality and payout-evidence uploads using
+   a separate staging Cloudinary account/folder—never production storage.
+2. Signed/private evidence retrieval and deletion/replacement behaviour.
+3. Email/notification delivery using a staging Resend key and sink inbox,
+   confirming no genuine customer/artisan recipient is addressed.
+4. Retry/idempotency behaviour for both services.
+
+Do not relax the simulator environment/database/admin allowlists to complete
+those checks.
