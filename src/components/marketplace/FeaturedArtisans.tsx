@@ -150,7 +150,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
         className="w-full"
         aria-label="Featured artisans"
       >
-        <CarouselContent className="-ml-4 py-6">
+        <CarouselContent className="-ml-4 py-3">
         {items.map((provider, index) => {
           const active = index === selected;
           return (
@@ -159,8 +159,8 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
             aria-current={active ? "true" : undefined}
             className={`artisan-card h-full overflow-hidden border-2 cursor-pointer transition-all duration-500 ease-out motion-reduce:transition-none ${
               active
-                ? "scale-100 opacity-100 border-accent shadow-xl bg-gradient-to-br from-accent/10 to-transparent"
-                : "scale-[0.88] opacity-60 border-accent/20"
+                ? "scale-100 opacity-100 border-accent shadow-sm bg-card"
+                : "scale-[0.94] opacity-75 border-border"
             }`}
             onClick={() => {
               if (!active) { api?.scrollTo(index); return; }
@@ -168,7 +168,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
             }}
           >
             <div className="relative">
-              <div className="absolute top-4 -left-8 z-10 bg-accent text-accent-foreground px-10 py-1 text-xs font-semibold transform -rotate-45 shadow-md">
+              <div className="absolute top-3 left-3 z-10 bg-accent text-accent-foreground rounded-sm px-2 py-1 text-xs font-medium">
                 Featured
               </div>
               <div className="h-40 md:h-48 overflow-hidden">
@@ -186,10 +186,10 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
             </div>
 
             <CardContent className="p-4 md:p-6">
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-display font-bold text-lg md:text-xl">{provider.brandName}</h3>
+                    <h3 className="font-semibold text-lg">{provider.brandName}</h3>
                     {provider.verified && (
                       <CheckCircle className="h-5 w-5 text-primary fill-primary/20" />
                     )}
@@ -200,12 +200,12 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
                   <ArtisanProductPreviews artisan={provider} />
                 </div>
                 {provider.reviewCount > 0 ? (
-                  <div className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded-full">
+                  <div className="flex items-center gap-1 px-0 py-1">
                     <Star className="h-4 w-4 fill-accent text-accent" />
                     <span className="font-semibold text-sm">{Number(provider.rating).toFixed(1)}</span>
                   </div>
                 ) : (
-                  <div className="bg-muted px-2 py-1 rounded-full">
+                  <div className="px-0 py-1">
                     <span className="font-medium text-xs text-muted-foreground italic">No Reviews Yet</span>
                   </div>
                 )}
@@ -216,7 +216,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
               {provider.styleTags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   {provider.styleTags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
+                    <Badge key={tag} variant="outline" className="rounded-sm border-0 bg-muted/40 text-xs font-normal">
                       {tag}
                     </Badge>
                   ))}
@@ -234,7 +234,7 @@ const FeaturedArtisans = ({ title = "Featured Artisans" }: FeaturedArtisansProps
                 View Store
               </Button>
               {provider.isCustomOrderEligible && (
-                <Button variant="outline" size="sm" className="mt-2 w-full rounded-full border-primary text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }} aria-label={`Request a custom order from ${provider.brandName}`}>
+                <Button variant="outline" size="sm" className="mt-2 w-full border-primary text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }} aria-label={`Request a custom order from ${provider.brandName}`}>
                   Request Custom Order
                 </Button>
               )}

@@ -57,27 +57,27 @@ const ProductCarouselCard = ({ product }: { product: FeaturedProduct }) => {
 
   return (
     <div className="product-card group cursor-pointer" data-product-id={product.id} onClick={() => navigate(`/marketplace/product/${product.id}`)}>
-      <div className="product-card__image relative rounded-xl overflow-hidden mb-3 bg-muted aspect-square">
+      <div className="product-card__image relative rounded-lg border border-border/60 overflow-hidden mb-3 bg-card aspect-square">
         <img
           src={product.imageUrl}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-300"
           loading="lazy"
           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
         />
         <Button
-          variant="secondary"
+          variant="outline"
           size="icon"
-          className="absolute top-3 right-3 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-2 right-2 h-9 w-9 rounded-full bg-card"
           onClick={handleWishlistClick}
           aria-label={inWishlist ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
         >
           <Heart className={`h-4 w-4 ${inWishlist ? "fill-primary text-primary" : ""}`} />
         </Button>
       </div>
-      <h3 className="font-semibold mb-1 text-sm md:text-base line-clamp-1">{product.name}</h3>
+      <h3 className="font-medium mb-1 text-sm md:text-base line-clamp-2">{product.name}</h3>
       <p className="text-xs text-muted-foreground mb-1">{product.providerName}</p>
-      <span className="font-bold text-primary">₦{product.price.toLocaleString()}</span>
+      <span className="font-semibold text-foreground">₦{product.price.toLocaleString()}</span>
     </div>
   );
 };
@@ -126,8 +126,8 @@ const ProductSection = ({ title, icon, products, loading, viewAllHref, testId }:
       </div>
       <Carousel
         setApi={setApi}
-        opts={{ align: "start", loop: true, dragFree: true }}
-        className="w-full scrollbar-hide"
+        opts={{ align: "start", loop: false, dragFree: true }}
+        className={`w-full scrollbar-hide ${products.length <= 2 ? "short-product-shelf" : ""}`}
       >
         <CarouselContent className="-ml-2 md:-ml-4">
           {products.map((product) => (
@@ -136,8 +136,10 @@ const ProductSection = ({ title, icon, products, loading, viewAllHref, testId }:
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden sm:flex left-2 z-30" />
-        <CarouselNext className="hidden sm:flex right-2 z-30" />
+        {products.length > preview.visible && (<>
+        <CarouselPrevious className="hidden sm:flex left-2 z-30 bg-card" />
+        <CarouselNext className="hidden sm:flex right-2 z-30 bg-card" />
+        </>)}
       </Carousel>
     </div>
   );

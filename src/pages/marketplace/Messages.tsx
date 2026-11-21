@@ -245,11 +245,11 @@ const Messages = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="marketplace-page customer-page min-h-screen">
       <MarketplaceNavbar />
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8 flex items-start justify-between gap-4">
+          <div className="page-heading flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-display font-bold mb-2">Messages</h1>
               <p className="text-muted-foreground">Your conversations with service providers</p>
@@ -279,7 +279,7 @@ const Messages = () => {
           </div>
 
           {conversations.length === 0 ? (
-            <Card className="p-12 text-center">
+            <Card className="commerce-empty">
               <div className="flex flex-col items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
                   <MessageSquare className="h-8 w-8 text-muted-foreground" />
@@ -299,17 +299,17 @@ const Messages = () => {
                 .map((conversation) => (
                   <Card
                     key={`${conversation.id ?? "local"}_${conversation.providerId}`}
-                    className="p-4 hover:border-primary cursor-pointer transition-all"
+                    className="account-panel p-4 hover:border-primary cursor-pointer transition-colors"
                     onClick={() => handleOpenConversation(conversation)}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {conversation.providerName.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
                           <h3 className="font-semibold">Re: {conversation.providerName}</h3>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(conversation.lastMessageTime).toLocaleDateString()}

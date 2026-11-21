@@ -349,7 +349,7 @@ const AllProducts = () => {
   }, [hasMore, isLoading, isLoadingMore, error, page, loadPage]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="marketplace-page min-h-screen">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-8">
@@ -362,7 +362,7 @@ const AllProducts = () => {
           Back
         </button>
 
-        <div className="mb-8 space-y-4">
+        <div className="page-heading mb-8 space-y-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{title}</h1>
             <p className="text-muted-foreground">{description}</p>
@@ -396,7 +396,7 @@ const AllProducts = () => {
         ) : displayProducts.length > 0 ? (
           <>
             <div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6"
               data-testid="products-grid"
             >
               {displayProducts.map((product) => (
@@ -505,7 +505,7 @@ function ProductCatalogueControls({
     !!searchParams.get("search");
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end" data-testid="product-filters">
+    <div className="catalogue-toolbar grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:items-end" data-testid="product-filters">
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground" htmlFor="product-sort">Sort</label>
         <Select

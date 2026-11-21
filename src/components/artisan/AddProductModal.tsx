@@ -321,7 +321,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="commerce-dialog max-w-2xl max-h-[calc(100dvh-3rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
@@ -329,7 +329,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="space-y-6 py-3">
           <div className="space-y-2">
             <Label htmlFor="product-name">Product Name *</Label>
             <Input
@@ -393,7 +393,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             onChange={setVariationTypes}
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="priceMin">Min Price (₦) *</Label>
               <Input
@@ -514,7 +514,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             </p>
             <label
               htmlFor="product-images"
-              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors block"
+              className="border border-dashed border-primary/40 rounded-lg bg-primary/5 p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors block"
             >
               <input
                 id="product-images"
@@ -559,7 +559,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
                     <button
                       type="button"
                       onClick={() => removeImage(idx)}
-                      className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-100 transition-opacity"
                       aria-label={`Remove ${img.name}`}
                     >
                       <X className="h-3 w-3" />
@@ -578,7 +578,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           </div>
         )}
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-card px-6 py-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>

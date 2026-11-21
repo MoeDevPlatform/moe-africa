@@ -1116,12 +1116,12 @@ const Settings = () => {
   const isArtisan = user?.role === "artisan";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="marketplace-page customer-page min-h-screen flex flex-col">
       <Navbar />
       
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="page-heading flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -1140,24 +1140,24 @@ const Settings = () => {
           }}
           className="w-full"
         >
-          <TabsList className="w-full flex flex-wrap h-auto gap-1 mb-6 bg-muted/50 p-1 rounded-lg">
-            <TabsTrigger value="account" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <User className="h-4 w-4" /><span className="hidden sm:inline">Account</span>
+          <TabsList className="commerce-tabs mb-6">
+            <TabsTrigger value="account" className="flex items-center gap-2">
+              <User className="h-4 w-4" /><span className="inline">Account</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <Shield className="h-4 w-4" /><span className="hidden sm:inline">Security</span>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" /><span className="inline">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <Bell className="h-4 w-4" /><span className="hidden sm:inline">Notifications</span>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" /><span className="inline">Notifications</span>
             </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <SettingsIcon className="h-4 w-4" /><span className="hidden sm:inline">Preferences</span>
+            <TabsTrigger value="preferences" className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4" /><span className="inline">Preferences</span>
             </TabsTrigger>
-            <TabsTrigger value="addresses" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <MapPin className="h-4 w-4" /><span className="hidden sm:inline">Addresses</span>
+            <TabsTrigger value="addresses" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" /><span className="inline">Addresses</span>
             </TabsTrigger>
-            <TabsTrigger value="payment" className="flex items-center gap-2 flex-1 min-w-[120px]">
-              <CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Payment</span>
+            <TabsTrigger value="payment" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" /><span className="inline">Payment</span>
             </TabsTrigger>
           </TabsList>
 

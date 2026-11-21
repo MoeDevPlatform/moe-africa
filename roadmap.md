@@ -1,4 +1,10 @@
 # Commerce frontend sprint
+- [x] Marketplace redesign: shared visual foundation and navigation.
+- [x] Marketplace redesign: homepage shelves, product collections and artisan discovery.
+- [x] Marketplace redesign: storefront, product detail and customer account presentation.
+- [x] Marketplace redesign: artisan dashboard/forms presentation, preserving workflows (signed-in visual check blocked by unavailable external session).
+- [x] Marketplace redesign: responsive public/signed-out review and concise design/content documentation.
+- [ ] Marketplace redesign signed-in verification: populated orders/messages, account persistence and dashboard/forms require an authenticated external preview session.
 - [x] Remove duplicate artisans from filtered marketplace listings (live tailoring carousel now shows three unique artisans; seven regression tests passed).
 - [x] Search the complete admin artisan list and keep pagination clear of floating controls (three tests and desktop/mobile fixture checks passed; live admin data unverified without account access).
 - [x] Custom-order card/product CTAs and ranked discovery.

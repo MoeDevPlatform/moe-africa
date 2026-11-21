@@ -133,17 +133,17 @@ const Wishlist = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="marketplace-page customer-page min-h-screen flex flex-col">
       <MarketplaceNavbar />
 
       <main className="flex-1 container mx-auto px-4 py-12">
-        <div className="flex items-center gap-3 mb-8">
-          <Heart className="h-8 w-8 text-primary fill-primary" />
+        <div className="page-heading flex items-center gap-3 mb-8">
+          <Heart className="h-6 w-6 text-primary" />
           <h1 className="text-4xl font-display font-bold">My Wishlist</h1>
         </div>
 
         {items.length === 0 ? (
-          <Card className="p-12 text-center">
+          <Card className="commerce-empty">
             <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-display font-semibold mb-2">Your wishlist is empty</h2>
             <p className="text-muted-foreground mb-6">Save your favorite items to buy them later</p>
@@ -157,7 +157,7 @@ const Wishlist = () => {
               {items.length} {items.length === 1 ? "item" : "items"} saved
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {items.map((item) => {
                 const hydrated = fresh[item.productId];
                 const isLoading = loadingIds.has(item.productId) && !hydrated;
@@ -189,13 +189,13 @@ const Wishlist = () => {
                 return (
                   <Card
                     key={item.productId}
-                    className="overflow-hidden hover:shadow-lg transition-all duration-300"
+                    className="account-panel overflow-hidden"
                   >
-                    <div className="relative h-64 bg-muted">
+                    <div className="relative aspect-square bg-card">
                       <img loading="lazy" decoding="async"
                         src={imageUrl}
                         alt={productName}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
                           e.currentTarget.src = FALLBACK_IMAGE;
@@ -213,7 +213,7 @@ const Wishlist = () => {
                     </div>
 
                     <CardContent className="p-4">
-                      <h3 className="font-display font-semibold text-lg mb-1 line-clamp-1">
+                      <h3 className="font-medium text-base mb-1 line-clamp-2">
                         {productName}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-2">by {providerName}</p>

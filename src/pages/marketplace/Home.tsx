@@ -468,7 +468,7 @@ const MarketplaceHome = () => {
     pickedProvidersGrid.ready && preferenceProviders.length > pickedProvidersGrid.columns;
 
   return (
-    <div className="marketplace-home min-h-screen bg-gradient-subtle overflow-x-hidden">
+    <div className="marketplace-home marketplace-page min-h-screen overflow-x-hidden">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-6 md:py-8">
@@ -480,20 +480,20 @@ const MarketplaceHome = () => {
         {/* Categories Section */}
         <AnimatedSection><section id="browse-by-category" className="mb-8 md:mb-12">
           <h2 className="text-xl md:text-2xl lg:text-3xl font-display font-bold mb-4 md:mb-6">Browse by Category</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 md:gap-3 lg:gap-4">
             {categories.map((category) => {
               const Icon = category.icon;
               return (
                 <button
                   key={category.id}
                   onClick={() => navigate(`/marketplace/artisans?category=${category.id}`)}
-                  className="category-card p-3 md:p-4 lg:p-6 rounded-lg md:rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-300 group"
+                  className="category-card p-3 md:p-4 rounded-md border hover:border-primary transition-colors group"
                   aria-label={`Browse ${category.name} category`}
                 >
                   <Icon className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 mx-auto mb-1.5 md:mb-2 lg:mb-3 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
-                  <p className="font-medium text-[10px] md:text-xs lg:text-sm mb-0.5 md:mb-1 break-words leading-tight">{category.name}</p>
+                  <p className="font-medium text-sm mb-0.5 md:mb-1 break-words leading-tight">{category.name}</p>
                   {category.count > 0 && (
-                    <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {category.count}{" "}
                       {category.kind === "product"
                         ? category.count === 1 ? "product" : "products"
@@ -591,13 +591,13 @@ const MarketplaceHome = () => {
                     className="group cursor-pointer"
                     onClick={() => navigate(`/marketplace/product/${p.id}`)}
                   >
-                    <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                    <div className="product-media relative overflow-hidden mb-3">
                       <img
                         loading="lazy"
                         decoding="async"
                         src={p.images?.[0] || FALLBACK_IMAGE}
                         alt={p.name}
-                        className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full aspect-square object-contain group-hover:scale-[1.02] transition-transform duration-300"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
                           e.currentTarget.src = FALLBACK_IMAGE;
@@ -704,11 +704,11 @@ const MarketplaceHome = () => {
             <div ref={dealsGrid.ref} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
               {visibleDeals.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
-                  <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                  <div className="product-media relative overflow-hidden mb-3">
                     <img loading="lazy" decoding="async"
                       src={product.imageUrl}
                       alt={product.name}
-                      className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full aspect-square object-contain group-hover:scale-[1.02] transition-transform duration-300"
                       onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                     />
                     <Badge className="absolute top-3 right-3 bg-accent text-accent-foreground">
@@ -749,11 +749,11 @@ const MarketplaceHome = () => {
             <div ref={stylesGrid.ref} className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
               {visibleStyles.map((product) => (
                 <div key={product.id} className="group cursor-pointer" onClick={() => navigate(`/marketplace/product/${product.id}`)}>
-                  <div className="relative rounded-xl overflow-hidden mb-3 bg-muted">
+                  <div className="product-media relative overflow-hidden mb-3">
                     <img loading="lazy" decoding="async"
                       src={product.imageUrl}
                       alt={product.name}
-                      className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full aspect-square object-contain group-hover:scale-[1.02] transition-transform duration-300"
                       onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                     />
                     <Badge className="absolute bottom-3 left-3" variant="secondary">

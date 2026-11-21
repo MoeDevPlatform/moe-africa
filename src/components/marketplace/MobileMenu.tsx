@@ -234,11 +234,11 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
           <SheetTitle className="text-left">Categories</SheetTitle>
         </SheetHeader>
         
-        <ScrollArea className="h-[calc(100vh-80px)]">
-          <div className="p-4">
+        <ScrollArea className="h-[calc(100dvh-80px)]">
+          <div className="p-4 pr-6">
             {/* Quick Links */}
             <div className="mb-6">
-              <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-muted-foreground mb-3 ">
                 Quick Links
               </h3>
               <nav className="space-y-1">
@@ -253,7 +253,7 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
                         document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth" });
                       }
                     }}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-primary/5 transition-colors"
                   >
                     <span className="text-muted-foreground">{link.icon}</span>
                     <span className="flex-1">{link.name}</span>
@@ -269,7 +269,7 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
 
             {/* Categories */}
             <div>
-              <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-muted-foreground mb-3 ">
                 Shop by Category
               </h3>
               <nav className="space-y-1">
@@ -279,7 +279,7 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
                     open={expandedCategory === category.slug}
                     onOpenChange={(open) => setExpandedCategory(open ? category.slug : null)}
                   >
-                    <CollapsibleTrigger className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-accent transition-colors">
+                    <CollapsibleTrigger className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-primary/5 transition-colors">
                       <span className="text-muted-foreground">{category.icon}</span>
                       <span className="flex-1 text-left">{category.name}</span>
                       <ChevronDown className={cn(
@@ -292,7 +292,7 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
                       <Link
                         to={`/marketplace?category=${category.slug}`}
                         onClick={onClose}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary hover:bg-accent transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
                       >
                         Browse All {category.name}
                         <ChevronRight className="h-3.5 w-3.5" />
@@ -300,13 +300,13 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
                       
                       {/* Featured */}
                       <div className="pt-2">
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider px-3">Featured</span>
+                        <span className="text-xs text-muted-foreground  px-3">Featured</span>
                         {category.featured.map((item) => (
                           <Link
                             key={item.slug}
                             to={mobileFeaturedPath(category.slug, item.slug)}
                             onClick={onClose}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm text-foreground hover:bg-primary/5 transition-colors"
                           >
                             <Sparkles className="h-3 w-3 text-primary" />
                             {item.name}
@@ -316,13 +316,13 @@ const MobileMenu = ({ isOpen, onClose }: MobileMenuProps) => {
 
                       {/* Subcategories */}
                       <div className="pt-2">
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider px-3">Shop by Type</span>
+                        <span className="text-xs text-muted-foreground  px-3">Shop by Type</span>
                         {category.subcategories.map((sub) => (
                           <Link
                             key={sub.slug}
                             to={`/marketplace?category=${category.slug}&subcategory=${sub.slug}`}
                             onClick={onClose}
-                            className="block px-3 py-1.5 rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+                            className="block px-3 py-2.5 rounded-md text-sm text-foreground hover:bg-primary/5 transition-colors"
                           >
                             {sub.name}
                           </Link>

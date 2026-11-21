@@ -63,7 +63,7 @@ const CategoryProviders = () => {
   const categoryName = toCategoryLabel(categorySlug) || "Services";
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="marketplace-page min-h-screen flex flex-col">
       <SEOMeta
         title={`${categoryName} Artisans in Africa | MOE Africa`}
         description={`Find skilled ${categoryName} artisans on MOE Africa. Browse handmade ${categoryName} products and custom orders.`}
@@ -80,7 +80,7 @@ const CategoryProviders = () => {
           Back to Marketplace
         </Button>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="page-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <Icon className="h-8 w-8 text-primary" />
             <div>

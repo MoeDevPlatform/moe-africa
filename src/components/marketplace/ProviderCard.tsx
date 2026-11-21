@@ -69,10 +69,10 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
   
   return (
     <Card 
-      className={`artisan-card overflow-hidden border-border cursor-pointer ${provider.featured ? 'ring-2 ring-accent/50' : ''}`}
+      className={`artisan-card overflow-hidden border-border cursor-pointer ${provider.featured ? 'border-accent' : ''}`}
       onClick={handleCardClick}
     >
-      <div className="relative h-48 bg-gradient-hero">
+      <div className="relative aspect-[4/3] bg-muted">
         <img 
           src={provider.heroImage} 
           alt={provider.brandName}
@@ -97,9 +97,9 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         )}
       </div>
       
-      <CardContent className="p-6">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-2">
-          <h3 className="text-xl font-display font-bold hover:text-primary transition-colors" data-testid="artisan-name">
+          <h3 className="min-w-0 text-lg font-semibold hover:text-primary transition-colors" data-testid="artisan-name">
             {(provider as Provider & { businessName?: string }).businessName || provider.brandName}
           </h3>
           {provider.verified && (
@@ -109,7 +109,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
                   <CheckCircle className="h-4 w-4 text-primary fill-primary/20" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Verified artisan — quality checked by MOE</p>
+                  <p className="text-xs">Verified artisan — verified by MOE</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -122,7 +122,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         )}
         <ArtisanProductPreviews artisan={provider} />
         
-        <div className="flex items-center gap-4 mt-2 mb-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-3 mb-3 text-sm text-muted-foreground">
           {displayReviewCount > 0 ? (
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
@@ -137,8 +137,8 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
               Avg. delivery {provider.estimatedDeliveryDays} days
             </span>
           ) : null}
-          <div className="flex items-center gap-1" data-testid="artisan-location">
-            <MapPin className="h-4 w-4" />
+          <div className="flex w-full min-w-0 items-start gap-1" data-testid="artisan-location">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               {[provider.city, provider.state, (provider as Provider & { country?: string }).country]
                 .filter(Boolean)
@@ -153,22 +153,22 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
 
         <div className="flex flex-wrap gap-1.5 mb-4">
           {provider.styleTags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
+            <Badge key={tag} variant="outline" className="rounded-sm border-0 bg-muted/40 text-xs font-normal">
               {tag}
             </Badge>
           ))}
         </div>
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Package className="h-4 w-4" />
             <span>{productCount} products</span>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col gap-2">
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            className="text-primary"
             onClick={(e) => {
               e.stopPropagation();
               if (!provider.id) {
@@ -185,7 +185,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
               variant="outline"
               size="sm"
               data-testid="request-custom-order-card-btn"
-              className="h-8 rounded-full border-primary px-3 text-xs text-primary hover:bg-primary/10"
+              className="h-auto min-h-9 whitespace-normal border-border px-3 text-xs text-primary hover:bg-primary/5"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/marketplace/artisan/${provider.id}#custom-order`);

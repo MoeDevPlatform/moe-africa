@@ -50,14 +50,14 @@ const Cart = () => {
   const total = subtotal + deliveryFee;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="marketplace-page customer-page min-h-screen flex flex-col">
       <MarketplaceNavbar />
 
       <main className="flex-1 container mx-auto px-4 py-12">
-        <h1 className="text-4xl font-display font-bold mb-8">Shopping Cart</h1>
+        <h1 className="page-heading text-3xl md:text-4xl font-display font-bold mb-8">Shopping Cart</h1>
 
         {isSyncing && items.length === 0 ? <div role="status" aria-label="Loading cart" className="space-y-4">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div> : items.length === 0 ? (
-          <Card className="p-12 text-center">
+          <Card className="commerce-empty">
             <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-display font-semibold mb-2">Your cart is empty</h2>
             <p className="text-muted-foreground mb-6">Start browsing to add items to your cart</p>
@@ -74,11 +74,11 @@ const Cart = () => {
                 return (
                 <Card key={item.id}>
                   <CardContent className="p-6">
-                    <div className="flex gap-6">
+                    <div className="flex flex-wrap sm:flex-nowrap gap-4">
                       <img loading="lazy" decoding="async" 
                         src={item.imageUrl || product?.images?.[0] || "/placeholder.svg"} 
                         alt={item.productName}
-                        className="w-32 h-32 object-cover rounded-lg"
+                        className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 object-contain rounded-md"
                         onError={(e) => {
                           const t = e.currentTarget;
                           t.onerror = null;
@@ -86,8 +86,8 @@ const Cart = () => {
                         }}
                       />
                       
-                      <div className="flex-1">
-                        <h3 className="text-xl font-display font-semibold mb-1">{item.productName}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold mb-1">{item.productName}</h3>
                         <p className="text-sm text-muted-foreground mb-3">by {item.providerName}</p>
                         
                         <div className="space-y-1 mb-3">
@@ -140,8 +140,8 @@ const Cart = () => {
                         </div>
                       </div>
 
-                      <div className="text-right space-y-4">
-                        <p className="text-2xl font-bold text-primary">₦{item.finalPrice.toLocaleString()}</p>
+                      <div className="w-full sm:w-auto sm:text-right space-y-3">
+                        <p className="text-xl font-semibold text-primary">₦{item.finalPrice.toLocaleString()}</p>
                         <div className="flex gap-2">
                           <Button 
                             variant="outline" 

@@ -14,6 +14,9 @@ export default {
     },
     extend: {
       colors: {
+        surface: "hsl(var(--surface))",
+        overlay: "hsl(var(--overlay))",
+        "on-image": "hsl(var(--on-image))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -423,7 +423,7 @@ const ArtisanDashboard = () => {
 
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="page-heading flex flex-wrap items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -432,7 +432,7 @@ const ArtisanDashboard = () => {
             <p className="text-muted-foreground">Welcome, {user?.name} — manage your store and products</p>
           </div>
           {artisanProfile?.verified && (
-            <Badge className="gap-1 bg-green-100 text-green-800 border-green-200">
+            <Badge className="gap-1 bg-primary/10 text-primary border-primary/20">
               <CheckCircle className="h-3 w-3" /> Verified
             </Badge>
           )}
@@ -440,10 +440,10 @@ const ArtisanDashboard = () => {
             <Badge
               className={`gap-1 capitalize ${
                 artisanProfile.status === "approved"
-                  ? "bg-green-100 text-green-800 border-green-200"
+                  ? "bg-primary/10 text-primary border-primary/20"
                   : artisanProfile.status === "rejected"
-                  ? "bg-red-100 text-red-800 border-red-200"
-                  : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                  ? "bg-destructive/10 text-destructive border-destructive/20"
+                  : "bg-accent/20 text-foreground border-accent/40"
               }`}
             >
               {artisanProfile.status}
@@ -453,7 +453,7 @@ const ArtisanDashboard = () => {
 
         {/* Item 10 — admin approval workflow notice */}
         {artisanProfile?.status !== "approved" && (
-          <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 flex items-start gap-2">
+          <div className="mb-6 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-foreground flex items-start gap-2">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <span>
               New artisan accounts and product listings require admin approval before appearing publicly on the marketplace.
@@ -497,13 +497,13 @@ const ArtisanDashboard = () => {
             );
             if (!onClick) {
               return (
-                <Card key={label} className="border-0 rounded-xl shadow-sm">
+                <Card key={label} className="border rounded-lg shadow-none">
                   {body}
                 </Card>
               );
             }
             return (
-              <Card key={label} className="border-0 rounded-xl shadow-sm">
+              <Card key={label} className="border rounded-lg shadow-none">
                 <button
                   type="button"
                   data-testid={testId}
@@ -560,7 +560,7 @@ const ArtisanDashboard = () => {
           <TabsContent value="products">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Package className="h-5 w-5 text-primary" /> My Products
@@ -692,7 +692,7 @@ const ArtisanDashboard = () => {
           <TabsContent value="profile">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Store className="h-5 w-5 text-primary" /> Business Profile
@@ -1008,7 +1008,7 @@ const ArtisanDashboard = () => {
                   <div className="space-y-6">
                     {/* Storefront preview: cover + store image + identity */}
                     <div className="overflow-hidden rounded-xl border bg-muted/40">
-                      <div className="relative aspect-[16/5] min-h-[120px] max-h-[200px] w-full bg-gradient-to-br from-primary/15 via-accent/10 to-secondary/15">
+                      <div className="relative aspect-[16/5] min-h-[120px] max-h-[200px] w-full bg-muted/40">
                         {artisanProfile?.coverImageUrl && (
                           <img loading="lazy" decoding="async"
                             src={artisanProfile.coverImageUrl}
@@ -1041,7 +1041,7 @@ const ArtisanDashboard = () => {
                     </div>
 
                     <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border bg-card p-4">
+                      <div className="border-b py-4">
                         <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Category</dt>
                         <dd className="flex flex-wrap gap-1.5">
                           {resolveServiceCategories(artisanProfile ?? { category: "" }).length > 0
@@ -1051,14 +1051,14 @@ const ArtisanDashboard = () => {
                             : <span className="font-medium">—</span>}
                         </dd>
                       </div>
-                      <div className="rounded-lg border bg-card p-4">
+                      <div className="border-b py-4">
                         <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Location</dt>
                         <dd className="font-medium">
                           {[artisanProfile?.address, artisanProfile?.city, artisanProfile?.state, artisanProfile?.country]
                             .filter(Boolean).join(", ") || artisanProfile?.location || "—"}
                         </dd>
                       </div>
-                      <div className="rounded-lg border bg-card p-4 md:col-span-2">
+                      <div className="border-b py-4 md:col-span-2">
                         <dt className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</dt>
                         <dd className="max-w-prose leading-relaxed text-foreground/90">{artisanProfile?.description || "No description"}</dd>
                       </div>

@@ -1,3 +1,4 @@
+import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -20,7 +21,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
   const [isHovering, setIsHovering] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
-  
+
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
 
   const scrollPrev = useCallback(() => {
@@ -65,28 +66,29 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
     <div className="space-y-4">
       {/* Main Image Carousel */}
       <div className="relative">
-        <div 
+        <div
           ref={emblaRef}
-          className="overflow-hidden rounded-2xl"
+          className="overflow-hidden rounded-lg border border-border"
         >
           <div className="flex">
             {images.map((image, index) => (
-              <div 
+              <div
                 key={index}
                 className="flex-[0_0_100%] min-w-0"
               >
-                <div 
+                <div
                   ref={index === selectedIndex ? imageContainerRef : null}
-                  className="relative aspect-square bg-muted cursor-zoom-in group"
+                  className="relative aspect-square bg-card cursor-zoom-in group"
                   onMouseEnter={() => setIsHovering(true)}
                   onMouseLeave={() => setIsHovering(false)}
                   onMouseMove={handleMouseMove}
                   onClick={() => setShowFullscreen(true)}
                 >
-                  <img loading="lazy" decoding="async" 
-                    src={image} 
+                  <img loading={index === 0 ? "eager" : "lazy"} decoding="async"
+                    src={image}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                     alt={`${productName} - View ${index + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-200"
+                    className="w-full h-full object-contain transition-transform duration-200"
                     style={{
                       transform: isHovering && index === selectedIndex ? `scale(1.5)` : 'scale(1)',
                       transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
@@ -97,37 +99,40 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
             ))}
           </div>
         </div>
-        
+
         {/* Navigation Arrows */}
         {images.length > 1 && (
           <>
             <Button
-              variant="secondary"
+              variant="outline"
               size="icon"
-              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-sm bg-card opacity-100"
+              aria-label="Previous product image"
               onClick={(e) => { e.stopPropagation(); scrollPrev(); }}
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <Button
-              variant="secondary"
+              variant="outline"
               size="icon"
-              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-lg opacity-80 hover:opacity-100"
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full shadow-sm bg-card opacity-100"
+              aria-label="Next product image"
               onClick={(e) => { e.stopPropagation(); scrollNext(); }}
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
           </>
         )}
-        
+
         {/* Fullscreen Button */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="secondary"
+                variant="outline"
                 size="icon"
-                className="absolute top-4 right-4 opacity-70 hover:opacity-100 transition-opacity"
+                className="absolute top-4 right-4 bg-card"
+                aria-label="View product image fullscreen"
                 onClick={(e) => { e.stopPropagation(); setShowFullscreen(true); }}
               >
                 <Maximize2 className="h-4 w-4" />
@@ -137,13 +142,6 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
           </Tooltip>
         </TooltipProvider>
 
-        {/* Zoom indicator */}
-        {isHovering && (
-          <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
-            Swipe or use arrows • Click for fullscreen
-          </div>
-        )}
-        
         {/* Image counter */}
         <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
           {selectedIndex + 1} / {images.length}
@@ -160,10 +158,11 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
             aria-label={`View ${productName} image ${index + 1}`}
             className="w-20 h-20 rounded-lg"
           >
-            <img loading="lazy" decoding="async" 
-              src={image} 
+            <img loading="lazy" decoding="async"
+              src={image}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
               alt={`${productName} thumbnail ${index + 1}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </ImageThumbnail>
         ))}
@@ -173,9 +172,9 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
       <Dialog open={showFullscreen} onOpenChange={setShowFullscreen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-background/95 backdrop-blur-xl">
           <DialogTitle className="sr-only">{productName} - Full View</DialogTitle>
-          
+
           {/* Controls — single close button, proper Reset sizing */}
-          <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between gap-2">
+          <div className="absolute top-4 left-4 right-10 z-10 flex flex-wrap items-center justify-between gap-2">
             {/* Zoom controls */}
             <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-full px-3 py-1.5">
               <TooltipProvider>
@@ -188,7 +187,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                   <TooltipContent><p className="text-xs">Zoom out</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <div className="w-28">
+              <div className="hidden sm:block w-28">
                 <Slider
                   value={[zoom]}
                   onValueChange={(value) => setZoom(value[0])}
@@ -249,8 +248,9 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
 
           {/* Image */}
           <div className="flex items-center justify-center h-[80vh] overflow-auto p-8">
-            <img loading="lazy" decoding="async" 
-              src={images[selectedIndex]} 
+            <img loading="lazy" decoding="async"
+              src={images[selectedIndex] || FALLBACK_IMAGE}
+              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
               alt={`${productName} - Full View`}
               className="max-w-full max-h-full object-contain transition-transform duration-200"
               style={{
@@ -260,7 +260,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
           </div>
 
           {/* Thumbnail Strip */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 backdrop-blur-sm rounded-full px-4 py-2">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex max-w-[90%] overflow-x-auto gap-2 bg-card/90 rounded-md px-4 py-2">
             {images.map((image, index) => (
               <ImageThumbnail
                 key={index}
@@ -269,10 +269,11 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                 aria-label={`View ${productName} image ${index + 1} fullscreen`}
                 className="w-12 h-12 rounded-md"
               >
-                <img loading="lazy" decoding="async" 
-                  src={image} 
+                <img loading="lazy" decoding="async"
+                  src={image}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
                   alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               </ImageThumbnail>
             ))}

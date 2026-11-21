@@ -311,7 +311,7 @@ const AllArtisans = () => {
   }, [hasMore, listLoading, listError, visibleCount]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="marketplace-page min-h-screen">
       <MarketplaceNavbar />
 
       <main className="container mx-auto px-4 py-8">
@@ -323,7 +323,7 @@ const AllArtisans = () => {
           Back
         </button>
 
-        <div className="mb-8 flex flex-col gap-4">
+        <div className="page-heading mb-8 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">{copy.title}</h1>
@@ -341,7 +341,7 @@ const AllArtisans = () => {
             <FilterDrawer artisansOnly filters={filters} onFiltersChange={setFilters} />
           </div>
 
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Artisan discovery">
+          <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Artisan discovery">
             {VIEWS.map((item) => (
               <Button
                 key={item.id}

@@ -220,14 +220,14 @@ const MarketplaceNavbar = () => {
       <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)} />
       <CartAbandonmentBanner />
       
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <header className="marketplace-nav sticky top-0 z-50 w-full border-b bg-card">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-16 lg:h-20 items-center justify-between gap-2 lg:gap-5">
           {/* Mobile Menu Button */}
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden"
+            className="lg:hidden"
             onClick={() => setShowMobileMenu(true)}
             aria-label="Open mobile menu"
           >
@@ -235,34 +235,20 @@ const MarketplaceNavbar = () => {
           </Button>
 
           {/* Logo */}
-          <Link to="/marketplace" className="flex items-center">
-            <img loading="lazy" decoding="async" src={logo} alt="MOE" className="h-10 w-auto" />
+          <Link to="/marketplace" className="flex shrink-0 items-center">
+            <img loading="lazy" decoding="async" src={logo} alt="MOE Africa" className="h-10 lg:h-12 w-auto" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/placeholder.svg"; }} />
           </Link>
 
-          {/* Categories Button - Desktop */}
-          <div 
-            className="hidden md:block relative"
-            onMouseEnter={handleMegaMenuEnter}
-            onMouseLeave={handleMegaMenuLeave}
-          >
-            <Button 
-              variant="ghost" 
-              className="gap-1"
-            >
-              Categories
-              <ChevronDown className={`h-4 w-4 transition-transform ${showMegaMenu ? 'rotate-180' : ''}`} />
-            </Button>
-          </div>
-
           {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-4">
+          <div className="hidden lg:flex min-w-0 flex-1 max-w-2xl">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 data-testid="search-input"
-                placeholder="Search for artisans, products, or services..."
-                className="pl-10 w-full"
+                placeholder="Search products, artisans and services"
+                aria-label="Search the marketplace"
+                className="h-12 pl-10 w-full rounded-full border-primary/40 bg-surface"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={handleSearchFocus}
@@ -272,15 +258,6 @@ const MarketplaceNavbar = () => {
 
           {/* Navigation */}
           <nav className="flex items-center gap-1 sm:gap-2">
-            <Button asChild variant="ghost" className="nav-link hidden lg:inline-flex">
-              <Link to="/marketplace/artisans">
-                Explore
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" className="nav-link hidden xl:inline-flex">
-              <Link to="/marketplace/custom-orders">Custom Orders</Link>
-            </Button>
-            
             <IconTooltip label="Notifications">
               <span className="inline-flex">
                 <NotificationCenter />
@@ -301,7 +278,7 @@ const MarketplaceNavbar = () => {
             </IconTooltip>
 
             <IconTooltip label="Orders">
-              <Link to="/marketplace/orders" className="hidden sm:block">
+              <Link to="/marketplace/orders" className="hidden xl:block">
                 <Button variant="ghost" size="icon" aria-label="View your orders">
                   <Package className="h-5 w-5" aria-hidden="true" />
                 </Button>
@@ -309,7 +286,7 @@ const MarketplaceNavbar = () => {
             </IconTooltip>
 
             <IconTooltip label="Messages">
-              <Link to="/marketplace/messages" className="hidden sm:block">
+              <Link to="/marketplace/messages" className="hidden xl:block">
                 <Button variant="ghost" size="icon" aria-label="Open messages">
                   <MessageSquare className="h-5 w-5" aria-hidden="true" />
                 </Button>
@@ -337,7 +314,7 @@ const MarketplaceNavbar = () => {
             </DropdownMenu>
 
             <IconTooltip label="Settings">
-              <Link to="/marketplace/settings" className="hidden sm:block">
+              <Link to="/marketplace/settings" className="hidden xl:block">
                 <Button variant="ghost" size="icon" aria-label="Settings">
                   <Settings className="h-5 w-5" aria-hidden="true" />
                 </Button>
@@ -366,14 +343,28 @@ const MarketplaceNavbar = () => {
           </nav>
         </div>
 
+        <nav className="hidden lg:flex items-center gap-6 border-t border-border/60 py-2 text-sm" aria-label="Marketplace discovery">
+          <div onMouseEnter={handleMegaMenuEnter} onMouseLeave={handleMegaMenuLeave}>
+            <Button variant="ghost" className="gap-2 px-0 hover:bg-transparent" onClick={() => setShowMegaMenu(true)} aria-expanded={showMegaMenu} aria-controls="marketplace-categories">
+              <Menu className="h-4 w-4" /> Categories <ChevronDown className="h-3 w-3" />
+            </Button>
+          </div>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products">All Products</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products?sort=newest">New Arrivals</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products?collection=best-sellers">Best Sellers</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/artisans">Explore Artisans</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/custom-orders">Custom Orders</Link>
+        </nav>
+
         {/* Mobile Search */}
-        <div className="md:hidden pb-3">
+        <div className="lg:hidden pb-3">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               data-testid="search-input"
-              placeholder="Search..."
+              placeholder="Search products and artisans"
+              aria-label="Search the marketplace"
               className="pl-10 w-full"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}

@@ -144,9 +144,9 @@ const MiniImageCard = ({ slug, name, onClick }: { slug: string; name: string; on
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left group w-full"
+      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm text-foreground hover:bg-primary/5 hover:text-primary transition-colors text-left group w-full"
     >
-      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-border group-hover:border-primary/50 transition-colors">
+      <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 border border-border group-hover:border-primary/50 transition-colors">
         <img 
           src={thumbnail} 
           alt={name}
@@ -225,15 +225,16 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
   return (
     <div 
       className="absolute top-full left-0 w-full bg-card border-b border-border shadow-lg z-50"
+      id="marketplace-categories"
       data-testid="mega-menu"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 max-h-[calc(100dvh-9rem)] overflow-y-auto">
         <div className="grid grid-cols-12 gap-6">
           {/* Column A - Quick Links */}
-          <div className="col-span-3 border-r border-border pr-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
+          <div className="col-span-3 border-r border-border pr-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 ">
               Quick Links
             </h3>
             <nav className="space-y-1">
@@ -248,7 +249,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                       document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth" });
                     }
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors group"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-primary/5 hover:text-primary transition-colors group"
                 >
                   <span className="text-muted-foreground group-hover:text-accent-foreground transition-colors">
                     {link.icon}
@@ -265,8 +266,8 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
           </div>
 
           {/* Column B - Service Categories */}
-          <div className="col-span-3 border-r border-border pr-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
+          <div className="col-span-3 border-r border-border pr-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 ">
               Categories
             </h3>
             <nav className="space-y-1">
@@ -278,8 +279,8 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors group text-left",
                     activeCategory?.slug === category.slug
-                      ? "bg-accent text-accent-foreground"
-                      : "text-foreground hover:bg-accent/50"
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-primary/5"
                   )}
                 >
                   <span className={cn(
@@ -313,7 +314,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
               <div className="grid grid-cols-2 gap-8">
                 {/* Featured Subsections */}
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-4 ">
                     Featured in {activeCategory.name}
                   </h3>
                   <nav className="space-y-1">
@@ -330,7 +331,7 @@ const MegaMenu = ({ isOpen, onClose, onMouseEnter, onMouseLeave }: MegaMenuProps
 
                 {/* Product Types / Subcategories */}
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-4 ">
                     Shop by Type
                   </h3>
                   <nav className="grid grid-cols-1 gap-0.5">

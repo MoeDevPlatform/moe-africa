@@ -130,12 +130,12 @@ const ProviderDetail = () => {
 
   if (isLoading && !provider) {
     return (
-      <div className="min-h-screen bg-gradient-subtle">
+      <div className="marketplace-page storefront-page min-h-screen">
         <MarketplaceNavbar />
-        <main className="container mx-auto px-4 py-12 space-y-6" role="status" aria-label="Loading artisan profile">
+        <main className="container mx-auto px-4 py-8 space-y-6" role="status" aria-label="Loading artisan profile">
           <Skeleton variant="image" aspectRatio="16/5" />
           <Skeleton variant="text" width="40%" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><Skeleton variant="card" /><Skeleton variant="card" /></div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8"><Skeleton variant="card" /><Skeleton variant="card" /></div>
         </main>
         <MarketplaceFooter />
       </div>
@@ -144,7 +144,7 @@ const ProviderDetail = () => {
 
   if (notFound || !provider) {
     return (
-      <div className="min-h-screen bg-gradient-subtle">
+      <div className="marketplace-page storefront-page min-h-screen">
         <MarketplaceNavbar />
         <main className="container mx-auto px-4 py-16">
           <div className="max-w-md mx-auto bg-card border rounded-xl p-8 text-center space-y-4">
@@ -175,13 +175,14 @@ const ProviderDetail = () => {
       : undefined);
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="marketplace-page storefront-page min-h-screen">
       <SEOMeta title={seoTitle} description={seoDescription} />
       <MarketplaceNavbar />
 
       <main>
         {/* Hero Banner */}
-        <section className="relative h-80 bg-gradient-hero">
+        <section className="relative border-b bg-card">
+          <div className="storefront-cover relative overflow-hidden bg-muted">
           {provider.heroImage && (
             <img loading="lazy" decoding="async"
               src={provider.heroImage}
@@ -192,22 +193,23 @@ const ProviderDetail = () => {
               }}
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+
 
           {/* Back button overlay */}
           <button
             onClick={() => navigate(-1)}
-            className="absolute top-4 left-4 inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors group bg-black/20 hover:bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 text-sm"
+            className="absolute top-4 left-4 inline-flex items-center gap-2 text-foreground transition-colors group bg-card hover:bg-surface rounded-md border px-3 py-2 text-sm"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             Back
           </button>
           
-          <div className="absolute bottom-0 left-0 right-0 container mx-auto px-4 pb-8">
-            <div className="flex flex-col md:flex-row md:items-end gap-4">
+          </div>
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-display font-bold text-white drop-shadow-lg">{provider.brandName}</h1>
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className="text-3xl md:text-4xl font-display font-semibold break-words">{provider.brandName}</h1>
                   {provider.verified && (
                     <Badge className="bg-primary text-primary-foreground gap-1">
                       <CheckCircle2 className="h-3 w-3" />
@@ -215,7 +217,7 @@ const ProviderDetail = () => {
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-6 text-white/90 drop-shadow-md">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Star className="h-5 w-5 fill-accent text-accent" />
                     <span className="font-semibold">
@@ -231,7 +233,7 @@ const ProviderDetail = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-5 w-5" />
-                    <span>~{provider.estimatedDeliveryDays} days delivery</span>
+                    <span>{provider.estimatedDeliveryDays ? `~${provider.estimatedDeliveryDays} days delivery` : "Delivery: contact artisan"}</span>
                   </div>
                 </div>
               </div>
@@ -244,7 +246,7 @@ const ProviderDetail = () => {
                           size="lg"
                           onClick={() => openDock({ providerId: provider.id, providerName: provider.brandName })}
                           variant="outline"
-                          className="bg-background/50 backdrop-blur h-auto whitespace-normal text-center"
+                          className="h-auto whitespace-normal text-center"
                           data-testid="make-enquiry-btn"
                         >
                           <MessageCircle className="h-4 w-4 mr-2 shrink-0" />
@@ -258,7 +260,7 @@ const ProviderDetail = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur">
+                      <Button size="lg" variant="outline" className="bg-card">
                         <Share2 className="h-4 w-4 mr-2" />
                         Share
                       </Button>
@@ -272,19 +274,19 @@ const ProviderDetail = () => {
         </section>
 
         {/* Content */}
-        <section className="container mx-auto px-4 py-12">
+        <section className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
               <Tabs defaultValue="products" className="w-full">
-                <TabsList className="w-full justify-start">
+                <TabsList className="commerce-tabs">
                   <TabsTrigger value="products">Products</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
                   <TabsTrigger value="about">About</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="about" className="mt-6">
-                  <div className="bg-card rounded-xl border p-6">
+                  <div className="py-4">
                     <h2 className="text-2xl font-display font-bold mb-4">About {provider.brandName}</h2>
                     <div className="space-y-4">
                       <div>
@@ -310,7 +312,7 @@ const ProviderDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="products" className="mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-8">
                     {products.map((product) => (
                       <ProductCard key={product.id} product={product} providerId={provider.id} />
                     ))}
@@ -347,7 +349,7 @@ const ProviderDetail = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <div className="bg-card rounded-xl border p-6 sticky top-24">
+              <div className="py-4 sticky top-24">
                 <h3 className="font-semibold mb-4">Contact Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
@@ -364,7 +366,7 @@ const ProviderDetail = () => {
                         { href: provider.linkedinUrl, label: "LinkedIn", icon: <Linkedin className="h-4 w-4" /> },
                       ].filter((item) => Boolean(item.href)).map((item) => (
                         <Button key={item.label} asChild type="button" variant="outline" size="icon">
-                          <a href={item.href!} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.label} profile`}>
+                          <a href={item.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.label} profile`}>
                             {item.icon}
                           </a>
                         </Button>

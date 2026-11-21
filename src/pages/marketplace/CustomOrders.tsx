@@ -17,15 +17,15 @@ export default function CustomOrders() {
     return () => { cancelled = true; };
   }, []);
   return (
-    <div className="min-h-screen bg-gradient-subtle" data-testid="custom-orders-page">
+    <div className="marketplace-page min-h-screen" data-testid="custom-orders-page">
       <SEOMeta
         title="Custom Orders | MOE Africa"
         description="Work directly with skilled African artisans to create something uniquely yours."
       />
       <MarketplaceNavbar />
       <main className="container mx-auto px-4 py-12">
-        <header className="max-w-3xl mb-10">
-          <h1 className="text-3xl md:text-5xl font-display font-bold mb-3">
+        <header className="page-heading mb-10">
+          <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">
             Custom Orders — Handcrafted Just for You
           </h1>
           <p className="text-lg text-muted-foreground">

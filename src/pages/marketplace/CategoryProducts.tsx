@@ -54,7 +54,7 @@ const CategoryProducts = () => {
   const categoryName = toCategoryLabel(categorySlug) || "Products";
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="marketplace-page min-h-screen flex flex-col">
       <SEOMeta
         title={`${categoryName} Artisans in Africa | MOE Africa`}
         description={`Find skilled ${categoryName} artisans on MOE Africa. Browse handmade ${categoryName} products and custom orders.`}
@@ -71,7 +71,7 @@ const CategoryProducts = () => {
           Back to Marketplace
         </Button>
 
-        <div className="flex items-center gap-3 mb-8">
+        <div className="page-heading flex items-center gap-3 mb-8">
           <Icon className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-4xl font-display font-bold">
@@ -96,7 +96,7 @@ const CategoryProducts = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
             {categoryProducts.map((product) => (
               <ProductCard
                 key={product.id}

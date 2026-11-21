@@ -184,7 +184,7 @@ const ProductDetail = () => {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen bg-gradient-subtle"><MarketplaceNavbar /><main className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-5 gap-8" role="status" aria-label="Loading product"><Skeleton variant="image" aspectRatio="1/1" className="lg:col-span-3" /><div className="lg:col-span-2 space-y-4"><Skeleton variant="text" width="35%" /><Skeleton variant="text" className="h-8" /><Skeleton variant="text" width="60%" /><Skeleton variant="table-row" /></div></main></div>;
+    return <div className="marketplace-page product-detail-page min-h-screen"><MarketplaceNavbar /><main className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12" role="status" aria-label="Loading product"><Skeleton variant="image" aspectRatio="1/1" className="lg:col-span-3" /><div className="lg:col-span-2 space-y-4"><Skeleton variant="text" width="35%" /><Skeleton variant="text" className="h-8" /><Skeleton variant="text" width="60%" /><Skeleton variant="table-row" /></div></main></div>;
   }
   if (!product) {
     return <Navigate to="/marketplace" replace />;
@@ -291,7 +291,7 @@ const ProductDetail = () => {
   const seoKeywords = (product.keywords ?? []).map((k) => k.term).join(", ");
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="marketplace-page product-detail-page min-h-screen">
       <SEOMeta title={seoTitle} description={seoDescription} keywords={seoKeywords} />
       <MarketplaceNavbar />
 
@@ -306,7 +306,7 @@ const ProductDetail = () => {
           Back
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Left — Image Gallery (60%) */}
           <div className="lg:col-span-3">
             <ProductImageGallery
@@ -316,7 +316,7 @@ const ProductDetail = () => {
           </div>
 
           {/* Right — Product Info (40%) */}
-          <div className="lg:col-span-2 p-0 lg:p-6 flex flex-col gap-6">
+          <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
             {/* 1. Category badge */}
             <div>
               <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-none">
@@ -325,7 +325,7 @@ const ProductDetail = () => {
             </div>
 
             {/* 2. Product name */}
-            <h1 className="text-2xl font-bold leading-tight">{product.name}</h1>
+            <h1 className="text-3xl font-display font-semibold leading-tight">{product.name}</h1>
 
             {/* 3. Artisan name with avatar */}
             <Link
@@ -348,7 +348,7 @@ const ProductDetail = () => {
                         <CheckCircle className="h-4 w-4 text-primary fill-primary/20" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">Verified artisan — quality checked by MOE</p>
+                        <p className="rounded-sm border-0 bg-muted/50 text-xs text-muted-foreground">Verified artisan — quality checked by MOE</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -402,7 +402,7 @@ const ProductDetail = () => {
             {/* Demand / view / stock indicators (below price, above actions) */}
             <div className="flex flex-wrap gap-2">
               {product.isHighDemand ? (
-                <Badge className="bg-orange-500/15 text-orange-700 hover:bg-orange-500/20 border-none">
+                <Badge className="bg-secondary/10 text-secondary-dark hover:bg-secondary/15 border-none">
                   🔥 High demand
                 </Badge>
               ) : typeof product.viewsToday === "number" &&
@@ -414,7 +414,7 @@ const ProductDetail = () => {
               {typeof product.stockCount === "number" &&
                 product.stockCount > 0 &&
                 product.stockCount <= 5 && (
-                  <Badge className="bg-amber-500/15 text-amber-800 hover:bg-amber-500/20 border-none">
+                  <Badge className="bg-accent/20 text-foreground hover:bg-accent/30 border-none">
                     ⚠ Only {product.stockCount} left
                   </Badge>
                 )}
@@ -454,7 +454,7 @@ const ProductDetail = () => {
             {provider.isCustomOrderEligible === true && (
               <div
                 data-testid="product-custom-order-banner"
-                className="rounded-xl bg-primary/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+                className="border-y border-border py-4 flex flex-col gap-3"
               >
                 <div className="flex gap-3">
                   <PencilLine className="h-5 w-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
@@ -466,7 +466,7 @@ const ProductDetail = () => {
                 <Button
                   variant="outline"
                   data-testid="product-request-custom-order-btn"
-                  className="rounded-full border-primary text-primary hover:bg-primary/10 shrink-0"
+                  className="border-primary text-primary hover:bg-primary/5 w-full"
                   onClick={() => navigate(`/marketplace/artisan/${provider.id}#custom-order`)}
                 >
                   Request a Custom Order
@@ -486,7 +486,7 @@ const ProductDetail = () => {
             {product.tags.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 {product.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
+                  <Badge key={tag} variant="secondary" className="rounded-sm border-0 bg-muted/50 text-xs text-muted-foreground">
                     {tag}
                   </Badge>
                 ))}
@@ -527,7 +527,7 @@ const ProductDetail = () => {
         {/* Tabs */}
         <section className="mt-12">
           <Tabs defaultValue="reviews" className="w-full">
-            <TabsList className="w-full justify-start overflow-x-auto">
+            <TabsList className="commerce-tabs">
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
               <TabsTrigger value="about">About the Artisan</TabsTrigger>
               <TabsTrigger value="more">More from this Artisan</TabsTrigger>
@@ -591,7 +591,7 @@ const ProductDetail = () => {
 
             <TabsContent value="more" className="pt-6">
               {otherProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
                   {otherProducts.map((p) => (
                     <ProductCard key={p.id} product={p} providerId={provider.id} />
                   ))}
@@ -612,7 +612,7 @@ const ProductDetail = () => {
       </main>
 
       {/* Mobile sticky action bar — bg + border avoid floating-over-content */}
-      <div className="lg:hidden sticky bottom-0 left-0 right-0 z-30 bg-background border-t p-4 flex flex-col gap-2 shadow-lg">
+      <div className="product-mobile-actions lg:hidden sticky bottom-0 left-0 right-0 z-30 bg-card border-t p-3 grid grid-cols-2 gap-2 shadow-sm">
         {ActionButtons}
       </div>
 

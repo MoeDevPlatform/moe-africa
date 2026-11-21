@@ -72,7 +72,7 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
           />
         )}
       </div>
-      <Carousel setApi={setApi} opts={{ align: "start", loop: true }} className="w-full">
+      <Carousel setApi={setApi} opts={{ align: "start", loop: false }} className="w-full">
         <CarouselContent className="-ml-2 md:-ml-4">
           {products.map((product) => (
             <CarouselItem
@@ -83,11 +83,11 @@ const RecentlyViewed = ({ excludeProductId }: Props) => {
                 className="group cursor-pointer"
                 onClick={() => navigate(`/marketplace/product/${product.id}`)}
               >
-                <div className="relative rounded-xl overflow-hidden mb-3 bg-muted aspect-square">
+                <div className="relative rounded-lg border overflow-hidden mb-3 bg-card aspect-square">
                   <img
                     src={product.images[0] || FALLBACK_IMAGE}
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-300"
                     loading="lazy"
                     onError={(e) => {
                       e.currentTarget.onerror = null;

@@ -50,7 +50,7 @@ const getStatusConfig = (status: Order["status"] | CustomOrderRecord["status"]) 
       label: "Under review",
       icon: Clock,
       variant: "outline",
-      color: "text-amber-600",
+      color: "text-secondary-dark",
     },
     pending: {
       label: "With artisan",
@@ -68,7 +68,7 @@ const getStatusConfig = (status: Order["status"] | CustomOrderRecord["status"]) 
       label: "Completed",
       icon: CheckCircle,
       variant: "default",
-      color: "text-green-600",
+      color: "text-primary",
     },
     cancelled: {
       label: "Cancelled",
@@ -80,7 +80,7 @@ const getStatusConfig = (status: Order["status"] | CustomOrderRecord["status"]) 
       label: "Awaiting Payment",
       icon: CreditCard,
       variant: "outline",
-      color: "text-amber-600",
+      color: "text-secondary-dark",
     },
     custom: {
       label: "Custom Order",
@@ -92,7 +92,7 @@ const getStatusConfig = (status: Order["status"] | CustomOrderRecord["status"]) 
       label: "Accepted",
       icon: CheckCircle,
       variant: "default",
-      color: "text-green-600",
+      color: "text-primary",
     },
     declined: {
       label: "Declined",
@@ -111,16 +111,16 @@ const OrderCard = ({ order }: { order: Order }) => {
 
   return (
     <Card
-      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+      className="account-panel overflow-hidden hover:border-primary/40 transition-colors cursor-pointer"
       onClick={() => navigate(`/marketplace/orders/${order.id}`)}
     >
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row">
-          <div className="w-full sm:w-32 h-32 sm:h-auto bg-muted flex-shrink-0">
+          <div className="w-full sm:w-40 h-40 sm:h-auto bg-card flex-shrink-0">
             <img
               src={order.productImage}
               alt={order.productName}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               loading="lazy"
               onError={(e) => {
                 e.currentTarget.onerror = null;
@@ -285,20 +285,20 @@ const Orders = () => {
   const showCustom = activeTab === "custom" || activeTab === "all";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="marketplace-page customer-page min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
+        <div className="page-heading">
           <div className="flex items-center gap-2 mb-2">
             <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-display font-bold">My Orders</h1>
+            <h1 className="text-3xl md:text-4xl font-display font-bold">My Orders</h1>
           </div>
           <p className="text-muted-foreground">Track and manage your orders and custom requests</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="w-full flex-wrap h-auto gap-1 mb-6 bg-muted/50 p-1">
+          <TabsList className="commerce-tabs mb-6">
             <TabsTrigger value="all" className="flex-1 min-w-[100px]">
               All
             </TabsTrigger>

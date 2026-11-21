@@ -9,3 +9,4 @@
 - Extend the existing custom-order modal through its compatibility export and shared form validation; structured requests must never silently fall back to a lossy legacy payload.
 - Use AnimatedSection and RouteEntry for entry-only CSS motion and the common Skeleton variants for loading; respect reduced-motion preferences.
 - Keep the dashboard redesign presentational: quick actions invoke existing controls, stats read optional profile aggregates, and product rows share a desktop-table/mobile-card layout.
+- Scope shared marketplace presentation through marketplace-page, commerce-tabs and product-media roles; reuse semantic CSS tokens so refinements preserve page APIs and state.

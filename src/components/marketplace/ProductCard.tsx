@@ -68,15 +68,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <Card 
-      className="product-card overflow-hidden cursor-pointer"
+      className="product-card cursor-pointer"
       data-product-id={product.id}
       onClick={handleCardClick}
     >
-      <div className="product-card__image relative h-64 bg-muted">
+      <div className="product-card__image relative aspect-square">
         <img 
           src={product.images?.[0] || FALLBACK_IMAGE} 
           alt={product.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           loading="lazy"
           onError={(e) => {
             const target = e.currentTarget;
@@ -87,7 +87,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm hover:bg-background"
+          className="absolute top-2 right-2 rounded-full border border-border bg-card hover:bg-card"
+          aria-label={inWishlist ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
           onClick={handleWishlistToggle}
         >
           <Heart 
@@ -98,9 +99,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </Button>
       </div>
       
-      <CardContent className="p-4">
+      <CardContent className="px-0 py-3">
         <div className="flex items-center gap-1.5 mb-1">
-          <h3 className="font-display font-semibold text-lg line-clamp-1" data-testid="product-name">{product.name}</h3>
+          <h3 className="min-h-[2.8rem] font-medium line-clamp-2" data-testid="product-name"><Link to={`/marketplace/product/${product.id}`} className="hover:underline focus-visible:outline-ring">{product.name}</Link></h3>
           {provider?.verified && (
             <TooltipProvider>
               <Tooltip>
@@ -115,23 +116,23 @@ const ProductCard = ({ product }: ProductCardProps) => {
           )}
         </div>
         
-        {provider && (
-          <button
+        {(product.artisanName || provider) && (
+          <Button variant="link"
             onClick={handleProviderClick}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors mb-2 text-left"
+            className="h-auto justify-start p-0 text-xs text-muted-foreground hover:text-primary mb-2 text-left whitespace-normal"
           >
-            by {provider.brandName}
-          </button>
+            by {product.artisanName || provider?.brandName}
+          </Button>
         )}
         
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
+        <p className="text-sm text-muted-foreground mb-3 line-clamp-1">{product.description}</p>
         
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             {product.priceRange?.min != null ? (
               <>
                 <p className="text-xs text-muted-foreground">Starting from</p>
-                <p className="text-xl font-bold text-primary">
+                <p className="text-lg font-semibold text-foreground">
                   {product.currency === "NGN" ? "₦" : "$"}{product.priceRange.min.toLocaleString()}
                 </p>
               </>
@@ -143,7 +144,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <Button 
             size="sm" 
             variant="outline" 
-            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            className="h-8 border-border px-2 text-xs text-primary"
             onClick={(e) => {
               e.stopPropagation();
               if (!product.id) {
