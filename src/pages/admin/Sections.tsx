@@ -19,9 +19,9 @@ const SECTION_GUIDE: Record<
     marketplace: "Homepage → Featured Picks",
   },
   best_sellers: {
-    purpose: "The Best Sellers shelf. Optional pins stay here. The system ranking is real orders, not the Featured Picks list.",
-    manages: "Products. Order count, then name. Nothing is copied from Featured Picks.",
-    marketplace: "Homepage → Best Sellers",
+    purpose: "The Best Sellers collection. Eligible pins appear first, followed by genuine sales-ranked or explicitly classified products.",
+    manages: "Products (curated order first). Cancelled and rejected orders never count toward the sales ranking.",
+    marketplace: "Homepage → Best Sellers and View All → Best Sellers",
   },
   featured_artisans: {
     purpose: "Pin specific artisans to the Featured Artisans homepage block.",

@@ -50,6 +50,7 @@ jobs:
             tests/playwright/order-rating-review.spec.ts \
             tests/playwright/order-production-quality.spec.ts \
             tests/playwright/admin-messaging-regression.spec.ts \
+            tests/playwright/test-order-simulator.spec.ts \
             --project=desktop \
             --reporter=list
         env:

@@ -346,6 +346,9 @@ const Orders = () => {
                             >
                               {order.paymentStatus}
                             </Badge>
+                            {order.isTestOrder && (
+                              <Badge className="bg-amber-500 text-black">TEST ORDER · SIMULATED PAYMENT</Badge>
+                            )}
                           </div>
                           <p className="mt-1 text-base font-medium text-foreground">
                             {order.productName}

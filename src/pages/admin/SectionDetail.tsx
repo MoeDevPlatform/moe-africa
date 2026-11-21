@@ -507,6 +507,14 @@ const SectionDetail = () => {
                             ? ` · score ${Math.round(item.compositeScore)}`
                             : ""}
                         </p>
+                        {item.preview?.publicEligible === false && (
+                          <p
+                            className="mt-1 text-xs font-medium text-destructive"
+                            data-testid="curated-item-ineligible-reason"
+                          >
+                            Not shown publicly: {String(item.preview.publicIneligibleReason || "Product is not publicly eligible.")}
+                          </p>
+                        )}
                       </div>
                       {index > 0 && (
                         <Button

@@ -1207,9 +1207,13 @@ export interface Order {
     | "card"
     | "bank_transfer"
     | "cod"
-    | "pay_on_delivery";
+    | "pay_on_delivery"
+    | "simulated";
   paymentReference?: string;
   paymentStatus: "unpaid" | "pending" | "paid" | "failed" | "refunded";
+  isTestOrder?: boolean;
+  testReference?: string | null;
+  simulatedPaymentStatus?: string | null;
   estimatedDelivery?: string;
   statusHistory?: OrderStatusHistoryEntry[];
   readiness?: OrderReadinessSummary | null;
@@ -1220,6 +1224,60 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TestOrderOptionUser {
+  id: number;
+  name: string;
+  email: string;
+  artisanProfile?: { brandName?: string | null; businessName?: string | null } | null;
+}
+
+export interface TestOrderOptionProduct {
+  id: number;
+  name: string;
+  price: number | null;
+  currency: string;
+  providerId: number | null;
+  images: string[];
+  imageUrl?: string | null;
+}
+
+export interface TestOrderSummary {
+  id: number;
+  testReference: string;
+  label: "TEST ORDER";
+  customerId: number;
+  artisanId: number;
+  productId: number;
+  productName: string;
+  price: number;
+  currency: string;
+  simulatedPaymentStatus: string;
+  readinessStatus: string | null;
+  initialPayoutStatus: string | null;
+  productionStatus: string | null;
+  qualityStatus: string | null;
+  deliveryStatus: string | null;
+  finalPayoutStatus: string;
+  simulationTimeScenario: string | null;
+  transfers: Array<{ id: number; amount: number; currency: string; status: string; isSimulated: boolean }>;
+  createdAt: string;
+}
+
+export const testOrdersService = {
+  config: () => apiGet<{ enabled: true; environment: string; database: string }>("/admin/test-orders/config"),
+  options: () => apiGet<{ customers: TestOrderOptionUser[]; artisans: TestOrderOptionUser[]; products: TestOrderOptionProduct[] }>("/admin/test-orders/options"),
+  list: () => apiGet<TestOrderSummary[]>("/admin/test-orders"),
+  create: (body: { productId: number; artisanId: number; customerId: number; quantity?: number }) =>
+    apiPost<TestOrderSummary>("/admin/test-orders", body),
+  recordPayout: (orderId: number, amount?: number) =>
+    apiPost(`/admin/test-orders/${orderId}/payouts/record`, amount == null ? {} : { amount }),
+  verifyPayout: (orderId: number, transferId: number) =>
+    apiPost(`/admin/test-orders/${orderId}/payouts/${transferId}/verify`, {}),
+  setTimeScenario: (orderId: number, scenario: string) =>
+    apiPost<TestOrderSummary>(`/admin/test-orders/${orderId}/time-scenario`, { scenario }),
+  cleanup: (orderId: number) => apiDelete<{ deleted: boolean; orderId: number }>(`/admin/test-orders/${orderId}`),
+};
 
 export type ArtisanPayoutStatus =
   | "requested"
@@ -3480,6 +3538,9 @@ export interface AdminOrderRow {
   paymentStatus: AdminPaymentStatus;
   paymentMethod?: string;
   isCustomOrder?: boolean;
+  isTestOrder?: boolean;
+  testReference?: string | null;
+  simulatedPaymentStatus?: string | null;
   createdAt: string;
 }
 

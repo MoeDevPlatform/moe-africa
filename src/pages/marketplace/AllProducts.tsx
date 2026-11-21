@@ -100,7 +100,7 @@ function buildFilters(
     filters.collection = "best-sellers";
     title = "Best Sellers";
     description =
-      "Products with genuine orders, plus any product marked as a best seller. Highest order count first. Cancelled and rejected orders are not counted.";
+      "Eligible admin-curated picks first, followed by products with genuine orders or a Best Seller classification. Cancelled and rejected orders are not counted.";
   } else if (sort === "trending") {
     filters.sort = "trending";
     filters.isTrending = true;
@@ -131,7 +131,7 @@ function buildFilters(
     }
     title = "Best Sellers";
     description =
-      "Products with genuine orders, plus any product marked as a best seller. Highest order count first. Cancelled and rejected orders are not counted.";
+      "Eligible admin-curated picks first, followed by products with genuine orders or a Best Seller classification. Cancelled and rejected orders are not counted.";
   } else if (collection === "deals") {
     filters.collection = "deals";
     title = "Deals For You";

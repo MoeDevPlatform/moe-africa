@@ -305,6 +305,9 @@ const ArtisanOrdersPanel = ({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
                     <p className="font-semibold">{order.productName}</p>
+                    {order.isTestOrder && (
+                      <Badge className="bg-amber-500 text-black">TEST ORDER · SIMULATED PAYMENT</Badge>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       #{order.orderNumber ?? order.id} · {new Date(order.createdAt).toLocaleString()}
                     </p>

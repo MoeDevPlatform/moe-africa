@@ -28,6 +28,7 @@ import AdminArtisanScores from "./pages/admin/ArtisanScores";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminCustomOrders from "./pages/admin/CustomOrders";
 import AdminBehaviour from "./pages/admin/Behaviour";
+import AdminTestOrders from "./pages/admin/TestOrders";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/marketplace/Landing";
 import MarketplaceHome from "./pages/marketplace/Home";
@@ -182,6 +183,7 @@ const App = () => (
                   <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminSettings /></ProtectedRoute>} />
                   <Route path="/admin/categories" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Categories /></ProtectedRoute>} />
                   <Route path="/admin/orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><Orders /></ProtectedRoute>} />
+                  <Route path="/admin/test-orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminTestOrders /></ProtectedRoute>} />
                   <Route path="/admin/disputes" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminDisputes /></ProtectedRoute>} />
                   <Route path="/admin/custom-orders" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminCustomOrders /></ProtectedRoute>} />
                   <Route path="/admin/behaviour" element={<ProtectedRoute requiredRole="admin" redirectTo="/admin/login"><AdminBehaviour /></ProtectedRoute>} />

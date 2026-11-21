@@ -143,6 +143,9 @@ const OrderDetail = () => {
           <div>
             <h1 className="text-2xl font-display font-bold">Order #{order.orderNumber ?? order.id}</h1>
             <p className="text-sm text-muted-foreground">{order.productName}</p>
+            {order.isTestOrder && (
+              <Badge className="mt-1 bg-amber-500 text-black">TEST ORDER · SIMULATED PAYMENT</Badge>
+            )}
           </div>
           <Badge className="ml-auto capitalize">{order.status.replace(/_/g, " ")}</Badge>
         </div>

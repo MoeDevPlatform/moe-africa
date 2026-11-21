@@ -17,12 +17,13 @@ import {
   AlertTriangle,
   Sparkles,
   Activity,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { adminMessagingService } from "@/lib/apiServices";
+import { adminMessagingService, testOrdersService } from "@/lib/apiServices";
 import logo from "@/assets/logo.png";
 
 interface AdminLayoutProps {
@@ -32,6 +33,7 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [testOrdersAvailable, setTestOrdersAvailable] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
@@ -45,6 +47,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    testOrdersService.config().then(() => setTestOrdersAvailable(true)).catch(() => setTestOrdersAvailable(false));
+  }, []);
+
   const navigation = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
@@ -55,6 +61,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
     { name: "Customer Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMessages },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    ...(testOrdersAvailable
+      ? [{ name: "Test Orders", href: "/admin/test-orders", icon: FlaskConical }]
+      : []),
     { name: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
     { name: "Custom Orders", href: "/admin/custom-orders", icon: Sparkles },
     { name: "Behaviour", href: "/admin/behaviour", icon: Activity },
