@@ -44,11 +44,12 @@ jobs:
           done
           echo "Preview failed to start"; cat /tmp/vite-preview.log; exit 1
 
-      - name: Run order rating + production/quality Playwright specs
+      - name: Run order and messaging Playwright regressions
         run: |
           npx playwright test \
             tests/playwright/order-rating-review.spec.ts \
             tests/playwright/order-production-quality.spec.ts \
+            tests/playwright/admin-messaging-regression.spec.ts \
             --project=desktop \
             --reporter=list
         env:

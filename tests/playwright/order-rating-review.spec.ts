@@ -25,6 +25,10 @@ test.describe("Order ratings & reviews UI", () => {
     await page.route(/\/orders\/777(\/.*)?$/, async (route) => {
       const url = route.request().url();
       const method = route.request().method();
+      if (route.request().resourceType() === "document") {
+        await route.continue();
+        return;
+      }
       if (method === "GET" && url.includes("/tracking")) {
         await route.fulfill({
           status: 200,
