@@ -75,6 +75,7 @@ import DesignedForField from "@/components/products/DesignedForField";
 import {
   audienceLabel,
   requiresProductAudience,
+  suggestProductAudience,
   type ProductAudience,
 } from "@/lib/productAudience";
 
@@ -310,7 +311,14 @@ const Products = () => {
         audienceStatus: audienceStatus === "all" ? undefined : audienceStatus,
       })
       .then((res) => {
-        setRows(res.data ?? []);
+        setRows(
+          (res.data ?? []).map((row) => {
+            // Backend suggestions win; only fill gaps from the product's own name/category.
+            if ((row.designedFor?.length ?? 0) > 0 || row.audienceSuggestion?.length || row.audienceClassificationStatus) return row;
+            const hint = suggestProductAudience(row);
+            return { ...row, designedFor: [], audienceSuggestion: hint.designedFor, audienceClassificationStatus: hint.status };
+          }),
+        );
         setPagination(
           res.pagination ?? { page, pageSize: 20, totalPages: 1, totalItems: 0 },
         );

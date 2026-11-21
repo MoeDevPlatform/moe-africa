@@ -1,3 +1,4 @@
+import { matchesAudience, parseAudienceQuery } from "@/lib/productAudience";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -44,14 +45,15 @@ function buildFilters(
   const maxPrice = searchParams.get("maxPrice");
   const maxDeliveryDays = searchParams.get("maxDeliveryDays");
   const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
-  const audience = searchParams.get("audience");
+  const parsedQuery = parseAudienceQuery(searchQuery);
+  const audience = searchParams.get("audience") || parsedQuery.audience;
 
   const filters: Record<string, unknown> = {};
   let title = "All Products";
   let description = "Explore our complete collection of handcrafted African products";
 
   if (searchQuery) {
-    filters.q = searchQuery;
+    filters.q = parsedQuery.audience && parsedQuery.rest ? parsedQuery.rest : searchQuery;
     title = `Results for “${searchQuery}”`;
     description = "Products matching your search";
   }
@@ -217,14 +219,11 @@ function applyClientFilters(products: Product[], params: URLSearchParams): Produ
   let rows = [...products];
   const category = params.get("category");
   if (category && category !== "all") rows = rows.filter((row) => row.category === category);
-  const audience = params.get("audience");
-  if (audience) {
-    rows = rows.filter((row) => {
-      const values = row.designedFor ?? [];
-      if (audience === "children") return values.includes("children");
-      if (audience === "unisex") return values.includes("unisex");
-      return values.includes(audience as "men" | "women") || values.includes("unisex");
-    });
+  const audience =
+    params.get("audience") ||
+    parseAudienceQuery((params.get("q") || params.get("search") || "").trim()).audience;
+  if (audience && audience !== "all") {
+    rows = rows.filter((row) => matchesAudience(row.designedFor, audience));
   }
   const minRaw = params.get("minPrice");
   const maxRaw = params.get("maxPrice");

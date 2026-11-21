@@ -927,3 +927,21 @@ Frontend only: no backend implementation or migration was performed in this spri
 - `POST /custom-orders`: accept optional `budgetMin`, `budgetMax`, `specialInstructions`, `category`, and `categoryDetails` (JSON string-valued fields), alongside `artisanId`, `description`, `referenceImages`, `deadline`. Validate description >=50 characters, reference images <=3, max budget >= min budget, nonnegative budgets, supplied deadline >=7 calendar days from today, engraving <=30 characters. Category fields: tailoring occasion/fabric/chest/waist/hips/shoulderWidth/sleeveLength/trouserLength/lining; shoemaking footSize/footSizeUnit/sole/colour; jewellery type/metal/size/engraving; leatherwork itemType/colour/dimensions/hardware; home/arts width/height/depth/colourScheme/placement. Measurements are positive and in cm except jewellery circumference in mm; shoe unit EU/UK/US.
 - Reference-image upload contract remains unconfirmed: no customer-accessible generic image-upload endpoint exists in the current service layer. The structured form currently sends validated JPEG/PNG/WebP files (existing 5MB/file limit) as base64 data URLs in `referenceImages`, **never browser-local blob URLs**. Confirm the commission endpoint accepts and persists these, with request-size limits for 3 files, or supply a customer-accessible upload endpoint returning permanent URLs. Do not use artisan-only product uploads for customers. A rejected upload/request leaves the form open with an inline error. Structured commissions intentionally do not fall back to `/orders/custom-requests`, which would lose fields.
 - `GET /artisans/me`: supply optional numeric `totalOrders` and `profileViews`. Dashboard shows `—` rather than inventing counts when absent, with no added fetching or dashboard state logic.
+
+## Product audience ("Designed For") — non-destructive migration
+
+```prisma
+enum ProductAudience { men women children unisex }
+model Product {
+  // ...existing fields untouched
+  designedFor                   ProductAudience[] @default([])
+  audienceClassificationStatus  String?   // classified | suggested | uncertain | not_applicable
+  audienceSuggestion            ProductAudience[] @default([])
+}
+```
+SQL equivalent: `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "designedFor" "ProductAudience"[] NOT NULL DEFAULT '{}'` (+ the two other columns). Additive only — no rows deleted or rewritten.
+
+- `POST/PATCH /artisans/me/products` and `POST /admin/products` accept `designedFor: string[]`; reject empty for tailoring/shoemaking.
+- `GET /products?audience=men|women` returns that audience **plus unisex**; `audience=children` returns only children. Unclassified products stay in unfiltered listings.
+- `GET /admin/products?audienceStatus=needs_review` lists products with empty `designedFor` in applicable categories, with `audienceSuggestion` filled only on clear text evidence, else status `uncertain`.
+- `PATCH /admin/products/:id/audience { designedFor }` and `POST /admin/products/classification/bulk-approve { items }` make a classification definitive.
