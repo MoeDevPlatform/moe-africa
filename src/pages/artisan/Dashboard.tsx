@@ -463,7 +463,7 @@ const ArtisanDashboard = () => {
 
         {/* Quick Stats */}
         <div
-          className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8"
+          className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6"
           data-testid="dashboard-stats"
         >
           {[
@@ -485,11 +485,11 @@ const ArtisanDashboard = () => {
             { label: "Profile Views", value: artisanProfile?.profileViews ?? "—", icon: Eye },
           ].map(({ label, value, icon: Icon, testId, onClick }) => {
             const body = (
-              <CardContent className="flex flex-col items-start gap-3 p-4">
-                <div className="p-2 rounded-lg bg-primary/10">
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="p-2 shrink-0 rounded-lg bg-primary/10">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">{label}</p>
                   {isLoadingProfile || isLoadingProducts ? <Skeleton className="h-8 w-16 mt-1" /> : <p className="text-3xl font-semibold mt-1">{value}</p>}
                 </div>
@@ -581,7 +581,7 @@ const ArtisanDashboard = () => {
                 {isLoadingProducts ? (
                   <div role="status" aria-label="Loading" className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} variant="table-row" />)}</div>
                 ) : products.length === 0 ? (
-                  <div className="text-center py-12">
+                  <div className="text-center py-8">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-1">No products yet</h3>
                     <p className="text-muted-foreground mb-4">Start adding your artisan products</p>

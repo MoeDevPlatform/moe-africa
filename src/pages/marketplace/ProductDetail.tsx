@@ -306,9 +306,9 @@ const ProductDetail = () => {
           Back
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left — Image Gallery (60%) */}
-          <div className="lg:col-span-3">
+          <div className="product-gallery">
             <ProductImageGallery
               images={product.images}
               productName={product.name}
@@ -316,7 +316,7 @@ const ProductDetail = () => {
           </div>
 
           {/* Right — Product Info (40%) */}
-          <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
+          <div className="min-w-0 flex flex-col gap-4">
             {/* 1. Category badge */}
             <div>
               <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-none">
@@ -373,12 +373,12 @@ const ProductDetail = () => {
 
             {/* 5. Price — displayPrice may be overridden by variation selection */}
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+              <p className="text-sm font-medium text-muted-foreground mb-1">
                 Price
               </p>
               <p
                 key={priceKey}
-                className="text-2xl font-bold text-primary product-price-animate flex flex-wrap items-baseline gap-2"
+                className="text-3xl font-bold text-primary product-price-animate flex flex-wrap items-baseline gap-2"
                 data-testid="product-price"
               >
                 {overrideActive ? (
@@ -446,7 +446,7 @@ const ProductDetail = () => {
 
             {/* 7. Description */}
             {product.description && (
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-base text-foreground/90 leading-relaxed">
                 {product.description}
               </p>
             )}
@@ -520,7 +520,7 @@ const ProductDetail = () => {
             </div>
 
             {/* 10. Action buttons (desktop only — mobile uses sticky bar below) */}
-            <div className="hidden lg:flex flex-col gap-2">{ActionButtons}</div>
+            <div className="hidden lg:block"><div className="product-purchase-actions">{ActionButtons}</div></div>
           </div>
         </div>
 

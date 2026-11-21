@@ -1,4 +1,7 @@
 # Commerce frontend sprint
+- [x] Final refinement: shared width/gutters, density, surface depth and interactive states.
+- [x] Final refinement: product gallery, storefront, cart, inbox and account/dashboard presentation.
+- [x] Final refinement: public desktop/tablet/mobile preview checks; authenticated dashboard/populated account and inbox checks blocked by unavailable session (documented in docs/final-visual-refinement.md).
 - [x] Marketplace redesign: shared visual foundation and navigation.
 - [x] Marketplace redesign: homepage shelves, product collections and artisan discovery.
 - [x] Marketplace redesign: storefront, product detail and customer account presentation.

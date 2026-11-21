@@ -119,7 +119,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         {(product.artisanName || provider) && (
           <Button variant="link"
             onClick={handleProviderClick}
-            className="h-auto justify-start p-0 text-xs text-muted-foreground hover:text-primary mb-2 text-left whitespace-normal"
+            className="h-auto justify-start p-0 text-sm text-muted-foreground hover:text-primary mb-2 text-left whitespace-normal"
           >
             by {product.artisanName || provider?.brandName}
           </Button>
@@ -144,7 +144,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <Button 
             size="sm" 
             variant="outline" 
-            className="h-8 border-border px-2 text-xs text-primary"
+            className="min-h-9 border-border px-3 text-sm text-primary"
             onClick={(e) => {
               e.stopPropagation();
               if (!product.id) {

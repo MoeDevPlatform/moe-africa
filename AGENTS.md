@@ -10,3 +10,4 @@
 - Use AnimatedSection and RouteEntry for entry-only CSS motion and the common Skeleton variants for loading; respect reduced-motion preferences.
 - Keep the dashboard redesign presentational: quick actions invoke existing controls, stats read optional profile aggregates, and product rows share a desktop-table/mobile-card layout.
 - Scope shared marketplace presentation through marketplace-page, commerce-tabs and product-media roles; reuse semantic CSS tokens so refinements preserve page APIs and state.
+- Keep density refinements in shared responsive page roles; gallery, summary and inbox lanes get explicit proportionate tracks so desktop spacing never shrinks mobile gutters.

@@ -97,7 +97,7 @@ const ProviderCard = ({ provider }: ProviderCardProps) => {
         )}
       </div>
       
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
           <h3 className="min-w-0 text-lg font-semibold hover:text-primary transition-colors" data-testid="artisan-name">
             {(provider as Provider & { businessName?: string }).businessName || provider.brandName}

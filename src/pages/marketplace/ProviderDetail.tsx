@@ -205,8 +205,8 @@ const ProviderDetail = () => {
           </button>
           
           </div>
-          <div className="container mx-auto px-4 py-6">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
                   <h1 className="text-3xl md:text-4xl font-display font-semibold break-words">{provider.brandName}</h1>
@@ -275,9 +275,9 @@ const ProviderDetail = () => {
 
         {/* Content */}
         <section className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2">
+            <div className="min-w-0">
               <Tabs defaultValue="products" className="w-full">
                 <TabsList className="commerce-tabs">
                   <TabsTrigger value="products">Products</TabsTrigger>
@@ -312,7 +312,7 @@ const ProviderDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="products" className="mt-6">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-8">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
                     {products.map((product) => (
                       <ProductCard key={product.id} product={product} providerId={provider.id} />
                     ))}
@@ -349,7 +349,7 @@ const ProviderDetail = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <div className="py-4 sticky top-24">
+              <div className="storefront-contact sticky top-36">
                 <h3 className="font-semibold mb-4">Contact Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">

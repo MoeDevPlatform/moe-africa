@@ -63,7 +63,7 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Main Image Carousel */}
       <div className="relative">
         <div
@@ -149,14 +149,14 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
       </div>
 
       {/* Thumbnail Strip */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {images.map((image, index) => (
           <ImageThumbnail
             key={index}
             onClick={() => scrollTo(index)}
             selected={selectedIndex === index}
             aria-label={`View ${productName} image ${index + 1}`}
-            className="w-20 h-20 rounded-lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg"
           >
             <img loading="lazy" decoding="async"
               src={image}

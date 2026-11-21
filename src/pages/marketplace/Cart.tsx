@@ -66,14 +66,14 @@ const Cart = () => {
             </Link>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] items-start gap-6">
             {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="min-w-0 space-y-3">
               {items.map((item) => {
                 const product = getProductById(item.productId);
                 return (
-                <Card key={item.id}>
-                  <CardContent className="p-6">
+                <Card key={item.id} className="account-panel">
+                  <CardContent className="p-4 sm:p-5">
                     <div className="flex flex-wrap sm:flex-nowrap gap-4">
                       <img loading="lazy" decoding="async" 
                         src={item.imageUrl || product?.images?.[0] || "/placeholder.svg"} 
@@ -87,7 +87,7 @@ const Cart = () => {
                       />
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold mb-1">{item.productName}</h3>
+                        <h3 className="text-lg font-semibold mb-1">{item.productName}</h3>
                         <p className="text-sm text-muted-foreground mb-3">by {item.providerName}</p>
                         
                         <div className="space-y-1 mb-3">
@@ -146,6 +146,8 @@ const Cart = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
+                            aria-label={`Edit ${item.productName}`}
+                            title="Edit item"
                             onClick={() => handleEditItem(item)}
                           >
                             <Edit className="h-4 w-4" />
@@ -153,6 +155,8 @@ const Cart = () => {
                           <Button 
                             variant="outline" 
                             size="sm" 
+                            aria-label={`Remove ${item.productName} from cart`}
+                            title="Remove item"
                             className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
                             onClick={() => setDeleteItemId(item.id)}
                           >
@@ -167,10 +171,10 @@ const Cart = () => {
             </div>
 
             {/* Order Summary */}
-            <div>
-              <Card className="sticky top-24">
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-display font-bold mb-6">Order Summary</h2>
+            <div className="cart-summary">
+              <Card className="account-panel border-primary/25">
+                <CardContent className="p-5">
+                  <h2 className="text-xl font-display font-bold mb-4">Order Summary</h2>
                   
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-muted-foreground">

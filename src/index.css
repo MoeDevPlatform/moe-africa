@@ -199,9 +199,9 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
 /* Shared marketplace presentation; API/state logic stays in the existing pages. */
 @layer components {
   .marketplace-page { background: hsl(var(--surface)); }
-  .marketplace-page .container, .artisan-dashboard .container, .marketplace-nav .container { max-width: 1320px; padding-inline: 1rem; }
+  .marketplace-page .container, .artisan-dashboard .container, .marketplace-nav .container { max-width: 1440px; padding-inline: 1rem; }
   .marketplace-page main > h1, .marketplace-page .page-heading h1, .artisan-dashboard main > div:first-child h1 { font-size: 2rem; line-height: 1.2; }
-  .page-heading { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
+  .page-heading { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid hsl(var(--border)); }
   .catalogue-toolbar { padding-block: 1rem; border-block: 1px solid hsl(var(--border)); }
   .product-card { min-width: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   .product-card__image, .product-media { aspect-ratio: 1; background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.65); border-radius: var(--radius); }
@@ -212,7 +212,7 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
   .commerce-tabs [role="tab"] { flex: 0 0 auto; min-width: auto; padding: 1rem 0.125rem; border-radius: 0; border-bottom: 2px solid transparent; background: transparent; box-shadow: none; }
   .commerce-tabs [role="tab"][data-state="active"] { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); background: transparent; box-shadow: none; }
   .commerce-empty { padding: 3rem 1rem; border: 0; background: transparent; box-shadow: none; text-align: center; }
-  .customer-page main { max-width: 1120px; }
+  .customer-page main { max-width: 1320px; }
   .account-panel { border-radius: var(--radius); box-shadow: none; }
   .artisan-dashboard [data-testid="dashboard-stats"] > div { border: 1px solid hsl(var(--border)); border-radius: var(--radius); box-shadow: none; }
   .artisan-dashboard .profile-form-section__hint { font-size: 0.875rem; }
@@ -229,7 +229,7 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
   .compact-shelf > * { width: min(100%, 280px); }
 }
 @media (min-width: 768px) {
-  .marketplace-page .container, .artisan-dashboard .container, .marketplace-nav .container { padding-inline: 2rem; }
+  .marketplace-page .container, .artisan-dashboard .container, .marketplace-nav .container { padding-inline: 1.5rem; }
   .marketplace-page main > h1, .marketplace-page .page-heading h1, .artisan-dashboard main > div:first-child h1 { font-size: 2.5rem; }
   .hero-banner { height: 340px; }
   .hero-banner h2 { font-size: 2.5rem; }
@@ -250,3 +250,53 @@ header nav button[class*="h-10 w-10"]:hover { background-color: hsl(var(--primar
 .short-product-shelf [role="group"][aria-roledescription="slide"] { flex-basis: min(100%, 280px); }
 .product-detail-page .product-mobile-actions > button:first-child { grid-column: 1 / -1; }
 .marketplace-page .page-heading:has(.catalogue-toolbar) { border-bottom: 0; padding-bottom: 0; }
+
+/* Final density and depth pass: shared roles keep all existing flows intact. */
+.marketplace-page main.container, .artisan-dashboard main.container { padding-top: 1.5rem; padding-bottom: 2rem; }
+.marketplace-page .page-heading, .artisan-dashboard .page-heading { margin-bottom: 1.5rem; padding-bottom: 1rem; }
+.marketplace-page .catalogue-toolbar { padding-block: 0.75rem; }
+.marketplace-page .product-card__image { box-shadow: var(--shadow-sm); transition: border-color 180ms ease, box-shadow 180ms ease; }
+.marketplace-page .product-card:is(:hover, :focus-within) .product-card__image { border-color: hsl(var(--primary) / 0.45); box-shadow: var(--shadow-md); }
+.marketplace-page .product-card:is(:hover, :focus-within) h3 { color: hsl(var(--primary)); }
+.marketplace-page .artisan-card { box-shadow: var(--shadow-sm); transition: border-color 180ms ease, box-shadow 180ms ease; }
+.marketplace-page .artisan-card:is(:hover, :focus-within) { border-color: hsl(var(--primary) / 0.4); box-shadow: var(--shadow-md); }
+.marketplace-page .account-panel { background: hsl(var(--card)); box-shadow: var(--shadow-sm); }
+.commerce-tabs[role="tablist"], .dashboard-tabs[role="tablist"] { gap: 1rem; scrollbar-gutter: stable; }
+.commerce-tabs[role="tablist"] [role="tab"], .dashboard-tabs [role="tab"] { padding: 0.75rem 0.5rem; transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease; }
+.commerce-tabs [role="tab"]:hover, .dashboard-tabs [role="tab"]:hover { color: hsl(var(--primary)); background: hsl(var(--primary) / 0.04); }
+.commerce-tabs[role="tablist"] [role="tab"][data-state="active"], .dashboard-tabs [role="tab"][data-state="active"] { background: hsl(var(--primary) / 0.06); font-weight: 600; }
+.commerce-empty { padding-block: 2rem; }
+.marketplace-home .home-band { background: hsl(var(--primary) / 0.035); }
+.artisan-dashboard [data-testid="dashboard-stats"] > div { background: hsl(var(--card)); box-shadow: var(--shadow-sm); }
+.artisan-dashboard [data-testid="dashboard-stats"] > div:has(button):hover { border-color: hsl(var(--primary) / 0.4); }
+.artisan-dashboard main > [data-orientation] > [role="tabpanel"] > div { box-shadow: var(--shadow-sm); }
+.artisan-dashboard [role="tabpanel"] > div > div:first-child { padding: 1rem 1.25rem; }
+.artisan-dashboard [role="tabpanel"] > div > div:nth-child(2) { padding: 0 1.25rem 1.25rem; }
+.dashboard-products [role="columnheader"] { font-size: 0.875rem; }
+.storefront-page main { padding-top: 0; }
+.storefront-contact { padding: 1.25rem; border-left: 3px solid hsl(var(--primary) / 0.4); background: hsl(var(--primary) / 0.04); }
+.messages-page main.container { max-width: 1440px; }
+.message-workspace { height: min(720px, calc(100dvh - 220px)); min-height: 420px; display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); border: 1px solid hsl(var(--border)); border-radius: var(--radius); overflow: hidden; background: hsl(var(--card)); box-shadow: var(--shadow-sm); }
+.message-sidebar { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; border-right: 1px solid hsl(var(--border)); background: hsl(var(--primary) / 0.025); }
+.message-conversation { border-bottom: 1px solid hsl(var(--border)); transition: background-color 160ms ease; }
+.message-conversation:has([aria-pressed="true"]) { background: hsl(var(--primary) / 0.09); box-shadow: inset 3px 0 hsl(var(--primary)); }
+.message-conversation:hover { background: hsl(var(--primary) / 0.05); }
+.message-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.message-main > [data-testid="messages-thread"] { flex: 1; background: hsl(var(--surface)); }
+.message-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; text-align: center; padding: 1.5rem; background: hsl(var(--surface)); }
+.product-detail-page .product-gallery { min-width: 0; }
+.product-detail-page .product-purchase-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.product-detail-page .product-purchase-actions > button:first-child { grid-column: 1 / -1; }
+@media (min-width: 1024px) {
+  .product-detail-page .product-gallery { position: sticky; top: 150px; align-self: start; }
+  .cart-summary { position: sticky; top: 150px; }
+}
+@media (max-width: 767px) {
+  .message-workspace { grid-template-columns: minmax(0, 1fr); height: min(680px, calc(100dvh - 170px)); }
+  .message-workspace[data-selected="true"] .message-sidebar, .message-workspace[data-selected="false"] .message-main { display: none; }
+  .message-sidebar { border-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-card__image img, .artisan-card, .product-card__image, .commerce-tabs [role="tab"], .dashboard-tabs [role="tab"] { transition: none; }
+  .product-card:hover .product-card__image img { transform: none; }
+}

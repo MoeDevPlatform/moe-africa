@@ -21,6 +21,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { messagingService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
+import ChatThread from "@/components/marketplace/ChatThread";
 
 interface Conversation {
   id?: number;
@@ -39,6 +40,7 @@ const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [clearing, setClearing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -151,16 +153,10 @@ const Messages = () => {
   }, [searchParams, navigate]);
 
   const handleOpenConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
     setConversations((prev) =>
       prev.map((c) => (c.providerId === conversation.providerId ? { ...c, unread: false } : c)),
     );
-    if (conversation.id) {
-      navigate(`/marketplace/messages/${conversation.id}`);
-    } else {
-      navigate(
-        `/marketplace/messages/0?providerId=${conversation.providerId}&providerName=${encodeURIComponent(conversation.providerName)}`,
-      );
-    }
   };
 
   const clearLocalConversationCache = () => {
@@ -176,6 +172,7 @@ const Messages = () => {
   };
 
   const handleClearAll = async () => {
+    setSelectedConversation(null);
     setClearing(true);
     try {
       const res = await messagingService.deleteAllConversations({ as: "customer" });
@@ -211,6 +208,7 @@ const Messages = () => {
 
   const handleDeleteOne = async (conversation: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (selectedConversation?.providerId === conversation.providerId) setSelectedConversation(null);
     if (!conversation.id) {
       setConversations((prev) => prev.filter((c) => c.providerId !== conversation.providerId));
       try {
@@ -245,10 +243,10 @@ const Messages = () => {
   };
 
   return (
-    <div className="marketplace-page customer-page min-h-screen">
+    <div className="marketplace-page customer-page messages-page min-h-screen">
       <MarketplaceNavbar />
       <main className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="min-w-0">
           <div className="page-heading flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-display font-bold mb-2">Messages</h1>
@@ -293,17 +291,24 @@ const Messages = () => {
               </div>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="message-workspace" data-selected={selectedConversation !== null}>
+              <aside className="message-sidebar" aria-label="Conversations">
               {conversations
-                .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime())
+                .slice().sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime())
                 .map((conversation) => (
-                  <Card
+                  <div
                     key={`${conversation.id ?? "local"}_${conversation.providerId}`}
-                    className="account-panel p-4 hover:border-primary cursor-pointer transition-colors"
-                    onClick={() => handleOpenConversation(conversation)}
+                    className="message-conversation flex items-center gap-1 pr-2"
                   >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-12 w-12">
+                    <Button
+                      variant="ghost"
+                      className="h-auto min-w-0 flex-1 justify-start whitespace-normal rounded-none p-4 text-left"
+                      aria-label={`Open conversation with ${conversation.providerName}`}
+                      aria-pressed={selectedConversation?.providerId === conversation.providerId}
+                      onClick={() => handleOpenConversation(conversation)}
+                    >
+                    <div className="flex w-full min-w-0 items-start gap-3">
+                      <Avatar className="h-10 w-10 shrink-0">
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {conversation.providerName.charAt(0)}
                         </AvatarFallback>
@@ -318,6 +323,8 @@ const Messages = () => {
                         <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                       </div>
                       {conversation.unread && <Badge variant="default" className="shrink-0">New</Badge>}
+                    </div>
+                    </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -328,9 +335,35 @@ const Messages = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
-                  </Card>
+                  </div>
                 ))}
+              </aside>
+              <section className="message-main" aria-label="Message area">
+                {selectedConversation ? (
+                  <>
+                    <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-4 py-3">
+                      <div className="min-w-0">
+                        <h2 className="font-semibold break-words">Re: {selectedConversation.providerName}</h2>
+                        <p className="text-sm text-muted-foreground">Replies from MoE Support</p>
+                      </div>
+                      <Button variant="outline" size="sm" className="md:hidden" onClick={() => setSelectedConversation(null)}>Back</Button>
+                    </div>
+                    <ChatThread
+                      key={`${selectedConversation.id ?? "local"}_${selectedConversation.providerId}`}
+                      providerId={selectedConversation.providerId}
+                      providerName={selectedConversation.providerName}
+                      initialConversationId={selectedConversation.id}
+                      embedded
+                    />
+                  </>
+                ) : (
+                  <div className="message-placeholder">
+                    <MessageSquare className="h-10 w-10 text-primary" aria-hidden="true" />
+                    <h2 className="text-xl font-display font-semibold">Your conversations</h2>
+                    <p className="text-sm text-muted-foreground">No conversation selected</p>
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>

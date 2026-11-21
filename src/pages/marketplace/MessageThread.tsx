@@ -83,9 +83,9 @@ const MessageThread = () => {
   }, [numericConversationId, queryProviderId]);
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="marketplace-page customer-page messages-page min-h-screen flex flex-col">
       <MarketplaceNavbar />
-      <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl">
+      <main className="flex-1 container mx-auto px-4 py-6">
         <button
           onClick={() => navigate("/marketplace/messages")}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
