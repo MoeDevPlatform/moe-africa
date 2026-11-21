@@ -18,12 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Store, Package, Plus, Pencil, Trash2, BarChart3,
   Star, CheckCircle, ImagePlus, Loader2, AlertCircle, Upload, X, MessageSquare, ClipboardList,
-  Sparkles, ShoppingBag, Eye, ExternalLink,
+  Sparkles, ShoppingBag, Eye, ExternalLink, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Product } from "@/data/mockData";
 import CustomerInquiries from "@/components/artisan/CustomerInquiries";
 import VerificationSection from "@/components/artisan/VerificationSection";
+import ArtisanEarningsPanel from "@/components/artisan/ArtisanEarningsPanel";
+import ProfileCompletionCard from "@/components/artisan/ProfileCompletionCard";
 import ArtisanOrdersPanel from "@/components/artisan/ArtisanOrdersPanel";
 import ArtisanCustomOrdersPanel from "@/components/artisan/ArtisanCustomOrdersPanel";
 import { countries, getStatesByCountry } from "@/data/countryStateData";
@@ -551,6 +553,9 @@ const ArtisanDashboard = () => {
             <TabsTrigger value="verification" className="flex items-center gap-2 flex-1">
               <CheckCircle className="h-4 w-4" /> Verification
             </TabsTrigger>
+            <TabsTrigger value="earnings" className="flex items-center gap-2 flex-1">
+              <Wallet className="h-4 w-4" /> Earnings &amp; Payouts
+            </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-2 flex-1">
               <Store className="h-4 w-4" /> Business Profile
             </TabsTrigger>
@@ -688,8 +693,17 @@ const ArtisanDashboard = () => {
             <VerificationSection />
           </TabsContent>
 
+          <TabsContent value="earnings">
+            <ArtisanEarningsPanel />
+          </TabsContent>
+
           {/* Business Profile Tab */}
           <TabsContent value="profile">
+            {artisanProfile ? (
+              <ProfileCompletionCard
+                profile={{ ...artisanProfile, email: user?.email, phone: (artisanProfile as unknown as { phone?: string }).phone, productCount: products.length }}
+              />
+            ) : null}
             <Card>
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">

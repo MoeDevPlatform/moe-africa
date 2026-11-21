@@ -404,7 +404,7 @@ const ArtisanDetailPage = () => {
                   documents.map((doc) => (
                     <div key={doc.id} className="rounded-lg border p-4 space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-medium capitalize">{doc.type.replace(/_/g, " ")}</p>
+                        <p className="font-medium capitalize">{doc.type.replace(/_/g, " ")}{doc.documentName ? ` — ${doc.documentName}` : ""}</p>
                         <Badge variant="outline" className="capitalize">{doc.status}</Badge>
                       </div>
                       {doc.fileUrl && (

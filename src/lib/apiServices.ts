@@ -2910,6 +2910,10 @@ export interface VerificationDocument {
   fileUrl?: string;
   adminNotes?: string | null;
   uploadedAt: string;
+  /** Required name for "other" documents. */
+  documentName?: string | null;
+  /** Stable identity used for replacement (type, or other:<slug>). */
+  documentKey?: string | null;
 }
 
 function mapVerificationDoc(raw: Record<string, unknown>): VerificationDocument {
@@ -2935,6 +2939,8 @@ function mapVerificationDoc(raw: Record<string, unknown>): VerificationDocument 
         : typeof raw.createdAt === "string"
           ? raw.createdAt
           : new Date().toISOString(),
+    documentName: typeof raw.documentName === "string" ? raw.documentName : typeof raw.name === "string" ? raw.name : null,
+    documentKey: typeof raw.documentKey === "string" ? raw.documentKey : null,
   };
 }
 
@@ -2954,12 +2960,19 @@ export const verificationService = {
       return [];
     }
   },
-  upload: async (type: VerificationDocumentType, file: File): Promise<VerificationDocument> => {
+  upload: async (
+    type: VerificationDocumentType,
+    file: File,
+    // Only sent for "other" docs: extra multipart fields would trip forbidNonWhitelisted on fixed types.
+    meta?: { documentName?: string; documentKey?: string },
+  ): Promise<VerificationDocument> => {
     validateVerificationUploadFile(file);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("fileType", type);
     formData.append("type", type);
+    if (type === "other" && meta?.documentName) formData.append("documentName", meta.documentName);
+    if (type === "other" && meta?.documentKey) formData.append("documentKey", meta.documentKey);
     const base = (import.meta.env?.VITE_API_BASE_URL ??
       import.meta.env?.VITE_MOE_API_BASE_URL ??
       "https://moe-backend.duckdns.org") as string;
