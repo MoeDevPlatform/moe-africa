@@ -53,6 +53,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
       testMatch: [/ui-audit\.spec\.ts/, /visual-regression\.spec\.ts/, /accessibility\.spec\.ts/, /mobile\.spec\.ts/],
     },
+    {
+      name: 'lifecycle',
+      testMatch: [/test-order-lifecycle\.spec\.ts/],
+      retries: 0,
+      timeout: 600_000,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, video: 'on', screenshot: 'on' },
+    },
     // Alias kept for existing npm scripts (`--project=chromium`)
     {
       name: 'chromium',

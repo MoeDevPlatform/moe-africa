@@ -36,3 +36,6 @@ dist-ssr
 /playwright/.auth/
 
 src/Moe Images/
+# Local simulator test accounts
+tests/test-accounts.local.json
+test-results/lifecycle/
