@@ -16,6 +16,11 @@ import { toast } from "sonner";
 import { PRODUCT_CATEGORIES, toCategoryValue } from "@/lib/categories";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
+import DesignedForField from "@/components/products/DesignedForField";
+import {
+  requiresProductAudience,
+  type ProductAudience,
+} from "@/lib/productAudience";
 
 interface AddProductModalProps {
   open: boolean;
@@ -52,6 +57,7 @@ type ProductFieldErrors = {
   priceMin?: string;
   priceMax?: string;
   estimatedDelivery?: string;
+  designedFor?: string;
 };
 
 interface UploadedImage {
@@ -75,6 +81,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     estimatedDelivery: "",
     tags: [] as string[],
     stockCount: "",
+    designedFor: [] as ProductAudience[],
   });
   const [tagInput, setTagInput] = useState("");
   const [submitError, setSubmitError] = useState("");
@@ -112,6 +119,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
           typeof editProduct.stockCount === "number"
             ? String(editProduct.stockCount)
             : "",
+        designedFor: Array.isArray(editProduct.designedFor)
+          ? editProduct.designedFor
+          : [],
       });
       setImages(
         (editProduct.images ?? []).map((url) => ({ url, name: url, previewUrl: url })),
@@ -130,6 +140,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         estimatedDelivery: "",
         tags: [],
         stockCount: "",
+        designedFor: [],
       });
       setImages([]);
       setVariationTypes([]);
@@ -208,6 +219,9 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (!form.name.trim()) errors.name = "Product name is required.";
     if (!form.description.trim()) errors.description = "Description is required.";
     if (!form.category) errors.category = "Please select a category.";
+    if (requiresProductAudience(form.category) && form.designedFor.length === 0) {
+      errors.designedFor = "Select at least one audience for clothing or footwear.";
+    }
 
     const min = Number(form.priceMin);
     const max = Number(form.priceMax);
@@ -254,6 +268,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         name: form.name.trim(),
         description: form.description.trim(),
         category: toCategoryValue(form.category),
+        designedFor: form.designedFor,
         currency: "NGN",
         priceMin: Number(form.priceMin),
         priceMax: Number(form.priceMax),
@@ -308,6 +323,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
         materials: "", estimatedDelivery: "", tags: [], stockCount: "",
+        designedFor: [],
       });
       setSubmitError("");
     } catch (err: unknown) {
@@ -386,6 +402,14 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
               <p className="text-xs text-destructive">{fieldErrors.category}</p>
             )}
           </div>
+
+          <DesignedForField
+            value={form.designedFor}
+            onChange={(value) => updateForm("designedFor", value)}
+            required={requiresProductAudience(form.category)}
+            disabled={isSubmitting}
+            error={fieldErrors.designedFor}
+          />
 
           <ProductVariationsEditor
             category={form.category}

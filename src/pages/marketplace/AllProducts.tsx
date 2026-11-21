@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import MarketplaceNavbar from "@/components/marketplace/Navbar";
@@ -44,6 +44,7 @@ function buildFilters(
   const maxPrice = searchParams.get("maxPrice");
   const maxDeliveryDays = searchParams.get("maxDeliveryDays");
   const searchQuery = (searchParams.get("q") || searchParams.get("search") || "").trim();
+  const audience = searchParams.get("audience");
 
   const filters: Record<string, unknown> = {};
   let title = "All Products";
@@ -53,6 +54,9 @@ function buildFilters(
     filters.q = searchQuery;
     title = `Results for “${searchQuery}”`;
     description = "Products matching your search";
+  }
+  if (["men", "women", "children", "unisex"].includes(audience ?? "")) {
+    filters.audience = audience;
   }
 
   if (category) {
@@ -162,6 +166,13 @@ function buildFilters(
     title = `Results for “${searchQuery}”`;
     description = "Products matching your search and filters";
   }
+  if (audience && !searchQuery && !collection) {
+    const audienceTitle = audience === "children" ? "Children" : audience[0].toUpperCase() + audience.slice(1);
+    title = category
+      ? `${audienceTitle} · ${getCategory(category, categories)?.label ?? category}`
+      : audienceTitle;
+    description = `Browse ${audienceTitle.toLowerCase()} products grouped by their existing marketplace categories.`;
+  }
 
   return { filters, title, description };
 }
@@ -206,6 +217,15 @@ function applyClientFilters(products: Product[], params: URLSearchParams): Produ
   let rows = [...products];
   const category = params.get("category");
   if (category && category !== "all") rows = rows.filter((row) => row.category === category);
+  const audience = params.get("audience");
+  if (audience) {
+    rows = rows.filter((row) => {
+      const values = row.designedFor ?? [];
+      if (audience === "children") return values.includes("children");
+      if (audience === "unisex") return values.includes("unisex");
+      return values.includes(audience as "men" | "women") || values.includes("unisex");
+    });
+  }
   const minRaw = params.get("minPrice");
   const maxRaw = params.get("maxPrice");
   const min = Number(minRaw);
@@ -248,6 +268,23 @@ const AllProducts = () => {
   const inFlightPageRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const filtersKey = searchParams.toString();
+  const audienceDestination = searchParams.get("audience");
+  const audienceGroups = useMemo(() => {
+    if (!audienceDestination) return [];
+    const byCategory = new Map<string, Product[]>();
+    for (const product of displayProducts) {
+      const key = product.category || "other";
+      byCategory.set(key, [...(byCategory.get(key) ?? []), product]);
+    }
+    const order = new Map(PRODUCT_CATEGORIES.map((item, index) => [item.value, index]));
+    return [...byCategory.entries()]
+      .sort(([a], [b]) => (order.get(a) ?? 999) - (order.get(b) ?? 999))
+      .map(([category, products]) => ({
+        category,
+        label: getCategory(category, categories)?.label ?? category.replace(/_/g, " "),
+        products,
+      }));
+  }, [audienceDestination, categories, displayProducts]);
 
   const loadPage = useCallback(
     async (pageToLoad: number, replace: boolean) => {
@@ -395,14 +432,31 @@ const AllProducts = () => {
           <SkeletonGrid count={6} />
         ) : displayProducts.length > 0 ? (
           <>
-            <div
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6"
-              data-testid="products-grid"
-            >
-              {displayProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {audienceDestination ? (
+              <div className="space-y-10" data-testid="audience-product-groups">
+                {audienceGroups.map((group) => (
+                  <section key={group.category} aria-labelledby={`audience-${group.category}`}>
+                    <h2 id={`audience-${group.category}`} className="mb-4 text-2xl font-display font-semibold capitalize">
+                      {group.label}
+                    </h2>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 md:gap-x-6 lg:grid-cols-4">
+                      {group.products.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6"
+                data-testid="products-grid"
+              >
+                {displayProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
 
             <div
               ref={sentinelRef}
@@ -477,6 +531,7 @@ function ProductCatalogueControls({
   const minPrice = searchParams.get("minPrice") || "";
   const maxPrice = searchParams.get("maxPrice") || "";
   const delivery = searchParams.get("maxDeliveryDays") || "all";
+  const audience = searchParams.get("audience") || "all";
 
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -486,7 +541,7 @@ function ProductCatalogueControls({
 
   const clear = () => {
     const next = new URLSearchParams(searchParams);
-    ["sort", "category", "minPrice", "maxPrice", "maxDeliveryDays", "q", "search"].forEach((key) =>
+    ["sort", "category", "audience", "minPrice", "maxPrice", "maxDeliveryDays", "q", "search"].forEach((key) =>
       next.delete(key),
     );
     onChange(next);
@@ -498,6 +553,7 @@ function ProductCatalogueControls({
       searchParams.get("sort") !== "orders" &&
       searchParams.get("sort") !== "collection") ||
     category !== "all" ||
+    audience !== "all" ||
     !!minPrice ||
     !!maxPrice ||
     delivery !== "all" ||
@@ -554,6 +610,21 @@ function ProductCatalogueControls({
             {PRODUCT_CATEGORIES.map((item) => (
               <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="product-audience">Designed For</label>
+        <Select value={audience} onValueChange={(value) => update("audience", value)}>
+          <SelectTrigger id="product-audience" className="w-full lg:w-40" data-testid="product-audience">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All audiences</SelectItem>
+            <SelectItem value="men">Men</SelectItem>
+            <SelectItem value="women">Women</SelectItem>
+            <SelectItem value="children">Children</SelectItem>
+            <SelectItem value="unisex">Unisex</SelectItem>
           </SelectContent>
         </Select>
       </div>

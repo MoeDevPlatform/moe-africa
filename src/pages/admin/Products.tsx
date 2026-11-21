@@ -71,6 +71,12 @@ import {
 } from "@/lib/apiServices";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
+import DesignedForField from "@/components/products/DesignedForField";
+import {
+  audienceLabel,
+  requiresProductAudience,
+  type ProductAudience,
+} from "@/lib/productAudience";
 
 const MAX_ADMIN_IMAGES = 5;
 const ADMIN_UPLOAD_MAX = 2 * 1024 * 1024; // matches BE multer product limit
@@ -104,6 +110,7 @@ const Products = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ProductStatus | "all">(initialStatus);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [audienceStatusFilter, setAudienceStatusFilter] = useState<"all" | "needs_review" | "classified">("all");
   const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
   const [createdPreset, setCreatedPreset] = useState<CreatedPreset>("any");
   const [dateFrom, setDateFrom] = useState("");
@@ -130,6 +137,7 @@ const Products = () => {
     priceMax: "",
     estimatedDelivery: "",
     artisanId: "",
+    designedFor: [] as ProductAudience[],
   });
   const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -169,6 +177,7 @@ const Products = () => {
       priceMax: "",
       estimatedDelivery: "",
       artisanId: "",
+      designedFor: [],
     });
     setVariationTypes([]);
     images.forEach((i) => {
@@ -227,6 +236,10 @@ const Products = () => {
       toast.error("Name, artisan, and estimated delivery are required");
       return;
     }
+    if (requiresProductAudience(productForm.category) && productForm.designedFor.length === 0) {
+      toast.error("Select at least one Designed For audience");
+      return;
+    }
     setAdding(true);
     try {
       const imageUrls = images.map((i) => i.url).filter(Boolean);
@@ -237,6 +250,7 @@ const Products = () => {
         priceMin: Number(productForm.priceMin) || 0,
         estimatedDelivery: productForm.estimatedDelivery.trim(),
         artisanId: Number(productForm.artisanId),
+        designedFor: productForm.designedFor,
       };
       if (productForm.priceMax) {
         payload.priceMax = Number(productForm.priceMax);
@@ -280,6 +294,7 @@ const Products = () => {
     sortKey: "newest" | "oldest" | "name" = sort,
     from = createdFrom,
     to = createdTo,
+    audienceStatus = audienceStatusFilter,
   ) => {
     setIsLoading(true);
     adminService
@@ -292,6 +307,7 @@ const Products = () => {
         sort: sortKey,
         createdFrom: from,
         createdTo: to,
+        audienceStatus: audienceStatus === "all" ? undefined : audienceStatus,
       })
       .then((res) => {
         setRows(res.data ?? []);
@@ -310,7 +326,7 @@ const Products = () => {
     setParams(params, { replace: true });
     load(1, statusFilter, debouncedSearch, categoryFilter, sort, createdFrom, createdTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, debouncedSearch, categoryFilter, sort, createdFrom, createdTo]);
+  }, [statusFilter, debouncedSearch, categoryFilter, sort, createdFrom, createdTo, audienceStatusFilter]);
 
   const filtered = rows;
 
@@ -353,6 +369,26 @@ const Products = () => {
       load(pagination.page, statusFilter);
     } catch (e: any) {
       toast.error(e?.message || "Status update failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const approveSelectedSuggestions = async () => {
+    const items = rows
+      .filter((row) => selected.has(row.id) && (row.audienceSuggestion?.length ?? 0) > 0)
+      .map((row) => ({ id: row.id, designedFor: row.audienceSuggestion ?? [] }));
+    if (items.length === 0) {
+      toast.error("Selected uncertain products require individual review");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await adminService.bulkUpdateProductAudience(items);
+      toast.success(`Approved ${items.length} audience classification${items.length === 1 ? "" : "s"}`);
+      load(pagination.page, statusFilter);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk classification failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -464,6 +500,21 @@ const Products = () => {
               <SelectItem value="draft">Draft</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={audienceStatusFilter}
+            onValueChange={(value) =>
+              setAudienceStatusFilter(value as "all" | "needs_review" | "classified")
+            }
+          >
+            <SelectTrigger className="w-full sm:w-52 bg-card" data-testid="admin-audience-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card">
+              <SelectItem value="all">All audience states</SelectItem>
+              <SelectItem value="needs_review">Needs classification</SelectItem>
+              <SelectItem value="classified">Audience classified</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={sort} onValueChange={(value) => setSort(value as "newest" | "oldest" | "name")}>
             <SelectTrigger className="w-full sm:w-48 bg-card" data-testid="admin-product-sort">
               <SelectValue />
@@ -510,7 +561,7 @@ const Products = () => {
               />
             </>
           ) : null}
-          {search || statusFilter !== "all" || categoryFilter !== "all" || sort !== "newest" || createdPreset !== "any" ? (
+          {search || statusFilter !== "all" || categoryFilter !== "all" || audienceStatusFilter !== "all" || sort !== "newest" || createdPreset !== "any" ? (
             <Button
               type="button"
               variant="ghost"
@@ -519,6 +570,7 @@ const Products = () => {
                 setSearch("");
                 setStatusFilter("all");
                 setCategoryFilter("all");
+                setAudienceStatusFilter("all");
                 setSort("newest");
                 setCreatedPreset("any");
                 setDateFrom("");
@@ -548,6 +600,16 @@ const Products = () => {
             >
               <Check className="h-4 w-4" /> Approve
             </Button>
+            {audienceStatusFilter === "needs_review" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => void approveSelectedSuggestions()}
+              >
+                Approve audience suggestions
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -598,6 +660,7 @@ const Products = () => {
                   </TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Designed For</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Artisan</TableHead>
                   <TableHead>Status</TableHead>
@@ -608,7 +671,7 @@ const Products = () => {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
                       No products match these filters.
                     </TableCell>
                   </TableRow>
@@ -625,6 +688,25 @@ const Products = () => {
                       <TableCell className="font-medium">{row.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{row.category}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex max-w-48 flex-wrap gap-1">
+                          {((row.designedFor?.length ?? 0) > 0
+                            ? row.designedFor
+                            : row.audienceSuggestion ?? []
+                          ).map((audience) => (
+                            <Badge
+                              key={audience}
+                              variant={(row.designedFor?.length ?? 0) > 0 ? "secondary" : "outline"}
+                            >
+                              {audienceLabel(audience)}
+                              {(row.designedFor?.length ?? 0) === 0 ? "?" : ""}
+                            </Badge>
+                          ))}
+                          {row.audienceClassificationStatus === "uncertain" ? (
+                            <Badge variant="destructive">Manual review</Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm">
                         ₦{Number(row.price ?? 0).toLocaleString()}
@@ -947,6 +1029,14 @@ const Products = () => {
                 </SelectContent>
               </Select>
             </div>
+            <DesignedForField
+              value={productForm.designedFor}
+              onChange={(designedFor) =>
+                setProductForm({ ...productForm, designedFor })
+              }
+              required={requiresProductAudience(productForm.category)}
+              disabled={adding}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Min price (₦)</Label>

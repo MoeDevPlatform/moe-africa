@@ -460,6 +460,7 @@ export interface ProductFilters {
   page?: number;
   pageSize?: number;
   q?: string;
+  audience?: "men" | "women" | "children" | "unisex";
 }
 
 export interface FilterMetadata {
@@ -616,6 +617,11 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
       ? { artisanName: raw.artisanName.trim() }
       : {}),
     category: (raw.category ?? "tailoring") as Product["category"],
+    designedFor: Array.isArray(raw.designedFor) ? raw.designedFor : [],
+    audienceClassificationStatus:
+      typeof raw.audienceClassificationStatus === "string"
+        ? raw.audienceClassificationStatus
+        : "unclassified",
     providerId: Number(providerId) || 0,
     isCustomOrderEligible:
       raw.artisan?.isCustomOrderEligible === true ||
@@ -3112,6 +3118,9 @@ export interface AdminProductRow {
   providerId: number;
   createdAt: string;
   updatedAt?: string;
+  designedFor: Array<"men" | "women" | "children" | "unisex">;
+  audienceClassificationStatus: "classified" | "suggested" | "uncertain" | "not_applicable";
+  audienceSuggestion: Array<"men" | "women" | "children" | "unisex">;
 }
 
 export interface AdminUserRow {
@@ -3212,6 +3221,7 @@ export const adminService = {
     sort?: string;
     createdFrom?: string;
     createdTo?: string;
+    audienceStatus?: "needs_review" | "classified";
   }) =>
     apiGet<PaginatedResponse<AdminProductRow>>(
       "/admin/products",
@@ -3220,6 +3230,10 @@ export const adminService = {
   getProduct: (id: number) => apiGet<Record<string, any>>(`/admin/products/${id}`),
   createProduct: (body: Record<string, unknown>) =>
     apiPost<AdminProductRow>("/admin/products", body),
+  updateProductAudience: (id: number, designedFor: string[]) =>
+    apiPatch<Product>(`/admin/products/${id}/audience`, { designedFor }),
+  bulkUpdateProductAudience: (items: Array<{ id: number; designedFor: string[] }>) =>
+    apiPost<{ updated: number }>("/admin/products/classification/bulk-approve", { items }),
   /** Admin product image upload (Cloudinary `moe/products`). Field name: `file`. */
   uploadProductImage: async (file: File): Promise<{ url: string }> => {
     const res = await uploadFileWithAuth("/admin/products/upload-image", file);

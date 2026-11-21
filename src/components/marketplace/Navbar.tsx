@@ -350,6 +350,9 @@ const MarketplaceNavbar = () => {
             </Button>
           </div>
           <Link className="hover:text-primary hover:underline" to="/marketplace/products">All Products</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products?audience=men">Men</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products?audience=women">Women</Link>
+          <Link className="hover:text-primary hover:underline" to="/marketplace/products?audience=children">Children</Link>
           <Link className="hover:text-primary hover:underline" to="/marketplace/products?sort=newest">New Arrivals</Link>
           <Link className="hover:text-primary hover:underline" to="/marketplace/products?collection=best-sellers">Best Sellers</Link>
           <Link className="hover:text-primary hover:underline" to="/marketplace/artisans">Explore Artisans</Link>

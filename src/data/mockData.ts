@@ -23,6 +23,8 @@ export interface Product {
   tags: string[];
   images: string[];
   category: string;
+  designedFor?: Array<"men" | "women" | "children" | "unisex">;
+  audienceClassificationStatus?: string;
   providerId: number;
   /** Brand, business, or account name from the product's artisan relationship. */
   artisanName?: string | null;

@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { adminService, type ProductStatus } from "@/lib/apiServices";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { formatAdminTimestamp } from "@/lib/adminTimestamps";
+import DesignedForField from "@/components/products/DesignedForField";
+import { requiresProductAudience, type ProductAudience } from "@/lib/productAudience";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -41,13 +43,24 @@ const ProductDetailPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [designedFor, setDesignedFor] = useState<ProductAudience[]>([]);
+  const [savingAudience, setSavingAudience] = useState(false);
 
   const load = () => {
     if (!id) return;
     setIsLoading(true);
     adminService
       .getProduct(Number(id))
-      .then((p) => setProduct(p))
+      .then((p) => {
+        setProduct(p);
+        setDesignedFor(
+          Array.isArray(p.designedFor) && p.designedFor.length > 0
+            ? p.designedFor
+            : Array.isArray(p.audienceSuggestion)
+              ? p.audienceSuggestion
+              : [],
+        );
+      })
       .catch((e: any) => {
         if (e?.status === 404) setNotFound(true);
         else toast.error(e?.message || "Failed to load product");
@@ -90,6 +103,24 @@ const ProductDetailPage = () => {
       toast.error(e?.message || "Status update failed");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const saveAudience = async () => {
+    if (!product) return;
+    if (requiresProductAudience(product.category) && designedFor.length === 0) {
+      toast.error("Select at least one audience");
+      return;
+    }
+    setSavingAudience(true);
+    try {
+      await adminService.updateProductAudience(Number(product.id), designedFor);
+      toast.success("Audience classification saved");
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save classification");
+    } finally {
+      setSavingAudience(false);
     }
   };
 
@@ -185,6 +216,27 @@ const ProductDetailPage = () => {
                   {product.description && (
                     <p className="whitespace-pre-wrap">{product.description}</p>
                   )}
+                  <div className="border-t pt-3">
+                    <DesignedForField
+                      value={designedFor}
+                      onChange={setDesignedFor}
+                      required={requiresProductAudience(product.category)}
+                      disabled={savingAudience}
+                    />
+                    {product.designedFor?.length === 0 && product.audienceSuggestion?.length > 0 ? (
+                      <p className="mt-2 text-xs text-amber-700">
+                        Suggested from product text. Review before saving.
+                      </p>
+                    ) : null}
+                    <Button
+                      className="mt-3"
+                      size="sm"
+                      disabled={savingAudience}
+                      onClick={() => void saveAudience()}
+                    >
+                      {savingAudience ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Designed For"}
+                    </Button>
+                  </div>
                   {Array.isArray(product.tags) && product.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {product.tags.map((t: string) => (
