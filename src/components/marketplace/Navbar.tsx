@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, User, Search, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Palette, Store, MessageSquare } from "lucide-react";
+import { ShoppingCart, User, Search, Heart, Package, Settings, Menu, ChevronDown, HelpCircle, LogOut, Store, MessageSquare, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,15 +166,53 @@ const MoeAuthSlot = () => {
 };
 
 const MarketplaceNavbar = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [desktopSearch, setDesktopSearch] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches,
+  );
   const { getItemCount } = useCart();
   const { getItemCount: getWishlistCount } = useWishlist();
 
   // Hover delay timer for mega menu stability
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closeSearch = useCallback(() => setShowSearchResults(false), []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const update = () => setDesktopSearch(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    closeSearch();
+    if (location.pathname === "/marketplace/search") {
+      setSearchQuery(new URLSearchParams(location.search).get("q") ?? "");
+    }
+  }, [location.pathname, location.search, closeSearch]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-marketplace-search-root]")) closeSearch();
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeSearch();
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [closeSearch]);
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
@@ -184,6 +222,20 @@ const MarketplaceNavbar = () => {
     setSearchQuery(value);
     if (value.trim()) {
       setShowSearchResults(true);
+    }
+  };
+
+  const submitSearch = () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+    closeSearch();
+    navigate(`/marketplace/search?q=${encodeURIComponent(query)}`);
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.defaultPrevented) {
+      event.preventDefault();
+      submitSearch();
     }
   };
 
@@ -206,17 +258,6 @@ const MarketplaceNavbar = () => {
 
   return (
     <>
-      {showSearchResults && (
-        <SearchResults
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onClose={() => {
-            setShowSearchResults(false);
-            setSearchQuery("");
-          }}
-        />
-      )}
-      
       <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)} />
       <CartAbandonmentBanner />
       
@@ -241,18 +282,42 @@ const MarketplaceNavbar = () => {
 
           {/* Search Bar - Desktop */}
           <div className="hidden lg:flex min-w-0 flex-1 max-w-2xl">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative w-full" data-marketplace-search-root>
+              <button
+                type="button"
+                onClick={submitSearch}
+                className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Submit search"
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+              </button>
               <Input
                 type="search"
                 data-testid="search-input"
                 placeholder="Search products, artisans and services"
                 aria-label="Search the marketplace"
-                className="h-12 pl-10 w-full rounded-full border-primary/40 bg-surface"
+                className="h-12 w-full rounded-full border-primary/40 bg-surface pl-11 pr-10"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={handleSearchFocus}
+                onKeyDown={handleSearchKeyDown}
+                aria-expanded={showSearchResults}
+                aria-controls="marketplace-search-suggestions"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowSearchResults(true);
+                  }}
+                  className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+              {showSearchResults && desktopSearch && <SearchResults searchQuery={searchQuery} onClose={closeSearch} />}
             </div>
           </div>
 
@@ -361,18 +426,42 @@ const MarketplaceNavbar = () => {
 
         {/* Mobile Search */}
         <div className="lg:hidden pb-3">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative w-full" data-marketplace-search-root>
+            <button
+              type="button"
+              onClick={submitSearch}
+              className="absolute left-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+              aria-label="Submit search"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+            </button>
             <Input
               type="search"
               data-testid="search-input"
               placeholder="Search products and artisans"
               aria-label="Search the marketplace"
-              className="pl-10 w-full"
+              className="w-full pl-10 pr-10"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               onFocus={handleSearchFocus}
+              onKeyDown={handleSearchKeyDown}
+              aria-expanded={showSearchResults}
+              aria-controls="marketplace-search-suggestions"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setShowSearchResults(true);
+                }}
+                className="absolute right-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+            {showSearchResults && !desktopSearch && <SearchResults searchQuery={searchQuery} onClose={closeSearch} />}
           </div>
         </div>
       </div>

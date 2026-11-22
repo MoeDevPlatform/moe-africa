@@ -1,583 +1,238 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  X, 
-  Package, 
-  User, 
-  Tag, 
-  Scissors, 
-  Footprints, 
-  Gem, 
-  Palette, 
-  Briefcase, 
-  Watch,
-  Sparkle,
-  Home,
-  ChevronRight
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package, Search, Store, Tag } from "lucide-react";
 import { apiGet } from "@/lib/moeApi";
 import { FALLBACK_IMAGE } from "@/lib/imageFallback";
-import { trackBehaviour } from "@/lib/trackBehaviour";
-import ArtisanProductPreviews from "./ArtisanProductPreviews";
+import type { Product, Provider } from "@/data/mockData";
+
+type SearchCategory = { id: string; name: string };
+
+type SearchResponse = {
+  products: Product[];
+  providers: Provider[];
+  categories: SearchCategory[];
+};
 
 interface SearchResultsProps {
   searchQuery: string;
-  onSearchChange: (query: string) => void;
   onClose: () => void;
 }
 
-// Category icons mapping
-const categoryIcons: Record<string, React.ReactNode> = {
-  tailoring: <Scissors className="h-4 w-4" />,
-  shoemaking: <Footprints className="h-4 w-4" />,
-  accessories: <Gem className="h-4 w-4" />,
-  leatherwork: <Briefcase className="h-4 w-4" />,
-  beauty: <Sparkle className="h-4 w-4" />,
-  art: <Palette className="h-4 w-4" />,
-  jewelry: <Watch className="h-4 w-4" />,
-  furniture: <Home className="h-4 w-4" />,
-};
+export function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const match = query.trim();
+  const start = text.toLowerCase().indexOf(match.toLowerCase());
+  if (!match || start < 0) return <>{text}</>;
 
-// All searchable categories
-const searchableCategories = [
-  { id: "tailoring", name: "Tailoring", slug: "tailoring", description: "Custom tailored clothing" },
-  { id: "shoemaking", name: "Shoemaking", slug: "shoemaking", description: "Handcrafted footwear" },
-  { id: "accessories", name: "Accessories", slug: "accessories", description: "Hats, scarves & more" },
-  { id: "leatherwork", name: "Leatherworks", slug: "leatherwork", description: "Bags, wallets & belts" },
-  { id: "beauty", name: "Hair & Beauty", slug: "beauty", description: "Hair & beauty services" },
-  { id: "art", name: "Arts & Crafts", slug: "art", description: "Pottery, woodwork & more" },
-  { id: "jewelry", name: "Jewelry", slug: "jewelry", description: "Necklaces, rings & earrings" },
-  { id: "furniture", name: "Home & Decor", slug: "furniture", description: "Furniture & home items" },
-];
-
-type ProviderResult = {
-  id: number;
-  heroImage?: string;
-  brandName: string;
-  category: string;
-  city?: string;
-  state?: string;
-  rating?: number;
-  reviewCount?: number;
-  isCustomOrderEligible?: boolean;
-  productPreviews?: unknown;
-  products?: unknown;
-};
-
-type ProductResult = {
-  id: number;
-  name: string;
-  provider: string;
-  providerId?: number;
-  category?: string;
-  images: string[];
-  priceRange: { min: number | null; max: number | null };
-  currency: string;
-  tags: string[];
-};
-
-function coerceImages(maybeImages: any): string[] {
-  if (!maybeImages) return [];
-  if (typeof maybeImages === "string") return [maybeImages];
-  if (Array.isArray(maybeImages)) {
-    return maybeImages
-      .map((i: any) => (typeof i === "string" ? i : i?.url))
-      .filter((u: any): u is string => typeof u === "string" && u.length > 0);
-  }
-  if (maybeImages?.url) return [maybeImages.url as string];
-  return [];
-}
-
-function mapProvider(p: any): ProviderResult {
-  return {
-    id: Number(p.id),
-    heroImage: p.heroImageUrl ?? p.heroImage ?? undefined,
-    brandName:
-      p.brandName ??
-      (p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.name ?? ""),
-    category: p.category ?? p.serviceCategories?.[0] ?? "",
-    city: p.city,
-    state: p.state,
-    rating: typeof p.rating === "number" ? p.rating : undefined,
-    reviewCount: typeof p.reviewCount === "number" ? p.reviewCount : undefined,
-    isCustomOrderEligible: p.isCustomOrderEligible === true,
-    productPreviews: p.productPreviews,
-    products: p.products,
-  };
-}
-
-function HighlightMatch({ text, query }: { text: string; query: string }) {
-  const trimmed = query.trim();
-  if (!trimmed) return <>{text}</>;
-  const lowerText = text.toLowerCase();
-  const lowerQuery = trimmed.toLowerCase();
-  const idx = lowerText.indexOf(lowerQuery);
-  if (idx === -1) return <>{text}</>;
   return (
     <>
-      {text.slice(0, idx)}
-      <mark className="bg-primary/20 text-foreground rounded-sm px-0.5">
-        {text.slice(idx, idx + trimmed.length)}
+      {text.slice(0, start)}
+      <mark className="rounded-sm bg-primary/15 px-0.5 text-foreground">
+        {text.slice(start, start + match.length)}
       </mark>
-      {text.slice(idx + trimmed.length)}
+      {text.slice(start + match.length)}
     </>
   );
 }
 
-function mapProduct(p: any): ProductResult {
-  const min =
-    typeof p.priceRange?.min === "number"
-      ? p.priceRange.min
-      : typeof p.priceMin === "number"
-      ? p.priceMin
-      : typeof p.price === "number"
-      ? p.price
-      : null;
-  const max =
-    typeof p.priceRange?.max === "number"
-      ? p.priceRange.max
-      : typeof p.priceMax === "number"
-      ? p.priceMax
-      : null;
-
-  return {
-    id: Number(p.id),
-    name: p.name ?? "",
-    provider: p.providerName ?? p.provider?.brandName ?? "",
-    providerId: p.providerId ? Number(p.providerId) : undefined,
-    category: p.category ?? p.serviceCategoryId ?? undefined,
-    images: coerceImages(p.images ?? p.imageUrls ?? p.imagesUrls ?? p.imageUrl ?? p.image),
-    priceRange: { min, max },
-    currency: p.currency ?? "NGN",
-    tags: (p.styleTags ?? p.tags ?? []).filter((t: any) => typeof t === "string"),
-  };
-}
-
-const SearchResults = ({ searchQuery, onSearchChange, onClose }: SearchResultsProps) => {
+const SearchResults = ({ searchQuery, onClose }: SearchResultsProps) => {
   const navigate = useNavigate();
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [providers, setProviders] = useState<ProviderResult[]>([]);
-  const [products, setProducts] = useState<ProductResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [results, setResults] = useState<SearchResponse>({
+    products: [],
+    providers: [],
+    categories: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const query = searchQuery.trim();
 
-  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
+    setActiveIndex(-1);
+    if (query.length < 2) {
+      setResults({ products: [], providers: [], categories: [] });
+      setLoading(false);
+      setError(false);
+      return;
+    }
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError(false);
+      apiGet<SearchResponse>("/search", { q: query, type: "all" })
+        .then((response) => {
+          if (!active) return;
+          setResults({
+            products: response.products ?? [],
+            providers: response.providers ?? [],
+            categories: response.categories ?? [],
+          });
+        })
+        .catch((requestError) => {
+          if (active) {
+            setResults({ products: [], providers: [], categories: [] });
+            setError(true);
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 250);
 
-  // Handle ESC — close only via Escape or the explicit close control.
-  // (Avoid document mousedown "outside" handlers: the overlay is full-screen
-  // and Playwright/automation clicks race with mount, closing mid-search.)
+    return () => {
+      window.clearTimeout(timer);
+      active = false;
+    };
+  }, [query]);
+
+  const suggestions = useMemo(
+    () => [
+      ...results.products.slice(0, 4).map((product) => ({
+        key: `product-${product.id}`,
+        label: product.name,
+        detail: product.artisanName || "Product",
+        image: product.images?.[0],
+        icon: Package,
+        href: `/marketplace/product/${product.id}`,
+        group: "Products",
+      })),
+      ...results.providers.slice(0, 3).map((provider) => ({
+        key: `provider-${provider.id}`,
+        label: provider.brandName,
+        detail: provider.category || provider.city || "Artisan service",
+        image: provider.heroImage,
+        icon: Store,
+        href: `/marketplace/provider/${provider.id}`,
+        group: "Artisans & services",
+      })),
+      ...results.categories.slice(0, 3).map((category) => ({
+        key: `category-${category.id}`,
+        label: category.name,
+        detail: "Category",
+        image: undefined,
+        icon: Tag,
+        href: `/marketplace/category/${category.id}`,
+        group: "Categories",
+      })),
+    ].slice(0, 8),
+    [results],
+  );
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowDown" && suggestions.length) {
+        event.preventDefault();
+        setActiveIndex((index) => (index + 1) % suggestions.length);
+      } else if (event.key === "ArrowUp" && suggestions.length) {
+        event.preventDefault();
+        setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1));
+      } else if (event.key === "Enter" && activeIndex >= 0) {
+        event.preventDefault();
+        navigate(suggestions[activeIndex].href);
         onClose();
       }
     };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [activeIndex, navigate, onClose, suggestions]);
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  // Fetch results based on search query
-  useEffect(() => {
-    let active = true;
-    const run = async () => {
-      const q = debouncedQuery.toLowerCase().trim();
-      if (!q) {
-        setProviders([]);
-        setProducts([]);
-        setApiError(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setApiError(null);
-
-      try {
-        const json = await apiGet<{ products: any[]; providers: any[] }>(
-          "/search",
-          { q, type: "all" }
-        );
-        if (!active) return;
-
-        // Debounced query acts as search submit (no separate submit button).
-        if (q.length >= 2) {
-          trackBehaviour("search", { metadata: { searchTerm: q } });
-        }
-        setProviders((json.providers ?? []).map(mapProvider));
-        setProducts((json.products ?? []).map(mapProduct));
-      } catch (e: any) {
-        if (!active) return;
-        setApiError(e?.message || "Failed to search");
-        setProviders([]);
-        setProducts([]);
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      active = false;
-    };
-  }, [debouncedQuery]);
-
-  // Filter category suggestions (static)
-  const query = debouncedQuery.toLowerCase().trim();
-  
-  const filteredCategories = query
-    ? searchableCategories.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query) ||
-          c.description.toLowerCase().includes(query)
-      )
-    : [];
-  const isDebouncing =
-    searchQuery.trim().toLowerCase() !== debouncedQuery.trim().toLowerCase() &&
-    searchQuery.trim().length > 0;
-  const isSearching = isLoading || isDebouncing;
-
-  const hasResults =
-    filteredCategories.length > 0 ||
-    providers.length > 0 ||
-    products.length > 0;
-
-  const handleProductClick = (id: number) => {
-    navigate(`/marketplace/product/${id}`);
+  const open = (href: string) => {
+    navigate(href);
     onClose();
   };
 
-  const handleProviderClick = (id: number) => {
-    navigate(`/marketplace/provider/${id}`);
-    onClose();
-  };
-
-  const handleCategoryClick = (slug: string) => {
-    navigate(`/marketplace/category/${slug}`);
-    onClose();
-  };
-
-  // Autocomplete suggestions built from the latest results + categories/tags.
-  const typed = searchQuery.toLowerCase().trim();
-  const suggestions = (() => {
-    if (!typed) return [] as string[];
-    const pool = new Map<string, string>();
-    const add = (s?: string) => {
-      const v = (s || "").trim();
-      if (v && v.toLowerCase().includes(typed) && v.toLowerCase() !== typed) {
-        if (!pool.has(v.toLowerCase())) pool.set(v.toLowerCase(), v);
-      }
-    };
-    products.forEach((p) => { add(p.name); p.tags.forEach(add); });
-    providers.forEach((p) => add(p.brandName));
-    searchableCategories.forEach((c) => add(c.name));
-    return [...pool.values()]
-      .sort((a, b) => {
-        const as = a.toLowerCase().startsWith(typed) ? 0 : 1;
-        const bs = b.toLowerCase().startsWith(typed) ? 0 : 1;
-        return as - bs || a.length - b.length;
-      })
-      .slice(0, 8);
-  })();
-  const [showSuggest, setShowSuggest] = useState(true);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const pickSuggestion = (s: string) => {
-    onSearchChange(s);
-    setShowSuggest(false);
-    setActiveIdx(-1);
-  };
+  const viewAll = () => open(`/marketplace/search?q=${encodeURIComponent(query)}`);
+  const grouped = suggestions.reduce<Record<string, typeof suggestions>>((groups, suggestion) => {
+    (groups[suggestion.group] ||= []).push(suggestion);
+    return groups;
+  }, {});
 
   return (
-    <div className="fixed inset-0 z-50 bg-background">
-      <div ref={containerRef} className="container mx-auto px-4 py-6 max-w-4xl bg-background">
-        {/* Search Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              ref={inputRef}
-              type="search"
-              data-testid="search-input"
-              placeholder="Search for artisans, products, or services..."
-              value={searchQuery}
-              onChange={(e) => { onSearchChange(e.target.value); setShowSuggest(true); setActiveIdx(-1); }}
-              onFocus={() => setShowSuggest(true)}
-              onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
-              onKeyDown={(e) => {
-                if (!showSuggest || suggestions.length === 0) return;
-                if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % suggestions.length); }
-                else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
-                else if (e.key === "Enter" && activeIdx >= 0) { e.preventDefault(); pickSuggestion(suggestions[activeIdx]); }
-              }}
-              className="pl-10 pr-10 border-border focus:ring-primary"
-              autoFocus
-              aria-label="Search input"
-              aria-autocomplete="list"
-              aria-expanded={showSuggest && suggestions.length > 0}
-              aria-controls="search-suggestions"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            {showSuggest && suggestions.length > 0 && (
-              <ul
-                id="search-suggestions"
-                role="listbox"
-                data-testid="search-suggestions"
-                className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 overflow-hidden"
-              >
-                {suggestions.map((s, i) => (
-                  <li key={s} role="option" aria-selected={i === activeIdx}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pickSuggestion(s)}
-                      onMouseEnter={() => setActiveIdx(i)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm ${i === activeIdx ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
-                      aria-label={`Search for ${s}`}
-                    >
-                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-                      <span className="truncate"><HighlightMatch text={s} query={searchQuery} /></span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
+    <div
+      id="marketplace-search-suggestions"
+      role="dialog"
+      aria-label="Search suggestions"
+      data-testid="search-suggestions"
+      className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-[min(32rem,70vh)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+    >
+      {query.length < 2 ? (
+        <p className="px-4 py-3 text-sm text-muted-foreground">Type at least 2 characters to search.</p>
+      ) : loading ? (
+        <div className="flex items-center gap-2 px-4 py-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Finding matches…
         </div>
-
-        {/* Results */}
-        <div
-          className="space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto pr-6 -mr-6 [scrollbar-gutter:stable]"
-          data-testid="search-results"
-        >
-          {!debouncedQuery ? (
-            <Card className="p-12 text-center">
-              <Search className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground">Start typing to search...</p>
-              <p className="text-sm text-muted-foreground/70 mt-2">
-                Search for artisans, products, categories, or styles
-              </p>
-            </Card>
-          ) : isSearching ? (
-            <Card className="p-12 text-center">
-              <Loader2 className="h-10 w-10 mx-auto mb-3 text-primary animate-spin" aria-hidden="true" />
-              <p className="text-muted-foreground">Searching…</p>
-            </Card>
-          ) : apiError ? (
-            <Card className="p-12 text-center">
-              <Package className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <h3 className="font-display font-semibold text-lg mb-2">Search unavailable</h3>
-              <p className="text-muted-foreground">{apiError}</p>
-            </Card>
-          ) : !hasResults ? (
-            <Card className="p-12 text-center">
-              <Package className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <h3 className="font-display font-semibold text-lg mb-2">No results found</h3>
-              <p className="text-muted-foreground">Try adjusting your search terms</p>
-            </Card>
-          ) : (
-            <>
-              {/* Categories */}
-              {filteredCategories.length > 0 && (
-                <div>
-                  <h3 className="font-display font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-                    <Tag className="h-4 w-4" />
-                    Categories
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {filteredCategories.map((cat) => (
-                      <Card
-                        key={cat.id}
-                        className="p-4 hover:border-primary cursor-pointer transition-colors group"
-                        onClick={() => handleCategoryClick(cat.slug)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                            {categoryIcons[cat.slug] || <Tag className="h-4 w-4" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{cat.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {cat.description}
-                            </p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Providers */}
-              {providers.length > 0 && (
-                <div>
-                  <h3 className="font-display font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    Artisans ({providers.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {providers.slice(0, 5).map((provider) => (
-                      <Card
-                        key={provider.id}
-                        className="artisan-card hover:border-primary cursor-pointer group"
-                        onClick={() => handleProviderClick(provider.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                              {provider.heroImage ? (
-                                <img loading="lazy" decoding="async"
-                                  src={provider.heroImage}
-                                  alt={provider.brandName}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = FALLBACK_IMAGE; }}
-                                />
-                              ) : (
-                                <User className="h-6 w-6 text-primary" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold truncate">{provider.brandName}</h4>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {provider.category} • {[provider.city, provider.state].filter(Boolean).join(", ")}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">
-                                {provider.reviewCount && provider.reviewCount > 0
-                                  ? `⭐ ${Number(provider.rating).toFixed(1)}`
-                                  : "No Reviews Yet"}
-                              </Badge>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                            </div>
-                          </div>
-                          <ArtisanProductPreviews artisan={provider} />
-                          {provider.isCustomOrderEligible === true && <Button variant="outline" size="sm" className="mt-3 rounded-full text-primary border-primary" onClick={(e) => { e.stopPropagation(); onClose(); navigate(`/marketplace/artisan/${provider.id}#custom-order`); }}>Request Custom Order</Button>}
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {providers.length > 5 && (
-                      <button
-                        onClick={() => {
-                          navigate(
-                            `/marketplace/artisans?q=${encodeURIComponent(searchQuery.trim())}`,
-                          );
-                          onClose();
-                        }}
-                        className="w-full text-center py-2 text-sm text-primary hover:underline"
-                      >
-                        View all {providers.length} artisans
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Products */}
-              {products.length > 0 && (
-                <div>
-                  <h3 className="font-display font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-                    <Package className="h-4 w-4" />
-                    Products ({products.length})
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {products.slice(0, 6).map((product) => (
-                      <Card
-                        key={product.id}
-                        className="hover:border-primary cursor-pointer transition-colors overflow-hidden group"
-                        onClick={() => handleProductClick(product.id)}
-                      >
-                        <div className="flex gap-4 p-4">
+      ) : error ? (
+        <p className="px-4 py-3 text-sm text-destructive">Search is temporarily unavailable.</p>
+      ) : suggestions.length === 0 ? (
+        <div className="px-4 py-4">
+          <p className="text-sm font-medium">No suggestions for “{query}”</p>
+          <button type="button" onClick={viewAll} className="mt-1 text-sm text-primary hover:underline">
+            Search the full marketplace
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="py-2" role="listbox" aria-label="Marketplace suggestions">
+            {Object.entries(grouped).map(([group, items]) => (
+              <div key={group}>
+                <p className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group}
+                </p>
+                {items.map((suggestion) => {
+                  const index = suggestions.findIndex((item) => item.key === suggestion.key);
+                  const Icon = suggestion.icon;
+                  return (
+                    <button
+                      key={suggestion.key}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => open(suggestion.href)}
+                      className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
+                        index === activeIndex ? "bg-accent" : "hover:bg-accent/70"
+                      }`}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary/10 text-primary">
+                        {suggestion.image ? (
                           <img
-                            src={product.images?.[0] || FALLBACK_IMAGE}
-                            alt={product.name}
-                            className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                            loading="lazy"
-                            onError={(e) => {
-                              const target = e.currentTarget;
-                              target.onerror = null;
-                              target.src = FALLBACK_IMAGE;
+                            src={suggestion.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.onerror = null;
+                              event.currentTarget.src = FALLBACK_IMAGE;
                             }}
                           />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm mb-1 truncate">
-                              <HighlightMatch text={product.name} query={debouncedQuery} />
-                            </h4>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {product.provider}
-                            </p>
-                            {product.priceRange?.min != null ? (
-                              <p className="font-bold text-primary text-sm">
-                                {product.currency === "NGN" ? "₦" : "$"}
-                                {product.priceRange.min.toLocaleString()}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-muted-foreground italic">
-                                Price on request
-                              </p>
-                            )}
-                            <div className="flex gap-1 mt-2">
-                              {product.tags.slice(0, 2).map((tag) => (
-                                <Badge
-                                  key={tag}
-                                  variant="secondary"
-                                  className="text-[10px] h-4"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground self-center group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                  {products.length > 6 && (
-                    <button
-                      onClick={() => {
-                        navigate(
-                          `/marketplace/products?q=${encodeURIComponent(searchQuery.trim())}`,
-                        );
-                        onClose();
-                      }}
-                      className="w-full text-center py-3 text-sm text-primary hover:underline"
-                    >
-                      View all {products.length} products
+                        ) : (
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          <HighlightMatch text={suggestion.label} query={query} />
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">{suggestion.detail}</span>
+                      </span>
                     </button>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={viewAll}
+            className="sticky bottom-0 flex w-full items-center justify-center gap-2 border-t bg-popover px-4 py-3 text-sm font-semibold text-primary hover:bg-accent"
+          >
+            <Search className="h-4 w-4" aria-hidden="true" />
+            View all results for “{query}”
+          </button>
+        </>
+      )}
     </div>
   );
 };

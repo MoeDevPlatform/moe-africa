@@ -53,6 +53,7 @@ import AuthCallback from "./pages/AuthCallback";
 import SSOCallback from "./pages/auth/SSOCallback";
 import AllProducts from "./pages/marketplace/AllProducts";
 import AllArtisans from "./pages/marketplace/AllArtisans";
+import MarketplaceSearch from "./pages/marketplace/Search";
 import CustomOrders from "./pages/marketplace/CustomOrders";
 import RouteEntry from "./components/common/RouteEntry";
 import ArtisanDashboard from "./pages/artisan/Dashboard";
@@ -129,6 +130,7 @@ const App = () => (
                   <Route path="/marketplace" element={<MarketplaceHome />} />
                   <Route path="/marketplace/products" element={<AllProducts />} />
                   <Route path="/marketplace/artisans" element={<AllArtisans />} />
+                  <Route path="/marketplace/search" element={<MarketplaceSearch />} />
                   <Route path="/marketplace/custom-orders" element={<CustomOrders />} />
                   <Route path="/marketplace/artisan/:id" element={<ProviderDetail />} />
                   <Route path="/marketplace/category/:category" element={<CategoryProviders />} />
