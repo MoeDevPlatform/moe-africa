@@ -514,8 +514,7 @@ const ProductDetail = () => {
               <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <p>
                 <span className="font-medium text-foreground">Buyer Protection</span> — Your
-                payment is secure. If your order doesn&apos;t arrive or isn&apos;t as
-                described, we&apos;ll help you get a refund.
+                payment is secure.
               </p>
             </div>
 
