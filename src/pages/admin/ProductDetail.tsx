@@ -32,7 +32,11 @@ import { formatAdminTimestamp } from "@/lib/adminTimestamps";
 import DesignedForField from "@/components/products/DesignedForField";
 import { requiresProductAudience, type ProductAudience } from "@/lib/productAudience";
 import ProductSizingEditor from "@/components/products/ProductSizingEditor";
-import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
+import {
+  getProductTypeOption,
+  validateSizeProfiles,
+  type ProductSizeProfile,
+} from "@/lib/productSizing";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -132,6 +136,11 @@ const ProductDetailPage = () => {
   const saveSizing = async () => {
     if (!product) return;
     const activeProfiles = sizeProfiles.filter((profile) => designedFor.includes(profile.audience));
+    const typeOption = getProductTypeOption(
+      product.category,
+      activeProfiles[0]?.productType ?? sizeProfiles[0]?.productType,
+    );
+    const profilesToSave = typeOption && !typeOption.sizingApplicable ? [] : activeProfiles;
     const validation = validateSizeProfiles(product.category, designedFor, activeProfiles);
     if (validation) {
       toast.error(validation);
@@ -139,7 +148,7 @@ const ProductDetailPage = () => {
     }
     setSavingSizing(true);
     try {
-      await adminService.updateProductSizing(Number(product.id), designedFor, activeProfiles);
+      await adminService.updateProductSizing(Number(product.id), designedFor, profilesToSave);
       toast.success("Audience-specific sizing saved");
       load();
     } catch (error) {
@@ -273,9 +282,16 @@ const ProductDetailPage = () => {
               </Card>
             </div>
 
-            {requiresProductAudience(product.category) && (
+            {(requiresProductAudience(product.category) ||
+              product.category === "leatherwork" ||
+              product.category === "jewellery") && (
               <Card>
-                <CardHeader><CardTitle>Size & Fit configuration</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>Size & Fit</CardTitle>
+                  <p className="text-sm font-normal text-muted-foreground">
+                    Guided setup by product type. Advanced options stay collapsed.
+                  </p>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   <ProductSizingEditor
                     category={product.category}

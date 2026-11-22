@@ -17,7 +17,11 @@ import { PRODUCT_CATEGORIES, toCategoryValue } from "@/lib/categories";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
 import ProductSizingEditor from "@/components/products/ProductSizingEditor";
-import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
+import {
+  getProductTypeOption,
+  validateSizeProfiles,
+  type ProductSizeProfile,
+} from "@/lib/productSizing";
 import DesignedForField from "@/components/products/DesignedForField";
 import {
   requiresProductAudience,
@@ -157,7 +161,14 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
   }, [open, editProduct]);
 
   const updateForm = (field: string, value: string | string[]) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "category" && typeof value === "string" && value !== prev.category) {
+        // Category change invalidates prior product-type measurement templates.
+        setSizeProfiles([]);
+      }
+      return next;
+    });
 
   const addTag = (tag: string) => {
     const t = tag.trim();
@@ -297,7 +308,15 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         payload.images = imageUrls;
       }
       payload.variationTypes = variationTypes;
-      payload.sizeProfiles = sizeProfiles.filter((profile) => form.designedFor.includes(profile.audience));
+      {
+        const active = sizeProfiles.filter((profile) => form.designedFor.includes(profile.audience));
+        const typeOption = getProductTypeOption(
+          form.category,
+          active[0]?.productType ?? sizeProfiles[0]?.productType,
+        );
+        // Non-sizing product types (bags, furniture, etc.) must not persist apparel charts.
+        payload.sizeProfiles = typeOption && !typeOption.sizingApplicable ? [] : active;
+      }
 
       if (isEdit && editProduct) {
         await artisanService.updateProduct(editProduct.id, payload);
@@ -413,13 +432,19 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             )}
           </div>
 
-          <DesignedForField
-            value={form.designedFor}
-            onChange={(value) => updateForm("designedFor", value)}
-            required={requiresProductAudience(form.category)}
-            disabled={isSubmitting}
-            error={fieldErrors.designedFor}
-          />
+          <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+            <p className="text-sm font-medium">Who is this product for?</p>
+            <p className="text-xs text-muted-foreground">
+              Used for clothing and footwear size charts. Colour and material options stay shared across audiences.
+            </p>
+            <DesignedForField
+              value={form.designedFor}
+              onChange={(value) => updateForm("designedFor", value)}
+              required={requiresProductAudience(form.category)}
+              disabled={isSubmitting}
+              error={fieldErrors.designedFor}
+            />
+          </div>
 
           <ProductSizingEditor
             category={form.category}
@@ -430,12 +455,18 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             error={fieldErrors.sizeProfiles}
           />
 
-          <ProductVariationsEditor
-            category={form.category}
-            value={variationTypes}
-            onChange={setVariationTypes}
-            hideStructuredSizing={requiresProductAudience(form.category)}
-          />
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Colours, materials & other options</p>
+            <p className="text-xs text-muted-foreground">
+              Shared across audiences. Size charts above stay audience-specific.
+            </p>
+            <ProductVariationsEditor
+              category={form.category}
+              value={variationTypes}
+              onChange={setVariationTypes}
+              hideStructuredSizing={requiresProductAudience(form.category)}
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { audienceLabel, type ProductAudience } from "@/lib/productAudience";
-import type { ProductSizeProfile, ProductSizingSelection } from "@/lib/productSizing";
+import {
+  deriveSizingMode,
+  productTypeLabel,
+  type ProductSizeProfile,
+  type ProductSizingSelection,
+} from "@/lib/productSizing";
 
 interface ProductSizingSelectorProps {
   profiles?: ProductSizeProfile[];
@@ -63,11 +68,17 @@ const ProductSizingSelector = ({ profiles = [], onSelectionChange }: ProductSizi
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold">Size & Fit</p>
-          <p className="text-xs text-muted-foreground">Choose the audience before selecting a size.</p>
+          <p className="text-xs text-muted-foreground">
+            {productTypeLabel(profile.productType)}
+            {" · "}
+            Choose the audience before selecting a size.
+          </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => setGuideOpen(true)}>
-          <Ruler className="mr-2 h-4 w-4" /> Size guide
-        </Button>
+        {!profile.isMadeToMeasure && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setGuideOpen(true)}>
+            <Ruler className="mr-2 h-4 w-4" /> Size guide
+          </Button>
+        )}
       </div>
 
       {availableProfiles.length > 1 && (
@@ -88,6 +99,18 @@ const ProductSizingSelector = ({ profiles = [], onSelectionChange }: ProductSizi
           <p className="font-medium">Made to measure</p>
           <p className="mt-1 text-muted-foreground">Standard size selection is not required. Provide measurements through the product’s customisation flow.</p>
         </div>
+      ) : deriveSizingMode(profile) === "one_size" ? (
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">Fit</legend>
+          <div className="flex flex-wrap gap-2">
+            {profile.sizes.map((size) => (
+              <button key={size.id} type="button" aria-pressed={sizeId === size.id} onClick={() => setSizeId(size.id ?? null)} className={cn("min-w-12 rounded-md border px-3 py-2 text-sm", sizeId === size.id ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/50")}>
+                {size.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">This product is offered as a single size. Check the size guide for dimensions.</p>
+        </fieldset>
       ) : (
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Available {audienceLabel(profile.audience)} sizes *</legend>

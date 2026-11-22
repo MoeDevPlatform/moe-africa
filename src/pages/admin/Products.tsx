@@ -72,7 +72,11 @@ import {
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
 import ProductSizingEditor from "@/components/products/ProductSizingEditor";
-import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
+import {
+  getProductTypeOption,
+  validateSizeProfiles,
+  type ProductSizeProfile,
+} from "@/lib/productSizing";
 import DesignedForField from "@/components/products/DesignedForField";
 import {
   audienceLabel,
@@ -275,9 +279,16 @@ const Products = () => {
       if (variationTypes.length > 0) {
         payload.variationTypes = variationTypes;
       }
-      payload.sizeProfiles = sizeProfiles.filter((profile) =>
-        productForm.designedFor.includes(profile.audience),
-      );
+      {
+        const active = sizeProfiles.filter((profile) =>
+          productForm.designedFor.includes(profile.audience),
+        );
+        const typeOption = getProductTypeOption(
+          productForm.category,
+          active[0]?.productType ?? sizeProfiles[0]?.productType,
+        );
+        payload.sizeProfiles = typeOption && !typeOption.sizingApplicable ? [] : active;
+      }
 
       await adminService.createProduct(payload);
       toast.success(<span data-testid="success-toast">Product created</span>);
@@ -1041,7 +1052,10 @@ const Products = () => {
               <Label>Category</Label>
               <Select
                 value={productForm.category}
-                onValueChange={(v) => setProductForm({ ...productForm, category: v })}
+                onValueChange={(v) => {
+                  setProductForm({ ...productForm, category: v });
+                  setSizeProfiles([]);
+                }}
               >
                 <SelectTrigger data-testid="admin-product-category">
                   <SelectValue placeholder="Category" />
@@ -1053,14 +1067,20 @@ const Products = () => {
                 </SelectContent>
               </Select>
             </div>
-            <DesignedForField
-              value={productForm.designedFor}
-              onChange={(designedFor) =>
-                setProductForm({ ...productForm, designedFor })
-              }
-              required={requiresProductAudience(productForm.category)}
-              disabled={adding}
-            />
+            <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+              <p className="text-sm font-medium">Who is this product for?</p>
+              <p className="text-xs text-muted-foreground">
+                Used for clothing and footwear size charts. Colour and material options stay shared.
+              </p>
+              <DesignedForField
+                value={productForm.designedFor}
+                onChange={(designedFor) =>
+                  setProductForm({ ...productForm, designedFor })
+                }
+                required={requiresProductAudience(productForm.category)}
+                disabled={adding}
+              />
+            </div>
             <ProductSizingEditor
               category={productForm.category}
               audiences={productForm.designedFor}
@@ -1068,6 +1088,9 @@ const Products = () => {
               onChange={setSizeProfiles}
               disabled={adding}
             />
+            <p className="text-xs text-muted-foreground">
+              Colours and materials are configured separately and stay shared across audiences.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Min price (₦)</Label>
