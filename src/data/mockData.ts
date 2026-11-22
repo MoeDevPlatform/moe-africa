@@ -42,6 +42,7 @@ export interface Product {
   isHighDemand?: boolean;
   /** Artisan-configured variation types. Empty / missing enabled types ⇒ fixed product. */
   variationTypes?: import("@/lib/productVariations").ProductVariationTypeDef[];
+  sizeProfiles?: import("@/lib/productSizing").ProductSizeProfile[];
 }
 
 export interface Provider {

@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { PRODUCT_CATEGORIES, toCategoryValue } from "@/lib/categories";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
+import ProductSizingEditor from "@/components/products/ProductSizingEditor";
+import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
 import DesignedForField from "@/components/products/DesignedForField";
 import {
   requiresProductAudience,
@@ -58,6 +60,7 @@ type ProductFieldErrors = {
   priceMax?: string;
   estimatedDelivery?: string;
   designedFor?: string;
+  sizeProfiles?: string;
 };
 
 interface UploadedImage {
@@ -90,6 +93,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
+  const [sizeProfiles, setSizeProfiles] = useState<ProductSizeProfile[]>([]);
 
   // Hydrate form when opening in edit mode (or reset when switching back to add).
   useEffect(() => {
@@ -129,6 +133,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       setVariationTypes(
         Array.isArray(editProduct.variationTypes) ? editProduct.variationTypes : [],
       );
+      setSizeProfiles(Array.isArray(editProduct.sizeProfiles) ? editProduct.sizeProfiles : []);
     } else {
       setForm({
         name: "",
@@ -144,6 +149,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       });
       setImages([]);
       setVariationTypes([]);
+      setSizeProfiles([]);
     }
     setSubmitError("");
     setFieldErrors({});
@@ -222,6 +228,8 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
     if (requiresProductAudience(form.category) && form.designedFor.length === 0) {
       errors.designedFor = "Select at least one audience for clothing or footwear.";
     }
+    const sizingError = validateSizeProfiles(form.category, form.designedFor, sizeProfiles);
+    if (sizingError) errors.sizeProfiles = sizingError;
 
     const min = Number(form.priceMin);
     const max = Number(form.priceMax);
@@ -289,6 +297,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
         payload.images = imageUrls;
       }
       payload.variationTypes = variationTypes;
+      payload.sizeProfiles = sizeProfiles.filter((profile) => form.designedFor.includes(profile.audience));
 
       if (isEdit && editProduct) {
         await artisanService.updateProduct(editProduct.id, payload);
@@ -320,6 +329,7 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
       images.forEach((i) => i.previewUrl && i.previewUrl.startsWith("blob:") && URL.revokeObjectURL(i.previewUrl));
       setImages([]);
       setVariationTypes([]);
+      setSizeProfiles([]);
       setForm({
         name: "", description: "", category: "", priceMin: "", priceMax: "",
         materials: "", estimatedDelivery: "", tags: [], stockCount: "",
@@ -411,10 +421,20 @@ const AddProductModal = ({ open, onOpenChange, onProductAdded, editProduct }: Ad
             error={fieldErrors.designedFor}
           />
 
+          <ProductSizingEditor
+            category={form.category}
+            audiences={form.designedFor}
+            value={sizeProfiles}
+            onChange={setSizeProfiles}
+            disabled={isSubmitting}
+            error={fieldErrors.sizeProfiles}
+          />
+
           <ProductVariationsEditor
             category={form.category}
             value={variationTypes}
             onChange={setVariationTypes}
+            hideStructuredSizing={requiresProductAudience(form.category)}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

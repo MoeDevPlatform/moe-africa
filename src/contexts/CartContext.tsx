@@ -3,6 +3,7 @@ import { cartService } from "@/lib/apiServices";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast as sonnerToast } from "sonner";
 import { trackBehaviour } from "@/lib/trackBehaviour";
+import type { ProductSizingSelection, ProductSizingSnapshot } from "@/lib/productSizing";
 
 export interface CartItem {
   id: string;
@@ -15,6 +16,7 @@ export interface CartItem {
   category: "tailoring" | "shoemaking" | "canvas";
   selectedSize?: string;
   selectedBodyType?: string;
+  selectedSizing?: ProductSizingSelection | ProductSizingSnapshot;
   selectedVariants: Record<string, string>;
   measurements: Record<string, string>;
   notes: string;
@@ -105,6 +107,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             category: i.category as CartItem["category"],
             selectedSize: i.selectedSize,
             selectedBodyType: i.selectedBodyType,
+            selectedSizing: i.selectedSizing,
             selectedVariants: i.selectedVariants || {},
             measurements: i.measurements || {},
             notes: i.notes || "",

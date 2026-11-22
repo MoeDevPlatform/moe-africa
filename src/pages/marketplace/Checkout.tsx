@@ -200,6 +200,7 @@ const Checkout = () => {
             quantity: item.quantity,
             selectedVariations: item.selectedVariations ?? item.selectedVariants,
             selectedVariants: item.selectedVariants,
+            selectedSizing: item.selectedSizing,
             customisation: item.customisation,
             rushOrder: item.rushOrder === true,
           })),
@@ -490,8 +491,15 @@ const Checkout = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {cartItems.length > 0 ? cartItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.productName} ×{item.quantity}</span>
+                  <div key={item.id} className="flex justify-between gap-4 text-sm">
+                    <span className="text-muted-foreground">
+                      {item.productName} ×{item.quantity}
+                      {(item.selectedSizing?.audience || item.selectedSize) && (
+                        <span className="mt-0.5 block text-xs capitalize">
+                          {[item.selectedSizing?.audience, item.selectedSize].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </span>
                     <span className="font-medium">₦{(item.finalPrice * item.quantity).toLocaleString()}</span>
                   </div>
                 )) : (

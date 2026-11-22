@@ -28,6 +28,7 @@ import {
   type Order,
   type OrderStatusHistoryEntry,
 } from "@/lib/apiServices";
+import type { ProductSizingSnapshot } from "@/lib/productSizing";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -130,6 +131,7 @@ const OrderDetail = () => {
   }
 
   const addr = order.shippingAddress;
+  const sizing = order.customisationData?.selectedSizing as ProductSizingSnapshot | undefined;
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
@@ -193,6 +195,18 @@ const OrderDetail = () => {
               <span className="text-muted-foreground">Total</span>
               <span className="font-bold text-primary">₦{order.price.toLocaleString()}</span>
             </div>
+            {sizing && (
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <p className="font-medium">Order size specification</p>
+                <dl className="mt-2 grid grid-cols-2 gap-2">
+                  <div><dt className="text-xs text-muted-foreground">Designed For</dt><dd className="capitalize">{sizing.audience}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Size</dt><dd>{sizing.size?.label ?? "Made to measure"}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Sizing system</dt><dd>{sizing.sizingSystem}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Chart version</dt><dd>{sizing.profileVersion}</dd></div>
+                  {sizing.fitChoice && <div className="col-span-2"><dt className="text-xs text-muted-foreground">Fit preference</dt><dd>{sizing.fitChoice.label}</dd></div>}
+                </dl>
+              </div>
+            )}
             <Separator />
             <div className="text-sm">
               <p className="font-medium mb-1">Ship to</p>

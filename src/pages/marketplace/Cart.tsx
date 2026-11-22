@@ -96,6 +96,12 @@ const Cart = () => {
                               <span className="text-muted-foreground">Size:</span> <strong>{item.selectedSize}</strong>
                             </p>
                           )}
+                          {item.selectedSizing?.audience && (
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Designed For:</span>{" "}
+                              <strong className="capitalize">{item.selectedSizing.audience}</strong>
+                            </p>
+                          )}
                           {item.selectedBodyType && (
                             <p className="text-sm">
                               <span className="text-muted-foreground">Body Type:</span> <strong>{item.selectedBodyType}</strong>
@@ -257,4 +263,3 @@ const Cart = () => {
 };
 
 export default Cart;
-

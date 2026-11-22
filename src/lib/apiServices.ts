@@ -651,6 +651,7 @@ const normalizeProduct = (raw: Record<string, any>): Product => {
       const variationTypes = normalizeVariationTypes(raw.variationTypes);
       return variationTypes ? { variationTypes } : {};
     })(),
+    ...(Array.isArray(raw.sizeProfiles) ? { sizeProfiles: raw.sizeProfiles } : {}),
   };
 };
 
@@ -1087,6 +1088,7 @@ export interface OrderItem {
   selectedVariations?: Record<string, string>;
   selectedVariants?: Record<string, string>;
   customisation?: Record<string, string | string[]>;
+  selectedSizing?: import("@/lib/productSizing").ProductSizingSelection | import("@/lib/productSizing").ProductSizingSnapshot;
 }
 
 export interface ShippingAddress {
@@ -2397,6 +2399,7 @@ export interface CartItemApi {
   category: string;
   selectedSize?: string;
   selectedBodyType?: string;
+  selectedSizing?: import("@/lib/productSizing").ProductSizingSelection | import("@/lib/productSizing").ProductSizingSnapshot;
   selectedVariants: Record<string, string>;
   measurements: Record<string, string>;
   notes?: string;
@@ -3245,6 +3248,11 @@ export const adminService = {
     apiPost<AdminProductRow>("/admin/products", body),
   updateProductAudience: (id: number, designedFor: string[]) =>
     apiPatch<Product>(`/admin/products/${id}/audience`, { designedFor }),
+  updateProductSizing: (
+    id: number,
+    designedFor: string[],
+    sizeProfiles: import("@/lib/productSizing").ProductSizeProfile[],
+  ) => apiPatch<Product>(`/admin/products/${id}/sizing`, { designedFor, sizeProfiles }),
   bulkUpdateProductAudience: (items: Array<{ id: number; designedFor: string[] }>) =>
     apiPost<{ updated: number }>("/admin/products/classification/bulk-approve", { items }),
   /** Admin product image upload (Cloudinary `moe/products`). Field name: `file`. */

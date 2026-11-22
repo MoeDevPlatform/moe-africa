@@ -71,6 +71,8 @@ import {
 } from "@/lib/apiServices";
 import ProductVariationsEditor from "@/components/artisan/ProductVariationsEditor";
 import type { ProductVariationTypeDef } from "@/lib/productVariations";
+import ProductSizingEditor from "@/components/products/ProductSizingEditor";
+import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
 import DesignedForField from "@/components/products/DesignedForField";
 import {
   audienceLabel,
@@ -141,6 +143,7 @@ const Products = () => {
     designedFor: [] as ProductAudience[],
   });
   const [variationTypes, setVariationTypes] = useState<ProductVariationTypeDef[]>([]);
+  const [sizeProfiles, setSizeProfiles] = useState<ProductSizeProfile[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -181,6 +184,7 @@ const Products = () => {
       designedFor: [],
     });
     setVariationTypes([]);
+    setSizeProfiles([]);
     images.forEach((i) => {
       if (i.previewUrl.startsWith("blob:")) URL.revokeObjectURL(i.previewUrl);
     });
@@ -241,6 +245,15 @@ const Products = () => {
       toast.error("Select at least one Designed For audience");
       return;
     }
+    const sizingError = validateSizeProfiles(
+      productForm.category,
+      productForm.designedFor,
+      sizeProfiles,
+    );
+    if (sizingError) {
+      toast.error(sizingError);
+      return;
+    }
     setAdding(true);
     try {
       const imageUrls = images.map((i) => i.url).filter(Boolean);
@@ -262,6 +275,9 @@ const Products = () => {
       if (variationTypes.length > 0) {
         payload.variationTypes = variationTypes;
       }
+      payload.sizeProfiles = sizeProfiles.filter((profile) =>
+        productForm.designedFor.includes(profile.audience),
+      );
 
       await adminService.createProduct(payload);
       toast.success(<span data-testid="success-toast">Product created</span>);
@@ -983,7 +999,7 @@ const Products = () => {
           if (!open) resetAddForm();
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[calc(100dvh-3rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add product</DialogTitle>
             <DialogDescription>POST /admin/products for an artisan.</DialogDescription>
@@ -1043,6 +1059,13 @@ const Products = () => {
                 setProductForm({ ...productForm, designedFor })
               }
               required={requiresProductAudience(productForm.category)}
+              disabled={adding}
+            />
+            <ProductSizingEditor
+              category={productForm.category}
+              audiences={productForm.designedFor}
+              value={sizeProfiles}
+              onChange={setSizeProfiles}
               disabled={adding}
             />
             <div className="grid grid-cols-2 gap-3">
@@ -1129,9 +1152,10 @@ const Products = () => {
               category={productForm.category}
               value={variationTypes}
               onChange={setVariationTypes}
+              hideStructuredSizing={requiresProductAudience(productForm.category)}
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky -bottom-6 -mx-6 border-t bg-card px-6 py-4">
             <Button
               variant="outline"
               onClick={() => {

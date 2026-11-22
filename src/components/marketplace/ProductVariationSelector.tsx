@@ -27,6 +27,7 @@ interface ProductVariationSelectorProps {
     allRequiredSelected: boolean,
     displayPrice: number,
   ) => void;
+  structuredSizing?: boolean;
 }
 
 function optionTestId(typeName: string, opt: VariationOptionDef, soldOut: boolean): string {
@@ -49,8 +50,14 @@ const ProductVariationSelector = ({
   variationTypes,
   basePrice,
   onSelectionChange,
+  structuredSizing = false,
 }: ProductVariationSelectorProps) => {
-  const types = useMemo(() => enabledTypes(variationTypes ?? []), [variationTypes]);
+  const types = useMemo(
+    () => enabledTypes(variationTypes ?? []).filter((type) =>
+      !structuredSizing || !["size", "shoe_size", "body_type"].includes(type.typeName),
+    ),
+    [structuredSizing, variationTypes],
+  );
   const [selection, setSelection] = useState<VariationSelection>({});
 
   const required = useMemo(() => requiredTypeNames(types), [types]);

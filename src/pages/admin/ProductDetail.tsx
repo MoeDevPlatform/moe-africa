@@ -31,6 +31,8 @@ import { FALLBACK_IMAGE } from "@/lib/imageFallback";
 import { formatAdminTimestamp } from "@/lib/adminTimestamps";
 import DesignedForField from "@/components/products/DesignedForField";
 import { requiresProductAudience, type ProductAudience } from "@/lib/productAudience";
+import ProductSizingEditor from "@/components/products/ProductSizingEditor";
+import { validateSizeProfiles, type ProductSizeProfile } from "@/lib/productSizing";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -45,6 +47,8 @@ const ProductDetailPage = () => {
   const [removing, setRemoving] = useState(false);
   const [designedFor, setDesignedFor] = useState<ProductAudience[]>([]);
   const [savingAudience, setSavingAudience] = useState(false);
+  const [sizeProfiles, setSizeProfiles] = useState<ProductSizeProfile[]>([]);
+  const [savingSizing, setSavingSizing] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -60,6 +64,7 @@ const ProductDetailPage = () => {
               ? p.audienceSuggestion
               : [],
         );
+        setSizeProfiles(Array.isArray(p.sizeProfiles) ? p.sizeProfiles : []);
       })
       .catch((e: any) => {
         if (e?.status === 404) setNotFound(true);
@@ -121,6 +126,26 @@ const ProductDetailPage = () => {
       toast.error(error instanceof Error ? error.message : "Could not save classification");
     } finally {
       setSavingAudience(false);
+    }
+  };
+
+  const saveSizing = async () => {
+    if (!product) return;
+    const activeProfiles = sizeProfiles.filter((profile) => designedFor.includes(profile.audience));
+    const validation = validateSizeProfiles(product.category, designedFor, activeProfiles);
+    if (validation) {
+      toast.error(validation);
+      return;
+    }
+    setSavingSizing(true);
+    try {
+      await adminService.updateProductSizing(Number(product.id), designedFor, activeProfiles);
+      toast.success("Audience-specific sizing saved");
+      load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save sizing");
+    } finally {
+      setSavingSizing(false);
     }
   };
 
@@ -247,6 +272,24 @@ const ProductDetailPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {requiresProductAudience(product.category) && (
+              <Card>
+                <CardHeader><CardTitle>Size & Fit configuration</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <ProductSizingEditor
+                    category={product.category}
+                    audiences={designedFor}
+                    value={sizeProfiles}
+                    onChange={setSizeProfiles}
+                    disabled={savingSizing}
+                  />
+                  <Button onClick={() => void saveSizing()} disabled={savingSizing}>
+                    {savingSizing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Size & Fit"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </>
         ) : null}
       </div>

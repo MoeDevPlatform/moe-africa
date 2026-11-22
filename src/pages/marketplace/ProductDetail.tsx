@@ -11,6 +11,8 @@ import ProductCard from "@/components/marketplace/ProductCard";
 import ProductVariationSelector, {
   type VariationSelection,
 } from "@/components/marketplace/ProductVariationSelector";
+import ProductSizingSelector from "@/components/marketplace/ProductSizingSelector";
+import type { ProductSizingSelection } from "@/lib/productSizing";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,6 +56,8 @@ const ProductDetail = () => {
   const [rushOrderCost, setRushOrderCost] = useState(0);
   const [variations, setVariations] = useState<VariationSelection>({});
   const [variationsReady, setVariationsReady] = useState(true);
+  const [sizingSelection, setSizingSelection] = useState<ProductSizingSelection | null>(null);
+  const [sizingReady, setSizingReady] = useState(true);
   const [displayPrice, setDisplayPrice] = useState<number | null>(null);
   const [priceKey, setPriceKey] = useState(0);
   const { addItem, removeItem, isInWishlist } = useWishlist();
@@ -74,6 +78,11 @@ const ProductDetail = () => {
     },
     [],
   );
+
+  const onSizingChange = useCallback((selection: ProductSizingSelection | null, ready: boolean) => {
+    setSizingSelection(selection);
+    setSizingReady(ready);
+  }, []);
 
   // Scroll to top when product changes
   useEffect(() => {
@@ -217,7 +226,10 @@ const ProductDetail = () => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   const handleAddToCart = () => {
-    if (!product || !provider || !variationsReady) return;
+    if (!product || !provider || !variationsReady || !sizingReady) return;
+    const selectedProfile = product.sizeProfiles?.find((profile) => profile.id === sizingSelection?.profileId);
+    const selectedSize = selectedProfile?.sizes.find((size) => size.id === sizingSelection?.sizeId);
+    const selectedFit = selectedProfile?.fitChoices.find((fit) => fit.id === sizingSelection?.fitChoiceId);
     const unit = (displayPrice ?? product.priceRange?.min ?? 0) + rushOrderCost;
     addToCart({
       id: `${product.id}-${Date.now()}`,
@@ -228,8 +240,9 @@ const ProductDetail = () => {
       basePrice: unit,
       finalPrice: unit,
       category: (product.category as "tailoring" | "shoemaking" | "canvas") || "tailoring",
-      selectedSize: variations.size || variations.shoe_size,
-      selectedBodyType: variations.body_type,
+      selectedSize: selectedSize?.label || variations.size || variations.shoe_size,
+      selectedBodyType: selectedFit?.label || variations.body_type,
+      selectedSizing: sizingSelection ?? undefined,
       selectedVariants: variations,
       selectedVariations: variations,
       measurements: {},
@@ -251,11 +264,11 @@ const ProductDetail = () => {
         size="lg"
         className="w-full bg-primary hover:bg-primary-dark"
         data-testid="add-to-cart-btn"
-        disabled={!variationsReady}
+        disabled={!variationsReady || !sizingReady}
         onClick={handleAddToCart}
       >
         <ShoppingCart className="h-4 w-4 mr-2" />
-        {variationsReady ? "Add to Cart" : "Select options to add to cart"}
+        {variationsReady && sizingReady ? "Add to Cart" : "Select size and required options"}
       </Button>
       <Button
         size="lg"
@@ -475,11 +488,17 @@ const ProductDetail = () => {
             )}
 
             {/* Inline variations — omitted when product has no enabled variation types */}
+            <ProductSizingSelector
+              profiles={product.sizeProfiles}
+              onSelectionChange={onSizingChange}
+            />
+
             <ProductVariationSelector
               category={product.category}
               variationTypes={product.variationTypes}
               basePrice={priceMin}
               onSelectionChange={onVariationChange}
+              structuredSizing={(product.sizeProfiles?.length ?? 0) > 0}
             />
 
             {/* 8. Tags */}

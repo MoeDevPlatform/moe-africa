@@ -15,14 +15,21 @@ interface ProductVariationsEditorProps {
   category: string;
   value: ProductVariationTypeDef[];
   onChange: (next: ProductVariationTypeDef[]) => void;
+  hideStructuredSizing?: boolean;
 }
 
 const ProductVariationsEditor = ({
   category,
   value,
   onChange,
+  hideStructuredSizing = false,
 }: ProductVariationsEditorProps) => {
-  const catalog = useMemo(() => catalogForCategory(category), [category]);
+  const catalog = useMemo(
+    () => catalogForCategory(category).filter((item) =>
+      !hideStructuredSizing || !["size", "shoe_size", "body_type"].includes(item.typeName),
+    ),
+    [category, hideStructuredSizing],
+  );
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
